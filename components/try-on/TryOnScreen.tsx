@@ -24,9 +24,10 @@ export default function TryOnScreen() {
   const layersOpen = panel === "layers";
 
   return (
-    // Экран занимает ровно высоту окна над нижней навигацией.
-    <div className="flex h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom))] flex-col gap-4 pb-4 pt-[calc(1.5rem+env(safe-area-inset-top))]">
-      <header className="relative flex items-center justify-between">
+    // Экран закреплён между верхом окна и нижней навигацией (4.5rem + 1px рамки),
+    // поэтому на любом телефоне аватар растягивается на всю оставшуюся высоту.
+    <div className="fixed inset-x-0 top-0 bottom-[calc(4.5rem+1px+env(safe-area-inset-bottom))] mx-auto flex w-full max-w-[430px] flex-col gap-3 px-6 pb-3 pt-[calc(1.5rem+env(safe-area-inset-top))]">
+      <header className="relative flex shrink-0 items-center justify-between">
         <h1 className="font-serif text-4xl font-medium leading-none tracking-tight">
           Примерка
         </h1>
@@ -52,8 +53,8 @@ export default function TryOnScreen() {
       </header>
 
       {/* Аватар пользователя — пока серый силуэт */}
-      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-card bg-gradient-to-b from-beige to-[#e9dfd2]">
-        <Silhouette variant="filled" className="h-[82%] w-auto text-text/15" />
+      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-card bg-gradient-to-b from-beige to-[#e9dfd2] px-8 py-[6%]">
+        <Silhouette variant="filled" className="h-full w-full text-text/15" />
         {toast && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-text px-4 py-2 text-sm text-background">
             {toast}
@@ -61,7 +62,7 @@ export default function TryOnScreen() {
         )}
       </div>
 
-      <section className="flex flex-col gap-4 rounded-card border border-border bg-surface p-5">
+      <section className="flex shrink-0 flex-col gap-4 rounded-card border border-border bg-surface p-5">
         {layersOpen ? (
           <WornList
             items={worn}
