@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Heart } from "lucide-react";
 import {
   FILTER_ICONS,
   MOCK_THUMBNAILS,
@@ -29,12 +30,15 @@ export default function ClothesPicker() {
                 setFilter(f);
                 setSelected(0);
               }}
-              className={`shrink-0 rounded-full border px-4 py-1.5 text-sm transition-colors ${
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm transition-colors ${
                 active
                   ? "border-text bg-text text-background"
                   : "border-border bg-surface text-text hover:border-text/30"
               }`}
             >
+              {f === "Избранное" && (
+                <Heart size={14} strokeWidth={1.75} className="fill-pink text-pink" />
+              )}
               {f}
             </button>
           );
