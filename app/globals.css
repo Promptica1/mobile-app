@@ -1,5 +1,25 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens — единственное место, где заданы цвета и шрифты.
+ * Используются в классах Tailwind: bg-background, text-text, bg-lavender,
+ * bg-lime, border-border, text-muted, font-sans, font-serif.
+ */
 @theme {
   --color-background: #faf8f6;
+  --color-surface: #ffffff;
+  --color-text: #2c2c2a;
+  --color-muted: #a3a09b;
+  --color-border: #ebe7e2;
+  --color-lavender: #b9a8f0;
+  --color-lime: #d8f27f;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-cormorant), ui-serif, Georgia, serif;
+
+  --radius-card: 1.25rem;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
 }
