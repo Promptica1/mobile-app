@@ -3,7 +3,7 @@
 /*
  * Design tokens — единственное место, где заданы цвета и шрифты.
  * Используются в классах Tailwind: bg-background, text-text, bg-lavender, text-pink,
- * text-green, bg-beige, bg-lime, border-border, text-muted, font-sans, font-serif.
+ * text-green, bg-beige, text-danger, bg-lime, border-border, text-muted, font-sans, font-serif.
  */
 @theme {
   --color-background: #faf8f6;
@@ -16,6 +16,7 @@
   --color-pink: #f08fae;
   --color-green: #6fae7c;
   --color-beige: #f3ece3;
+  --color-danger: #d0534f;
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-cormorant), ui-serif, Georgia, serif;

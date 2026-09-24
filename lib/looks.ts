@@ -32,3 +32,17 @@ export const MOCK_LOOKS: Look[] = [
 export function formatLookCount(n: number): string {
   return plural(n, ["образ", "образа", "образов"]);
 }
+
+export function getLook(id: string): Look | undefined {
+  return MOCK_LOOKS.find((look) => look.id === id);
+}
+
+export type LookPiece = { id: string; name: string; kind: "tshirt" | "jacket" | "jeans" | "shoes" };
+
+// Тестовые данные: из каких вещей состоит образ (пока одинаково для всех образов).
+export const MOCK_LOOK_PIECES: LookPiece[] = [
+  { id: "p1", name: "Белая футболка", kind: "tshirt" },
+  { id: "p2", name: "Кожаная куртка", kind: "jacket" },
+  { id: "p3", name: "Синие джинсы", kind: "jeans" },
+  { id: "p4", name: "Белые кеды", kind: "shoes" },
+];
