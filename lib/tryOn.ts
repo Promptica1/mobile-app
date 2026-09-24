@@ -20,14 +20,45 @@ export const FILTER_ICONS: Record<TryOnFilter, LucideIcon> = {
   Аксессуары: Gem,
 };
 
-// Тестовые данные: сколько вещей показывать в ленте каждой категории.
-export const MOCK_THUMBNAILS: Record<TryOnFilter, string[]> = {
-  Избранное: ["f1", "f2", "f3"],
-  Верх: ["t1", "t2", "t3", "t4", "t5", "t6"],
-  Низ: ["b1", "b2", "b3", "b4"],
-  Верхняя: ["o1", "o2", "o3"],
-  Обувь: ["s1", "s2", "s3"],
-  Аксессуары: ["a1", "a2", "a3", "a4"],
+export type TryOnItem = { id: string; name: string };
+
+// Тестовые данные: вещи в ленте каждой категории.
+export const MOCK_THUMBNAILS: Record<TryOnFilter, TryOnItem[]> = {
+  Избранное: [
+    { id: "f1", name: "Льняная рубашка" },
+    { id: "f2", name: "Белые кеды" },
+    { id: "f3", name: "Кожаная сумка" },
+  ],
+  Верх: [
+    { id: "t1", name: "Белая футболка" },
+    { id: "t2", name: "Льняная рубашка" },
+    { id: "t3", name: "Кашемировый свитер" },
+    { id: "t4", name: "Шёлковая блузка" },
+    { id: "t5", name: "Полосатый лонгслив" },
+    { id: "t6", name: "Чёрная водолазка" },
+  ],
+  Низ: [
+    { id: "b1", name: "Синие джинсы" },
+    { id: "b2", name: "Юбка миди" },
+    { id: "b3", name: "Льняные брюки" },
+    { id: "b4", name: "Чёрные шорты" },
+  ],
+  Верхняя: [
+    { id: "o1", name: "Кожаная куртка" },
+    { id: "o2", name: "Тренч" },
+    { id: "o3", name: "Шерстяное пальто" },
+  ],
+  Обувь: [
+    { id: "s1", name: "Белые кеды" },
+    { id: "s2", name: "Лоферы" },
+    { id: "s3", name: "Кожаные ботинки" },
+  ],
+  Аксессуары: [
+    { id: "a1", name: "Кожаная сумка" },
+    { id: "a2", name: "Шёлковый платок" },
+    { id: "a3", name: "Солнцезащитные очки" },
+    { id: "a4", name: "Кожаный ремень" },
+  ],
 };
 
 export type WornItem = { id: string; name: string; category: string };

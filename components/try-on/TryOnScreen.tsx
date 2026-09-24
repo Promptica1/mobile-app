@@ -62,7 +62,7 @@ export default function TryOnScreen() {
         )}
       </div>
 
-      <section className="flex shrink-0 flex-col gap-4 rounded-card border border-border bg-surface p-5">
+      <section className="flex shrink-0 flex-col gap-3 rounded-card border border-border bg-surface p-4">
         {layersOpen ? (
           <WornList
             items={worn}
