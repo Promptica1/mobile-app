@@ -12,11 +12,12 @@ import {
 import CategoryFilters from "./CategoryFilters";
 import EmptyWardrobe from "./EmptyWardrobe";
 import ItemCard from "./ItemCard";
+import SearchField from "./SearchField";
 
 export default function WardrobeScreen() {
   const [items, setItems] = useState<WardrobeItem[]>(MOCK_ITEMS);
-  // Фильтр пока только визуальный — список не фильтруется.
   const [filter, setFilter] = useState<Filter>("Все");
+  const [query, setQuery] = useState("");
 
   const toggleFavorite = (id: string) =>
     setItems((prev) =>
@@ -26,6 +27,15 @@ export default function WardrobeScreen() {
     );
 
   const isEmpty = items.length === 0;
+
+  // Поиск по названию работает внутри выбранной категории.
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleItems = items.filter((item) => {
+    const matchesFilter =
+      filter === "Все" ||
+      (filter === "Избранное" ? item.favorite : item.category === filter);
+    return matchesFilter && item.name.toLowerCase().includes(normalizedQuery);
+  });
 
   return (
     <div className="flex flex-1 flex-col">
@@ -50,7 +60,8 @@ export default function WardrobeScreen() {
         </div>
 
         {!isEmpty && (
-          <div className="mt-5">
+          <div className="mt-5 flex flex-col gap-4">
+            <SearchField value={query} onChange={setQuery} />
             <CategoryFilters selected={filter} onSelect={setFilter} />
           </div>
         )}
@@ -58,9 +69,11 @@ export default function WardrobeScreen() {
 
       {isEmpty ? (
         <EmptyWardrobe />
+      ) : visibleItems.length === 0 ? (
+        <p className="py-16 text-center text-sm text-muted">Ничего не найдено</p>
       ) : (
         <div className="grid grid-cols-2 gap-x-4 gap-y-6 pt-2">
-          {items.map((item) => (
+          {visibleItems.map((item) => (
             <ItemCard key={item.id} item={item} onToggleFavorite={toggleFavorite} />
           ))}
         </div>
