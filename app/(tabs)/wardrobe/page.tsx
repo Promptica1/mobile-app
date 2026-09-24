@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import PageTitle from "@/components/PageTitle";
+import WardrobeScreen from "@/components/wardrobe/WardrobeScreen";
 
 export const metadata: Metadata = { title: "Гардероб — Digital Wardrobe" };
 
 export default function WardrobePage() {
-  return <PageTitle>Гардероб</PageTitle>;
+  return <WardrobeScreen />;
 }
