@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import PageTitle from "@/components/PageTitle";
+import ProfileScreen from "@/components/profile/ProfileScreen";
 
 export const metadata: Metadata = { title: "Профиль — Digital Wardrobe" };
 
 export default function ProfilePage() {
-  return <PageTitle>Профиль</PageTitle>;
+  return <ProfileScreen />;
 }
