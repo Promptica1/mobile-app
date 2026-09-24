@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function EmptyWardrobe() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
@@ -22,12 +24,12 @@ export default function EmptyWardrobe() {
       <p className="mt-3 max-w-[260px] text-sm leading-relaxed text-muted">
         Добавьте первую вещь — сфотографируйте или загрузите фото
       </p>
-      <button
-        type="button"
+      <Link
+        href="/add-item"
         className="mt-8 rounded-full bg-lime px-8 py-3.5 text-sm font-medium text-text transition-transform active:scale-[0.98]"
       >
         Добавить вещь
-      </button>
+      </Link>
     </div>
   );
 }

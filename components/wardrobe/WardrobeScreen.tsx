@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Plus } from "lucide-react";
 import {
   MOCK_ITEMS,
@@ -39,13 +40,13 @@ export default function WardrobeScreen() {
               {formatItemCount(items.length)}
             </p>
           </div>
-          <button
-            type="button"
+          <Link
+            href="/add-item"
             aria-label="Добавить вещь"
             className="flex h-12 w-12 items-center justify-center rounded-2xl bg-lavender text-text transition-transform active:scale-95"
           >
             <Plus size={22} strokeWidth={1.75} />
-          </button>
+          </Link>
         </div>
 
         {!isEmpty && (
