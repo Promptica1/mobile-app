@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import PageTitle from "@/components/PageTitle";
+import LooksScreen from "@/components/looks/LooksScreen";
 
 export const metadata: Metadata = { title: "Образы — Digital Wardrobe" };
 
 export default function LooksPage() {
-  return <PageTitle>Образы</PageTitle>;
+  return <LooksScreen />;
 }
