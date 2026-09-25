@@ -25,9 +25,13 @@ Project → Settings → Environment Variables (после изменения н
 
 ## База данных
 
-SQL-схема (таблицы, Row Level Security, триггер профиля) лежит в
-`supabase/migrations/`. Запуск: Supabase → SQL Editor → New query →
-вставить содержимое файла → Run. Скрипт можно запускать повторно.
+SQL лежит в `supabase/migrations/` — запускайте файлы по порядку:
+Supabase → SQL Editor → New query → вставить содержимое файла → Run.
+Каждый скрипт можно запускать повторно.
+
+- `20260925120000_initial_schema.sql` — таблицы, Row Level Security, триггер профиля.
+- `20260926120000_storage_items_bucket.sql` — закрытый бакет `items` для фото
+  вещей и политики: каждый пользователь видит только свою папку.
 
 ## Деплой
 

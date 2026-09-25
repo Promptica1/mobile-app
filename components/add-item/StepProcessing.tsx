@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { Check, LoaderCircle, Shirt } from "lucide-react";
+import Photo from "@/components/ui/Photo";
 
 // Имитация обработки: через PROCESSING_MS переходим к шагу 3.
 const PROCESSING_MS = 2000;
@@ -12,7 +13,9 @@ const steps = [
   { label: "Распознаём цвет и материал", status: "pending" },
 ] as const;
 
-export default function StepProcessing({ onDone }: { onDone: () => void }) {
+type Props = { photoUrl: string | null; onDone: () => void };
+
+export default function StepProcessing({ photoUrl, onDone }: Props) {
   useEffect(() => {
     const timer = setTimeout(onDone, PROCESSING_MS);
     return () => clearTimeout(timer);
@@ -21,7 +24,13 @@ export default function StepProcessing({ onDone }: { onDone: () => void }) {
   return (
     <div className="flex flex-1 flex-col items-center">
       <div className="relative mt-4 flex aspect-square w-56 items-center justify-center overflow-hidden rounded-card border border-border bg-surface">
-        <Shirt size={72} strokeWidth={0.9} className="text-muted" />
+        {photoUrl ? (
+          <div className="absolute inset-3">
+            <Photo src={photoUrl} alt="Фото вещи" />
+          </div>
+        ) : (
+          <Shirt size={72} strokeWidth={0.9} className="text-muted" />
+        )}
         <span className="absolute inset-x-6 h-px animate-scan bg-lavender shadow-[0_0_12px_2px] shadow-lavender/60" />
       </div>
       <p className="mt-4 text-sm text-muted">анализируем фото…</p>

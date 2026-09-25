@@ -16,6 +16,8 @@ export type WardrobeItem = {
   image_url: string | null;
   is_favorite: boolean;
   created_at: string;
+  // Не колонка базы: временная ссылка на фото из закрытого бакета (см. lib/items.ts).
+  photo_url?: string | null;
 };
 
 export type NewWardrobeItem = Pick<

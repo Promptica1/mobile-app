@@ -1,4 +1,5 @@
 import { Footprints, Gem, Heart, Layers, Shirt, type LucideIcon } from "lucide-react";
+import Photo from "@/components/ui/Photo";
 import type { WardrobeItem } from "@/lib/wardrobe";
 
 // Иконка-заглушка, пока у вещей нет фото.
@@ -17,14 +18,23 @@ type Props = {
 
 export default function ItemCard({ item, onToggleFavorite }: Props) {
   const Icon = placeholderIcon[item.category] ?? Shirt;
+  const placeholder = (
+    <div className="absolute inset-3 flex items-center justify-center rounded-2xl bg-background">
+      <Icon size={28} strokeWidth={1.25} className="text-muted" />
+    </div>
+  );
 
   return (
     <article>
       <div className="relative aspect-square overflow-hidden rounded-card border border-border bg-surface">
-        {/* Заглушка вместо фото вещи */}
-        <div className="absolute inset-3 flex items-center justify-center rounded-2xl bg-background">
-          <Icon size={28} strokeWidth={1.25} className="text-muted" />
-        </div>
+        {/* Фото вещи; у вещей без фото (и если ссылка не открылась) — заглушка */}
+        {item.photo_url ? (
+          <div className="absolute inset-2">
+            <Photo src={item.photo_url} alt={item.name} fallback={placeholder} />
+          </div>
+        ) : (
+          placeholder
+        )}
         <button
           type="button"
           onClick={() => onToggleFavorite(item)}

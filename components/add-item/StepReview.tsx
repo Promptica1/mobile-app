@@ -1,8 +1,10 @@
-import { ChevronDown, RefreshCw, Shirt } from "lucide-react";
+import { ChevronDown, LoaderCircle, RefreshCw, Shirt } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import FormMessage from "@/components/ui/FormMessage";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { Button } from "@/components/ui/Button";
+import Photo from "@/components/ui/Photo";
+import { SaveItemError } from "@/lib/items";
 import { CATEGORIES, type NewWardrobeItem } from "@/lib/wardrobe";
 
 const COLORS: Record<string, string> = {
@@ -76,6 +78,9 @@ function SelectRow({
 }
 
 type Props = {
+  photoUrl: string | null;
+  preparing: boolean;
+  photoError: string;
   onRetake: () => void;
   onSubmit: (item: NewWardrobeItem) => Promise<void>;
 };
@@ -83,7 +88,7 @@ type Props = {
 // Пустая строка в необязательном поле сохраняется как null.
 const orNull = (value: string) => value.trim() || null;
 
-export default function StepReview({ onRetake, onSubmit }: Props) {
+export default function StepReview({ photoUrl, preparing, photoError, onRetake, onSubmit }: Props) {
   // AI пока не подключён: поля заполняет пользователь, категория — первая по умолчанию.
   const [name, setName] = useState("");
   const [category, setCategory] = useState<string>(CATEGORIES[0]);
@@ -111,8 +116,12 @@ export default function StepReview({ onRetake, onSubmit }: Props) {
         brand: orNull(brand),
         comment: orNull(comment),
       });
-    } catch {
-      setError("Не получилось сохранить вещь. Проверьте интернет и попробуйте ещё раз.");
+    } catch (err) {
+      setError(
+        err instanceof SaveItemError && err.stage === "upload"
+          ? "Не получилось загрузить фото. Проверьте интернет и попробуйте ещё раз."
+          : "Не получилось сохранить вещь. Проверьте интернет и попробуйте ещё раз.",
+      );
       setSaving(false);
     }
   }
@@ -120,8 +129,14 @@ export default function StepReview({ onRetake, onSubmit }: Props) {
   return (
     <form className="flex flex-1 flex-col gap-5" onSubmit={handleSubmit} noValidate>
       <div className="flex gap-4">
-        <div className="flex aspect-[3/4] w-32 shrink-0 items-center justify-center rounded-card border border-border bg-surface">
-          <Shirt size={44} strokeWidth={1} className="text-muted" />
+        <div className="flex aspect-[3/4] w-32 shrink-0 items-center justify-center overflow-hidden rounded-card border border-border bg-surface p-2">
+          {preparing ? (
+            <LoaderCircle size={24} strokeWidth={1.5} className="animate-spin text-lavender" />
+          ) : photoUrl ? (
+            <Photo src={photoUrl} alt="Фото вещи" />
+          ) : (
+            <Shirt size={44} strokeWidth={1} className="text-muted" />
+          )}
         </div>
         <div className="flex min-w-0 flex-1 flex-col justify-center gap-3">
           <Field label="Название">
@@ -138,7 +153,8 @@ export default function StepReview({ onRetake, onSubmit }: Props) {
         </div>
       </div>
 
-      <Button variant="secondary" onClick={onRetake}>
+      {photoError && <FormMessage tone="error">{photoError}</FormMessage>}
+      <Button variant="secondary" onClick={onRetake} disabled={saving || preparing}>
         <RefreshCw size={18} strokeWidth={1.75} />
         Загрузить другое фото
       </Button>
