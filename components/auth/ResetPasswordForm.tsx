@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { MIN_PASSWORD_LENGTH, authErrorMessage, validateNewPassword } from "@/lib/auth/errors";
 import AuthShell from "./AuthShell";
-import FormMessage from "./FormMessage";
-import SubmitButton from "./SubmitButton";
+import FormMessage from "@/components/ui/FormMessage";
+import SubmitButton from "@/components/ui/SubmitButton";
 import TextField from "./TextField";
 
 export default function ResetPasswordForm() {

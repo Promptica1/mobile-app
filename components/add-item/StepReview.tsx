@@ -1,8 +1,10 @@
-import { ChevronDown, RefreshCw, Shirt, Sparkles } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { ChevronDown, RefreshCw, Shirt } from "lucide-react";
+import { useState, type FormEvent, type ReactNode } from "react";
+import FormMessage from "@/components/ui/FormMessage";
+import SubmitButton from "@/components/ui/SubmitButton";
 import { Button } from "@/components/ui/Button";
+import { CATEGORIES, type NewWardrobeItem } from "@/lib/wardrobe";
 
-const CATEGORIES = ["Верхняя одежда", "Верх", "Низ", "Обувь", "Аксессуары"];
 const COLORS: Record<string, string> = {
   Чёрный: "#2c2c2a",
   Белый: "#ffffff",
@@ -75,26 +77,48 @@ function SelectRow({
 
 type Props = {
   onRetake: () => void;
-  onSubmit: () => void;
+  onSubmit: (item: NewWardrobeItem) => Promise<void>;
 };
 
+// Пустая строка в необязательном поле сохраняется как null.
+const orNull = (value: string) => value.trim() || null;
+
 export default function StepReview({ onRetake, onSubmit }: Props) {
-  // Значения «распознаны AI» — пока тестовые.
-  const [name, setName] = useState("Кожаная куртка");
-  const [category, setCategory] = useState("Верхняя одежда");
-  const [color, setColor] = useState("Чёрный");
+  // AI пока не подключён: поля заполняет пользователь, категория — первая по умолчанию.
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState<string>(CATEGORIES[0]);
+  const [color, setColor] = useState("");
   const [material, setMaterial] = useState("");
   const [brand, setBrand] = useState("");
   const [comment, setComment] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) {
+      setError("Добавьте название вещи — так её будет проще найти.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      await onSubmit({
+        name: name.trim(),
+        category,
+        color: orNull(color),
+        material: orNull(material),
+        brand: orNull(brand),
+        comment: orNull(comment),
+      });
+    } catch {
+      setError("Не получилось сохранить вещь. Проверьте интернет и попробуйте ещё раз.");
+      setSaving(false);
+    }
+  }
 
   return (
-    <form
-      className="flex flex-1 flex-col gap-5"
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSubmit();
-      }}
-    >
+    <form className="flex flex-1 flex-col gap-5" onSubmit={handleSubmit} noValidate>
       <div className="flex gap-4">
         <div className="flex aspect-[3/4] w-32 shrink-0 items-center justify-center rounded-card border border-border bg-surface">
           <Shirt size={44} strokeWidth={1} className="text-muted" />
@@ -103,14 +127,14 @@ export default function StepReview({ onRetake, onSubmit }: Props) {
           <Field label="Название">
             <input
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              className={`${rowClass} outline-none`}
+              onChange={(e) => {
+                setError("");
+                setName(e.target.value);
+              }}
+              placeholder="Например, тренч"
+              className={`${rowClass} outline-none placeholder:text-muted`}
             />
           </Field>
-          <span className="flex w-fit items-center gap-1.5 rounded-full bg-lavender/25 px-3 py-1.5 text-xs font-medium">
-            <Sparkles size={13} strokeWidth={1.75} />
-            Распознано AI
-          </span>
         </div>
       </div>
 
@@ -121,7 +145,7 @@ export default function StepReview({ onRetake, onSubmit }: Props) {
 
       <div className="flex flex-col gap-4">
         <Field label="Категория">
-          <SelectRow value={category} onChange={setCategory} options={CATEGORIES} />
+          <SelectRow value={category} onChange={setCategory} options={[...CATEGORIES]} />
         </Field>
         <Field label="Цвет" optional>
           <SelectRow
@@ -166,9 +190,12 @@ export default function StepReview({ onRetake, onSubmit }: Props) {
         </Field>
       </div>
 
-      <Button variant="lime" type="submit" className="mt-2">
-        Добавить в гардероб
-      </Button>
+      {error && <FormMessage tone="error">{error}</FormMessage>}
+      <div className="mt-2">
+        <SubmitButton loading={saving}>
+          {saving ? "Сохраняем…" : "Добавить в гардероб"}
+        </SubmitButton>
+      </div>
     </form>
   );
 }

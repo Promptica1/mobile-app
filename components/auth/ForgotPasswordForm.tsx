@@ -5,8 +5,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { authErrorMessage, validateEmail } from "@/lib/auth/errors";
 import AuthShell from "./AuthShell";
-import FormMessage from "./FormMessage";
-import SubmitButton from "./SubmitButton";
+import FormMessage from "@/components/ui/FormMessage";
+import SubmitButton from "@/components/ui/SubmitButton";
 import TextField from "./TextField";
 
 export default function ForgotPasswordForm() {

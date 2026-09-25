@@ -1,39 +1,54 @@
 import { plural } from "./plural";
 
-export type Category = "Верх" | "Низ" | "Обувь" | "Аксессуары";
+// Категории вещей — одни и те же для фильтров гардероба и формы добавления.
+export const CATEGORIES = ["Верх", "Низ", "Верхняя одежда", "Обувь", "Аксессуары"] as const;
+export type Category = (typeof CATEGORIES)[number];
 
+// Строка таблицы items (см. supabase/migrations).
 export type WardrobeItem = {
   id: string;
   name: string;
-  category: Category;
-  favorite: boolean;
+  category: string;
+  color: string | null;
+  material: string | null;
+  brand: string | null;
+  comment: string | null;
+  image_url: string | null;
+  is_favorite: boolean;
+  created_at: string;
 };
 
-export const FILTERS = [
-  "Все",
-  "Избранное",
-  "Верх",
-  "Низ",
-  "Обувь",
-  "Аксессуары",
-] as const;
+export type NewWardrobeItem = Pick<
+  WardrobeItem,
+  "name" | "category" | "color" | "material" | "brand" | "comment"
+>;
 
+export const FILTERS = ["Все", "Избранное", ...CATEGORIES] as const;
 export type Filter = (typeof FILTERS)[number];
 
-/*
- * Тестовые данные, пока нет настоящего хранилища.
- * Чтобы увидеть ПУСТОЙ экран гардероба, замените массив на пустой:
- *   export const MOCK_ITEMS: WardrobeItem[] = [];
- */
+// Тестовые данные — показываются, только пока Supabase не настроен.
+const mock = (id: string, name: string, category: Category, is_favorite: boolean): WardrobeItem => ({
+  id,
+  name,
+  category,
+  is_favorite,
+  color: null,
+  material: null,
+  brand: null,
+  comment: null,
+  image_url: null,
+  created_at: new Date(2026, 0, 20 - Number(id)).toISOString(),
+});
+
 export const MOCK_ITEMS: WardrobeItem[] = [
-  { id: "1", name: "Льняная рубашка", category: "Верх", favorite: true },
-  { id: "2", name: "Прямые джинсы", category: "Низ", favorite: false },
-  { id: "3", name: "Кашемировый свитер", category: "Верх", favorite: false },
-  { id: "4", name: "Белые кеды", category: "Обувь", favorite: true },
-  { id: "5", name: "Юбка миди", category: "Низ", favorite: false },
-  { id: "6", name: "Кожаная сумка", category: "Аксессуары", favorite: true },
-  { id: "7", name: "Тренч", category: "Верх", favorite: false },
-  { id: "8", name: "Лоферы", category: "Обувь", favorite: false },
+  mock("1", "Льняная рубашка", "Верх", true),
+  mock("2", "Прямые джинсы", "Низ", false),
+  mock("3", "Кашемировый свитер", "Верх", false),
+  mock("4", "Белые кеды", "Обувь", true),
+  mock("5", "Юбка миди", "Низ", false),
+  mock("6", "Кожаная сумка", "Аксессуары", true),
+  mock("7", "Тренч", "Верхняя одежда", false),
+  mock("8", "Лоферы", "Обувь", false),
 ];
 
 export function formatItemCount(n: number): string {

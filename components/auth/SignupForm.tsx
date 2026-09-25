@@ -11,9 +11,9 @@ import {
   validateNewPassword,
 } from "@/lib/auth/errors";
 import AuthShell from "./AuthShell";
-import FormMessage from "./FormMessage";
+import FormMessage from "@/components/ui/FormMessage";
 import SocialButtons from "./SocialButtons";
-import SubmitButton from "./SubmitButton";
+import SubmitButton from "@/components/ui/SubmitButton";
 import TextField from "./TextField";
 
 export default function SignupForm() {

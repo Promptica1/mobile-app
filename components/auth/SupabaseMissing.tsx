@@ -1,6 +1,6 @@
 import Link from "next/link";
 import AuthShell from "./AuthShell";
-import FormMessage from "./FormMessage";
+import FormMessage from "@/components/ui/FormMessage";
 
 // Показывается вместо формы, пока не заданы ключи Supabase.
 export default function SupabaseMissing() {

@@ -2,6 +2,8 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createItem } from "@/lib/items";
+import type { NewWardrobeItem } from "@/lib/wardrobe";
 import StepHeader from "./StepHeader";
 import StepPhoto from "./StepPhoto";
 import StepProcessing from "./StepProcessing";
@@ -24,13 +26,20 @@ export default function AddItemFlow() {
   const handleBack = () => (step === 1 ? goToWardrobe() : setStep(1));
   const handleProcessed = useCallback(() => setStep(3), []);
 
+  // Сохраняем вещь в базу и возвращаемся в гардероб, где она появится первой.
+  const handleSave = async (item: NewWardrobeItem) => {
+    await createItem(item);
+    router.push("/wardrobe");
+    router.refresh();
+  };
+
   return (
     <>
       <StepHeader {...headers[step]} onBack={handleBack} />
       {step === 1 && <StepPhoto onNext={() => setStep(2)} />}
       {step === 2 && <StepProcessing onDone={handleProcessed} />}
       {step === 3 && (
-        <StepReview onRetake={() => setStep(1)} onSubmit={goToWardrobe} />
+        <StepReview onRetake={() => setStep(1)} onSubmit={handleSave} />
       )}
     </>
   );

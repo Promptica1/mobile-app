@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { AGE_RANGES, GENDERS, type AgeRange, type Gender, type Profile } from "@/lib/profile";
 import AuthShell from "./AuthShell";
-import FormMessage from "./FormMessage";
-import SubmitButton from "./SubmitButton";
+import FormMessage from "@/components/ui/FormMessage";
+import SubmitButton from "@/components/ui/SubmitButton";
 import TextField from "./TextField";
 
 function Pills<T extends string>({
