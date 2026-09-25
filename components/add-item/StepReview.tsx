@@ -1,6 +1,6 @@
 import { ChevronDown, RefreshCw, Shirt, Sparkles } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { Button } from "./buttons";
+import { Button } from "@/components/ui/Button";
 
 const CATEGORIES = ["Верхняя одежда", "Верх", "Низ", "Обувь", "Аксессуары"];
 const COLORS: Record<string, string> = {

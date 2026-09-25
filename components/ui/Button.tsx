@@ -16,7 +16,7 @@ export function Button({
   return (
     <button
       type="button"
-      className={`flex h-14 w-full items-center justify-center gap-2.5 rounded-full text-[15px] font-medium transition-transform active:scale-[0.98] ${variants[variant]} ${className}`}
+      className={`flex h-14 w-full items-center justify-center gap-2.5 rounded-full text-[15px] font-medium transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 ${variants[variant]} ${className}`}
       {...props}
     />
   );

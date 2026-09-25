@@ -1,5 +1,5 @@
 import { Camera, ImageIcon, Lightbulb, Upload } from "lucide-react";
-import { Button } from "./buttons";
+import { Button } from "@/components/ui/Button";
 
 export default function StepPhoto({ onNext }: { onNext: () => void }) {
   return (

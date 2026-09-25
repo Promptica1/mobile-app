@@ -23,6 +23,12 @@ npm run dev
 Project → Settings → Environment Variables (после изменения нужен Redeploy).
 Без ключей приложение работает на тестовых данных.
 
+## База данных
+
+SQL-схема (таблицы, Row Level Security, триггер профиля) лежит в
+`supabase/migrations/`. Запуск: Supabase → SQL Editor → New query →
+вставить содержимое файла → Run. Скрипт можно запускать повторно.
+
 ## Деплой
 
 Vercel собирает ветку `main` автоматически после каждого push.

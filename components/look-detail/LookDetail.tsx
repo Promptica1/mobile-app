@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, FolderPlus, Heart, Pencil, Trash2, WandSparkles } from "lucide-react";
 import Silhouette from "@/components/Silhouette";
-import { Button } from "@/components/add-item/buttons";
+import { Button } from "@/components/ui/Button";
 import { MOCK_LOOK_PIECES, type Look } from "@/lib/looks";
 import PieceIcon from "./PieceIcon";
 

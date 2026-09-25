@@ -7,10 +7,11 @@ import {
   ShieldCheck,
   UserRound,
 } from "lucide-react";
-import { MOCK_USER } from "@/lib/profile";
+import { genderLabel, type Profile } from "@/lib/profile";
+import LogoutButton from "./LogoutButton";
 import SettingsGroup from "./SettingsGroup";
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ profile }: { profile: Profile }) {
   return (
     <div className="flex flex-col gap-6 pt-[calc(1.5rem+env(safe-area-inset-top))]">
       <h1 className="font-serif text-4xl font-medium leading-none tracking-tight">
@@ -31,8 +32,8 @@ export default function ProfileScreen() {
           </button>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-lg font-medium">{MOCK_USER.name}</p>
-          <p className="text-sm text-muted">{MOCK_USER.gender}</p>
+          <p className="truncate text-lg font-medium">{profile.name}</p>
+          <p className="text-sm text-muted">{genderLabel(profile.gender)}</p>
         </div>
         <button
           type="button"
@@ -75,12 +76,7 @@ export default function ProfileScreen() {
         ]}
       />
 
-      <button
-        type="button"
-        className="mx-auto py-2 text-[15px] font-medium text-danger transition-opacity hover:opacity-70"
-      >
-        Выйти
-      </button>
+      <LogoutButton />
     </div>
   );
 }
