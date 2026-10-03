@@ -2,9 +2,12 @@ import { Camera, ImageIcon, Lightbulb, LoaderCircle, RefreshCw, Upload } from "l
 import { Button } from "@/components/ui/Button";
 import FormMessage from "@/components/ui/FormMessage";
 import Photo from "@/components/ui/Photo";
+import { CATEGORIES } from "@/lib/wardrobe";
 
 type Props = {
   photoUrl: string | null;
+  category: string | null;
+  onCategory: (category: string) => void;
   preparing: boolean;
   error: string;
   onCamera: () => void;
@@ -12,7 +15,16 @@ type Props = {
   onNext: () => void;
 };
 
-export default function StepPhoto({ photoUrl, preparing, error, onCamera, onGallery, onNext }: Props) {
+export default function StepPhoto({
+  photoUrl,
+  category,
+  onCategory,
+  preparing,
+  error,
+  onCamera,
+  onGallery,
+  onNext,
+}: Props) {
   return (
     <div className="flex flex-1 flex-col gap-6">
       <button
@@ -46,11 +58,39 @@ export default function StepPhoto({ photoUrl, preparing, error, onCamera, onGall
 
       {error && <FormMessage tone="error">{error}</FormMessage>}
 
+      {/* Тип вещи подсказывает AI, что именно вырезать с фото */}
+      {photoUrl && !preparing && (
+        <fieldset>
+          <legend className="mb-1 px-1 text-sm font-medium">Что добавляем?</legend>
+          <p className="mb-3 px-1 text-xs text-muted">Вырежем с фото только эту вещь</p>
+          <div className="flex flex-wrap gap-2">
+            {CATEGORIES.map((c) => {
+              const active = c === category;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => onCategory(c)}
+                  className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+                    active
+                      ? "border-text bg-text text-background"
+                      : "border-border bg-surface text-text hover:border-text/30"
+                  }`}
+                >
+                  {c}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+      )}
+
       <div className="flex flex-col gap-3">
         {photoUrl ? (
           <>
-            <Button variant="lime" onClick={onNext} disabled={preparing}>
-              Продолжить
+            <Button variant="lime" onClick={onNext} disabled={preparing || !category}>
+              {category ? "Продолжить" : "Выберите, что добавляем"}
             </Button>
             <Button variant="secondary" onClick={onGallery} disabled={preparing}>
               <RefreshCw size={18} strokeWidth={1.75} />

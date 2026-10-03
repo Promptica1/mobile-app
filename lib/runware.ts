@@ -1,19 +1,22 @@
 import "server-only";
 
-// Удаление фона через Runware. Этот модуль работает только на сервере:
-// "server-only" не даст случайно подключить его в браузерный код,
-// а RUNWARE_API_KEY без префикса NEXT_PUBLIC_ в браузер не попадает.
+// Вырезание одной вещи с фото через генеративную модель Runware.
+// Этот модуль работает только на сервере: "server-only" не даст подключить его
+// в браузерный код, а RUNWARE_API_KEY без префикса NEXT_PUBLIC_ в браузер не попадает.
 //
 // REST API Runware: POST https://api.runware.ai/v1, тело — JSON-массив задач,
 // авторизация — заголовок "Authorization: Bearer <ключ>".
+// Задача imageInference: фото передаётся в inputs.referenceImages, задание — в positivePrompt.
 
 const API_URL = process.env.RUNWARE_API_URL || "https://api.runware.ai/v1";
-// Модель по умолчанию — Bria RMBG 2.0. Другую (например, Ideogram Background
-// Remover) можно задать переменной RUNWARE_BG_MODEL, указав её AIR-идентификатор.
-const DEFAULT_MODEL = "runware:110@1";
-// Общий лимит на всю работу с Runware; после него — исходное фото.
-const TIMEOUT_MS = 30_000;
-const POLL_INTERVAL_MS = 1_500;
+// По умолчанию Nano Banana 2 (google:4@3). Другую модель можно задать
+// переменной RUNWARE_GARMENT_MODEL, например Nano Banana Pro — google:4@2.
+const DEFAULT_MODEL = "google:4@3";
+// Квадратная карточка, как в каталоге.
+const OUTPUT_SIZE = 1024;
+// Генерация занимает 10–30 с; после лимита сохраняем исходное фото.
+export const TIMEOUT_MS = 90_000;
+const POLL_INTERVAL_MS = 2_000;
 
 // Диагностика в логах Vercel. Ключ не логируется — только факт наличия и длина.
 const log = (message: string) => console.log(`RB: ${message}`);
@@ -31,6 +34,26 @@ export function isRunwareConfigured() {
   return Boolean(process.env.RUNWARE_API_KEY);
 }
 
+// Подсказка для модели: что именно вырезать (по категории, которую выбрал пользователь).
+const GARMENT_HINTS: Record<string, string> = {
+  Верх: "upper-body garment (the t-shirt, shirt, blouse, sweatshirt, hoodie or sweater)",
+  Низ: "lower-body garment (the pants, jeans, shorts or skirt)",
+  "Верхняя одежда": "outerwear (the coat, jacket, trench or puffer)",
+  Обувь: "pair of shoes",
+  Аксессуары: "main accessory (the bag, hat, belt, scarf or jewelry)",
+};
+
+export function garmentPrompt(category: string) {
+  const garment = GARMENT_HINTS[category] ?? "main clothing item";
+  return (
+    `From this photo, extract ONLY the ${garment} that the person is wearing. ` +
+    "Output a clean product photo of just that single item by itself, ghost-mannequin / flat-lay style, " +
+    "centered, fully visible, on a plain pure white background. Keep its real color, pattern, print, " +
+    "texture, details and shape exactly as in the photo. Remove the person, body parts, the background, " +
+    "and all other clothing and objects. No text, no watermark."
+  );
+}
+
 type RunwareResult = {
   taskUUID?: string;
   status?: string;
@@ -45,7 +68,8 @@ type RunwareResponse = {
 };
 
 async function call(tasks: object[], signal: AbortSignal): Promise<RunwareResponse> {
-  log(`sending to Runware, url = ${API_URL}, task = ${(tasks[0] as { taskType: string }).taskType}`);
+  const task = tasks[0] as { taskType: string; model?: string };
+  log(`sending to Runware, url = ${API_URL}, task = ${task.taskType}${task.model ? `, model = ${task.model}` : ""}`);
   const res = await fetch(API_URL, {
     method: "POST",
     headers: {
@@ -75,10 +99,9 @@ const describe = (res: RunwareResponse) => {
   return `Runware ${res.status}: ${e?.code ?? ""} ${e?.parameter ?? ""} ${e?.message ?? ""}`.trim();
 };
 
-// Ошибка из-за формата параметров (а не из-за ключа, баланса или сервера Runware).
-const isParameterError = (res: RunwareResponse) =>
-  res.status === 400 &&
-  res.errors.some((e) => /param|input|image|unsupported|invalid|missing|required/i.test(`${e.code} ${e.parameter} ${e.message}`));
+// Ошибка из-за размеров (у модели может быть свой список допустимых размеров).
+const isSizeError = (res: RunwareResponse) =>
+  res.status === 400 && res.errors.some((e) => /width|height|dimension|size|resolution/i.test(`${e.parameter} ${e.message}`));
 
 async function readImage(result: RunwareResult, signal: AbortSignal): Promise<Buffer | null> {
   if (result.imageBase64Data) return Buffer.from(result.imageBase64Data, "base64");
@@ -90,24 +113,24 @@ async function readImage(result: RunwareResult, signal: AbortSignal): Promise<Bu
   return null;
 }
 
-async function run(image: Buffer, mimeType: string, signal: AbortSignal): Promise<Buffer> {
-  const dataUri = `data:${mimeType};base64,${image.toString("base64")}`;
+async function run(image: Buffer, mimeType: string, category: string, signal: AbortSignal) {
   const base = {
-    taskType: "removeBackground",
-    model: process.env.RUNWARE_BG_MODEL || DEFAULT_MODEL,
+    taskType: "imageInference",
+    model: process.env.RUNWARE_GARMENT_MODEL || DEFAULT_MODEL,
+    positivePrompt: garmentPrompt(category),
+    inputs: { referenceImages: [`data:${mimeType};base64,${image.toString("base64")}`] },
+    numberResults: 1,
     outputType: "base64Data",
-    // Прозрачность сохраняется только в PNG.
-    outputFormat: "PNG",
+    outputFormat: "JPG",
   };
 
-  // Текущий формат API — изображение внутри inputs.image. Если Runware
-  // отклонит его как неверный параметр, пробуем прежний формат inputImage.
   let taskUUID = crypto.randomUUID();
-  let res = await call([{ ...base, taskUUID, inputs: { image: dataUri } }], signal);
-  if (isParameterError(res)) {
-    log("retrying with legacy inputImage format");
+  let res = await call([{ ...base, taskUUID, width: OUTPUT_SIZE, height: OUTPUT_SIZE }], signal);
+  if (isSizeError(res)) {
+    // Модель не приняла 1024×1024 — пусть выберет размер сама.
+    log("retrying without width/height");
     taskUUID = crypto.randomUUID();
-    res = await call([{ ...base, taskUUID, inputImage: dataUri }], signal);
+    res = await call([{ ...base, taskUUID }], signal);
   }
   if (res.status >= 400 || res.errors.length) throw new RunwareError("failed", describe(res));
 
@@ -124,18 +147,18 @@ async function run(image: Buffer, mimeType: string, signal: AbortSignal): Promis
     result = polled.data.find((r) => r.taskUUID === taskUUID) ?? polled.data[0];
   }
 
-  const png = await readImage(result, signal);
-  if (!png || png.length === 0) throw new RunwareError("failed", "Runware не вернул изображение");
-  return png;
+  const out = await readImage(result, signal);
+  if (!out || out.length === 0) throw new RunwareError("failed", "Runware не вернул изображение");
+  return out;
 }
 
-// Принимает фото (JPEG/PNG/WebP), возвращает PNG с прозрачным фоном.
-export async function removeBackground(image: Buffer, mimeType: string): Promise<Buffer> {
+// Принимает фото и категорию вещи, возвращает изображение одной вещи на белом фоне.
+export async function extractGarment(image: Buffer, mimeType: string, category: string): Promise<Buffer> {
   if (!isRunwareConfigured()) throw new RunwareError("not_configured", "RUNWARE_API_KEY не задан");
 
   const signal = AbortSignal.timeout(TIMEOUT_MS);
   try {
-    return await run(image, mimeType, signal);
+    return await run(image, mimeType, category, signal);
   } catch (error) {
     if (signal.aborted) {
       log("timeout");

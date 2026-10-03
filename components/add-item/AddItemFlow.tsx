@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { processPhoto } from "@/lib/backgroundRemoval";
+import { processPhoto } from "@/lib/garmentExtraction";
 import { compressImage } from "@/lib/image";
 import { createItem } from "@/lib/items";
 import type { NewWardrobeItem } from "@/lib/wardrobe";
@@ -23,7 +23,7 @@ const headers: Record<Step, { title: string; subtitle: string }> = {
 
 // Короткая пауза, чтобы пользователь успел увидеть результат на шаге «Обработка».
 const SHOW_RESULT_MS = 900;
-const FALLBACK_NOTICE = "Не получилось убрать фон — сохраним исходное фото. Его можно заменить.";
+const FALLBACK_NOTICE = "Не получилось вырезать вещь — сохраним исходное фото. Его можно заменить.";
 
 const toPhoto = (blob: Blob): PickedPhoto => ({ blob, url: URL.createObjectURL(blob) });
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -33,6 +33,8 @@ export default function AddItemFlow() {
   const [step, setStep] = useState<Step>(1);
   // Исходное (сжатое) фото — запасной вариант, если удалить фон не получится.
   const [original, setOriginal] = useState<PickedPhoto | null>(null);
+  // Тип вещи: подсказка для AI и категория в карточке.
+  const [category, setCategory] = useState<string | null>(null);
   // Фото, которое сохранится в гардероб: вырезанная вещь или исходное.
   const [result, setResult] = useState<PickedPhoto | null>(null);
   const [phase, setPhase] = useState<ProcessingPhase>("removing");
@@ -52,14 +54,14 @@ export default function AddItemFlow() {
     return () => URL.revokeObjectURL(result.url);
   }, [result, original]);
 
-  // Удаляем фон; при неудаче оставляем исходное фото и показываем мягкое сообщение.
-  const removeBackgroundFor = async (photo: PickedPhoto) => {
+  // Вырезаем вещь; при неудаче оставляем исходное фото и показываем мягкое сообщение.
+  const extractFor = async (photo: PickedPhoto, type: string) => {
     const id = ++runId.current;
-    const processed = await processPhoto(photo.blob);
+    const processed = await processPhoto(photo.blob, type);
     if (id !== runId.current) return null;
-    setResult(processed.cutout ? toPhoto(processed.blob) : photo);
-    setNotice(processed.cutout ? "" : FALLBACK_NOTICE);
-    return processed.cutout;
+    setResult(processed.extracted ? toPhoto(processed.blob) : photo);
+    setNotice(processed.extracted ? "" : FALLBACK_NOTICE);
+    return processed.extracted;
   };
 
   const preparePicked = async (file: File): Promise<PickedPhoto | null> => {
@@ -82,8 +84,8 @@ export default function AddItemFlow() {
     if (photo) {
       setOriginal(photo);
       setResult(null);
-      // На шаге 3 «Загрузить другое фото»: сразу убираем фон и у нового снимка.
-      if (step === 3) await removeBackgroundFor(photo);
+      // На шаге 3 «Загрузить другое фото»: сразу вырезаем вещь и с нового снимка.
+      if (step === 3 && category) await extractFor(photo, category);
     }
     setPreparing(false);
   };
@@ -91,12 +93,12 @@ export default function AddItemFlow() {
   const picker = usePhotoPicker(handlePick);
 
   const startProcessing = async () => {
-    if (!original) return;
+    if (!original || !category) return;
     setStep(2);
     setPhase("removing");
-    const cutout = await removeBackgroundFor(original);
-    if (cutout === null) return;
-    setPhase(cutout ? "done" : "fallback");
+    const extracted = await extractFor(original, category);
+    if (extracted === null) return;
+    setPhase(extracted ? "done" : "fallback");
     await wait(SHOW_RESULT_MS);
     setStep((current) => (current === 2 ? 3 : current));
   };
@@ -126,6 +128,8 @@ export default function AddItemFlow() {
       {step === 1 && (
         <StepPhoto
           photoUrl={original?.url ?? null}
+          category={category}
+          onCategory={setCategory}
           preparing={preparing}
           error={photoError}
           onCamera={picker.openCamera}
@@ -140,6 +144,8 @@ export default function AddItemFlow() {
           preparing={preparing}
           photoError={photoError}
           notice={notice}
+          category={category ?? ""}
+          onCategoryChange={setCategory}
           onRetake={picker.openGallery}
           onSubmit={handleSave}
         />

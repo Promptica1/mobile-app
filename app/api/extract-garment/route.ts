@@ -1,13 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { RunwareError, removeBackground } from "@/lib/runware";
+import { RunwareError, extractGarment } from "@/lib/runware";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
+import { CATEGORIES } from "@/lib/wardrobe";
 
-// Серверный маршрут: браузер присылает фото, сервер с ключом RUNWARE_API_KEY
-// обращается к Runware и возвращает PNG без фона. Ключ в браузер не попадает.
+// Серверный маршрут: браузер присылает фото и тип вещи, сервер с ключом
+// RUNWARE_API_KEY просит генеративную модель Runware вырезать одну вещь
+// и возвращает картинку. Ключ в браузер не попадает.
 // Все строки логов начинаются с "RB:" — по ним удобно искать в логах Vercel.
 
-export const maxDuration = 60;
+// Генерация дольше обычного запроса: даём функции до 2 минут.
+export const maxDuration = 120;
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -16,6 +19,9 @@ const fail = (reason: string, status: number) => {
   console.log(`RB: error = ${reason} (HTTP ${status})`);
   return NextResponse.json({ error: reason }, { status });
 };
+
+const sniffType = (b: Buffer) =>
+  b[0] === 0x89 && b[1] === 0x50 ? "image/png" : b.subarray(8, 12).toString() === "WEBP" ? "image/webp" : "image/jpeg";
 
 export async function POST(request: NextRequest) {
   console.log("RB: route hit");
@@ -34,15 +40,17 @@ export async function POST(request: NextRequest) {
 
   const form = await request.formData().catch(() => null);
   const file = form?.get("image");
+  const category = String(form?.get("category") ?? "");
   if (!(file instanceof Blob) || !ALLOWED_TYPES.includes(file.type)) return fail("bad_image", 400);
   if (file.size > MAX_BYTES) return fail("too_large", 413);
-  console.log(`RB: image ${file.type}, ${Math.round(file.size / 1024)} KB`);
+  if (!(CATEGORIES as readonly string[]).includes(category)) return fail("bad_category", 400);
+  console.log(`RB: image ${file.type}, ${Math.round(file.size / 1024)} KB, category = ${category}`);
 
   try {
-    const png = await removeBackground(Buffer.from(await file.arrayBuffer()), file.type);
-    console.log(`RB: success, png ${Math.round(png.length / 1024)} KB`);
-    return new NextResponse(new Uint8Array(png), {
-      headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
+    const image = await extractGarment(Buffer.from(await file.arrayBuffer()), file.type, category);
+    console.log(`RB: success, image ${Math.round(image.length / 1024)} KB`);
+    return new NextResponse(new Uint8Array(image), {
+      headers: { "Content-Type": sniffType(image), "Cache-Control": "no-store" },
     });
   } catch (error) {
     // Подробности — только в логах сервера; клиенту — короткий код.

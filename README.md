@@ -19,29 +19,21 @@ npm run dev
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → Data API (Project URL) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Project Settings → API Keys (publishable / anon) |
 | `RUNWARE_API_KEY` | Runware → Dashboard → API Keys. **Только сервер**, без `NEXT_PUBLIC_` |
-| `RUNWARE_BG_MODEL` | Необязательно. AIR модели удаления фона, по умолчанию `runware:110@1` (Bria RMBG 2.0) |
+| `RUNWARE_GARMENT_MODEL` | Необязательно. AIR генеративной модели, по умолчанию `google:4@3` (Nano Banana 2) |
 
 Ключи не хранятся в репозитории: локально — в `.env.local`, на Vercel — в
 Project → Settings → Environment Variables (после изменения нужен Redeploy).
 Без ключей Supabase приложение работает на тестовых данных. Без ключа Runware
-вещи сохраняются с исходным фото (фон не удаляется).
+вещи сохраняются с исходным фото.
 
-## Удаление фона
+## AI-вырезание вещи
 
-Шаг «Обработка» при добавлении вещи отправляет фото на `/api/remove-background`
-(серверный маршрут). Сервер с ключом `RUNWARE_API_KEY` вызывает Runware
-(`removeBackground`, PNG с прозрачностью) — ключ в браузер не попадает.
-Если Runware недоступен, сохраняется исходное фото.
-
-## База данных
-
-SQL лежит в `supabase/migrations/` — запускайте файлы по порядку:
-Supabase → SQL Editor → New query → вставить содержимое файла → Run.
-Каждый скрипт можно запускать повторно.
-
-- `20260925120000_initial_schema.sql` — таблицы, Row Level Security, триггер профиля.
-- `20260926120000_storage_items_bucket.sql` — закрытый бакет `items` для фото
-  вещей и политики: каждый пользователь видит только свою папку.
+При добавлении вещи пользователь выбирает её тип (Верх, Низ, …). Шаг «Обработка»
+отправляет фото и тип на `/api/extract-garment` (серверный маршрут). Сервер с ключом
+`RUNWARE_API_KEY` вызывает генеративную модель Runware (`imageInference`, фото в
+`inputs.referenceImages`, задание в `positivePrompt`) и получает одну вещь на белом
+фоне в стиле каталога. Ключ в браузер не попадает. Если Runware недоступен или
+ключа нет, сохраняется исходное фото. Логи маршрута в Vercel начинаются с `RB:`.
 
 ## Деплой
 

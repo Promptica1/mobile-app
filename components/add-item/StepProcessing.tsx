@@ -33,10 +33,10 @@ export default function StepProcessing({ photoUrl, phase }: Props) {
   const steps: { label: string; status: Status }[] = [
     { label: "Фото загружено", status: "done" },
     removing
-      ? { label: "Убираем фон…", status: "active" }
+      ? { label: "Вырезаем вещь…", status: "active" }
       : phase === "done"
-        ? { label: "Фон удалён", status: "done" }
-        : { label: "Фон оставили как есть", status: "skipped" },
+        ? { label: "Вещь вырезана", status: "done" }
+        : { label: "Оставили исходное фото", status: "skipped" },
     { label: "Готовим карточку вещи", status: removing ? "pending" : "done" },
   ];
 
@@ -55,7 +55,7 @@ export default function StepProcessing({ photoUrl, phase }: Props) {
         )}
       </div>
       <p className="mt-4 text-sm text-muted" aria-live="polite">
-        {removing ? "убираем фон…" : phase === "done" ? "готово" : "сохраним исходное фото"}
+        {removing ? "AI вырезает вещь…" : phase === "done" ? "готово" : "сохраним исходное фото"}
       </p>
 
       <ul className="mt-10 flex w-full flex-col gap-4 rounded-card border border-border bg-surface p-5">
@@ -69,7 +69,7 @@ export default function StepProcessing({ photoUrl, phase }: Props) {
         ))}
       </ul>
 
-      <p className="mt-6 text-center text-xs text-muted">Обычно это занимает несколько секунд</p>
+      <p className="mt-6 text-center text-xs text-muted">Обычно это занимает 10–30 секунд</p>
     </div>
   );
 }

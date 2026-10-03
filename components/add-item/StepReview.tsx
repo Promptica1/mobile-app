@@ -82,6 +82,8 @@ type Props = {
   preparing: boolean;
   photoError: string;
   notice: string;
+  category: string;
+  onCategoryChange: (category: string) => void;
   onRetake: () => void;
   onSubmit: (item: NewWardrobeItem) => Promise<void>;
 };
@@ -89,10 +91,18 @@ type Props = {
 // Пустая строка в необязательном поле сохраняется как null.
 const orNull = (value: string) => value.trim() || null;
 
-export default function StepReview({ photoUrl, preparing, photoError, notice, onRetake, onSubmit }: Props) {
-  // AI пока не подключён: поля заполняет пользователь, категория — первая по умолчанию.
+export default function StepReview({
+  photoUrl,
+  preparing,
+  photoError,
+  notice,
+  category,
+  onCategoryChange,
+  onRetake,
+  onSubmit,
+}: Props) {
+  // Категория приходит с шага 1, остальные поля заполняет пользователь.
   const [name, setName] = useState("");
-  const [category, setCategory] = useState<string>(CATEGORIES[0]);
   const [color, setColor] = useState("");
   const [material, setMaterial] = useState("");
   const [brand, setBrand] = useState("");
@@ -167,7 +177,7 @@ export default function StepReview({ photoUrl, preparing, photoError, notice, on
 
       <div className="flex flex-col gap-4">
         <Field label="Категория">
-          <SelectRow value={category} onChange={setCategory} options={[...CATEGORIES]} />
+          <SelectRow value={category} onChange={onCategoryChange} options={[...CATEGORIES]} />
         </Field>
         <Field label="Цвет" optional>
           <SelectRow
