@@ -1,4 +1,4 @@
-import { ChevronDown, LoaderCircle, RefreshCw, Shirt } from "lucide-react";
+import { ChevronDown, Info, LoaderCircle, RefreshCw, Shirt } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import FormMessage from "@/components/ui/FormMessage";
 import SubmitButton from "@/components/ui/SubmitButton";
@@ -81,6 +81,7 @@ type Props = {
   photoUrl: string | null;
   preparing: boolean;
   photoError: string;
+  notice: string;
   onRetake: () => void;
   onSubmit: (item: NewWardrobeItem) => Promise<void>;
 };
@@ -88,7 +89,7 @@ type Props = {
 // Пустая строка в необязательном поле сохраняется как null.
 const orNull = (value: string) => value.trim() || null;
 
-export default function StepReview({ photoUrl, preparing, photoError, onRetake, onSubmit }: Props) {
+export default function StepReview({ photoUrl, preparing, photoError, notice, onRetake, onSubmit }: Props) {
   // AI пока не подключён: поля заполняет пользователь, категория — первая по умолчанию.
   const [name, setName] = useState("");
   const [category, setCategory] = useState<string>(CATEGORIES[0]);
@@ -154,6 +155,11 @@ export default function StepReview({ photoUrl, preparing, photoError, onRetake, 
       </div>
 
       {photoError && <FormMessage tone="error">{photoError}</FormMessage>}
+      {notice && !photoError && (
+        <FormMessage tone="info" icon={Info}>
+          {notice}
+        </FormMessage>
+      )}
       <Button variant="secondary" onClick={onRetake} disabled={saving || preparing}>
         <RefreshCw size={18} strokeWidth={1.75} />
         Загрузить другое фото

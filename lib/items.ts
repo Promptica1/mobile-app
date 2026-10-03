@@ -8,7 +8,7 @@ import { MOCK_ITEMS, type NewWardrobeItem, type WardrobeItem } from "./wardrobe"
 const COLUMNS =
   "id, name, category, color, material, brand, comment, image_url, is_favorite, created_at";
 
-// Закрытый бакет с фото вещей: <id пользователя>/<id вещи>.jpg
+// Закрытый бакет с фото вещей: <id пользователя>/<id вещи>.<webp|png|jpg>
 export const ITEMS_BUCKET = "items";
 // Подписанная ссылка на фото живёт час — при следующем открытии гардероба выдаётся новая.
 const SIGNED_URL_TTL = 60 * 60;
@@ -61,10 +61,12 @@ export async function createItem(item: NewWardrobeItem, photo: Blob | null): Pro
       data: { session },
     } = await supabase.auth.getSession();
     if (!session) throw new SaveItemError("upload");
-    imagePath = `${session.user.id}/${id}.jpg`;
+    // Вырезанная вещь — WebP/PNG с прозрачностью, исходное фото — JPEG.
+    const ext = { "image/webp": "webp", "image/png": "png" }[photo.type] ?? "jpg";
+    imagePath = `${session.user.id}/${id}.${ext}`;
     const { error } = await supabase.storage
       .from(ITEMS_BUCKET)
-      .upload(imagePath, photo, { contentType: "image/jpeg", upsert: false });
+      .upload(imagePath, photo, { contentType: photo.type || "image/jpeg", upsert: false });
     if (error) throw new SaveItemError("upload");
   }
 

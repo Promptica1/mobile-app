@@ -1,13 +1,14 @@
-import { CircleAlert, MailCheck } from "lucide-react";
+import { CircleAlert, MailCheck, type LucideIcon } from "lucide-react";
 
 type Props = {
   tone: "error" | "info";
+  icon?: LucideIcon;
   children: React.ReactNode;
 };
 
 // Мягкое сообщение под формой: ошибка — розовое, подсказка — лавандовое.
-export default function FormMessage({ tone, children }: Props) {
-  const Icon = tone === "error" ? CircleAlert : MailCheck;
+export default function FormMessage({ tone, icon, children }: Props) {
+  const Icon = icon ?? (tone === "error" ? CircleAlert : MailCheck);
   return (
     <div
       role={tone === "error" ? "alert" : "status"}

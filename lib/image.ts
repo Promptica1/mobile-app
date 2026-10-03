@@ -1,8 +1,13 @@
-// Подготовка фото перед загрузкой: уменьшаем до разумного размера
-// и сохраняем в JPEG, чтобы снимки с телефона (5–15 МБ) весили ~200–600 КБ.
+// Подготовка фото в браузере: уменьшаем, учитываем поворот из EXIF и
+// перекодируем, чтобы снимки с телефона (5–15 МБ) весили сотни килобайт.
 
-const MAX_SIDE = 1600;
-const QUALITY = 0.85;
+type Options = {
+  maxSide?: number;
+  type?: "image/jpeg" | "image/webp";
+  quality?: number;
+  // Для JPEG прозрачность заменяется белым; для вырезанных вещей оставляем прозрачной.
+  keepTransparency?: boolean;
+};
 
 async function decode(file: Blob): Promise<ImageBitmap | HTMLImageElement> {
   if ("createImageBitmap" in window) {
@@ -24,9 +29,12 @@ async function decode(file: Blob): Promise<ImageBitmap | HTMLImageElement> {
   }
 }
 
-export async function compressImage(file: Blob): Promise<Blob> {
+export async function compressImage(
+  file: Blob,
+  { maxSide = 1600, type = "image/jpeg", quality = 0.85, keepTransparency = false }: Options = {},
+): Promise<Blob> {
   const image = await decode(file);
-  const scale = Math.min(1, MAX_SIDE / Math.max(image.width, image.height));
+  const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
   const width = Math.round(image.width * scale);
   const height = Math.round(image.height * scale);
 
@@ -35,17 +43,19 @@ export async function compressImage(file: Blob): Promise<Blob> {
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas недоступен");
-  // Белая подложка: у PNG с прозрачностью фон не станет чёрным.
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, width, height);
+  if (!keepTransparency) {
+    // Белая подложка: у PNG с прозрачностью фон не станет чёрным.
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+  }
   ctx.drawImage(image, 0, 0, width, height);
   if ("close" in image) image.close();
 
   return new Promise((resolve, reject) =>
     canvas.toBlob(
       (blob) => (blob ? resolve(blob) : reject(new Error("Не удалось сжать фото"))),
-      "image/jpeg",
-      QUALITY,
+      type,
+      quality,
     ),
   );
 }

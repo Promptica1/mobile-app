@@ -18,10 +18,20 @@ npm run dev
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → Data API (Project URL) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Project Settings → API Keys (publishable / anon) |
+| `RUNWARE_API_KEY` | Runware → Dashboard → API Keys. **Только сервер**, без `NEXT_PUBLIC_` |
+| `RUNWARE_BG_MODEL` | Необязательно. AIR модели удаления фона, по умолчанию `runware:110@1` (Bria RMBG 2.0) |
 
 Ключи не хранятся в репозитории: локально — в `.env.local`, на Vercel — в
 Project → Settings → Environment Variables (после изменения нужен Redeploy).
-Без ключей приложение работает на тестовых данных.
+Без ключей Supabase приложение работает на тестовых данных. Без ключа Runware
+вещи сохраняются с исходным фото (фон не удаляется).
+
+## Удаление фона
+
+Шаг «Обработка» при добавлении вещи отправляет фото на `/api/remove-background`
+(серверный маршрут). Сервер с ключом `RUNWARE_API_KEY` вызывает Runware
+(`removeBackground`, PNG с прозрачностью) — ключ в браузер не попадает.
+Если Runware недоступен, сохраняется исходное фото.
 
 ## База данных
 

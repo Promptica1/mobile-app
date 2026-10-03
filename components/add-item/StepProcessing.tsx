@@ -1,25 +1,44 @@
-"use client";
-
-import { useEffect } from "react";
-import { Check, LoaderCircle, Shirt } from "lucide-react";
+import { Check, LoaderCircle, Minus, Shirt } from "lucide-react";
 import Photo from "@/components/ui/Photo";
 
-// Имитация обработки: через PROCESSING_MS переходим к шагу 3.
-const PROCESSING_MS = 2000;
+export type ProcessingPhase = "removing" | "done" | "fallback";
 
-const steps = [
-  { label: "Фон удалён", status: "done" },
-  { label: "Определяем категорию…", status: "active" },
-  { label: "Распознаём цвет и материал", status: "pending" },
-] as const;
+type Props = { photoUrl: string | null; phase: ProcessingPhase };
 
-type Props = { photoUrl: string | null; onDone: () => void };
+type Status = "done" | "active" | "pending" | "skipped";
 
-export default function StepProcessing({ photoUrl, onDone }: Props) {
-  useEffect(() => {
-    const timer = setTimeout(onDone, PROCESSING_MS);
-    return () => clearTimeout(timer);
-  }, [onDone]);
+function StatusIcon({ status }: { status: Status }) {
+  if (status === "done") {
+    return (
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-green text-surface">
+        <Check size={14} strokeWidth={2.5} />
+      </span>
+    );
+  }
+  if (status === "active") {
+    return <LoaderCircle size={24} strokeWidth={2} className="animate-spin text-lavender" />;
+  }
+  if (status === "skipped") {
+    return (
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-border text-muted">
+        <Minus size={14} strokeWidth={2.5} />
+      </span>
+    );
+  }
+  return <span className="h-6 w-6 rounded-full border-2 border-border" />;
+}
+
+export default function StepProcessing({ photoUrl, phase }: Props) {
+  const removing = phase === "removing";
+  const steps: { label: string; status: Status }[] = [
+    { label: "Фото загружено", status: "done" },
+    removing
+      ? { label: "Убираем фон…", status: "active" }
+      : phase === "done"
+        ? { label: "Фон удалён", status: "done" }
+        : { label: "Фон оставили как есть", status: "skipped" },
+    { label: "Готовим карточку вещи", status: removing ? "pending" : "done" },
+  ];
 
   return (
     <div className="flex flex-1 flex-col items-center">
@@ -31,40 +50,26 @@ export default function StepProcessing({ photoUrl, onDone }: Props) {
         ) : (
           <Shirt size={72} strokeWidth={0.9} className="text-muted" />
         )}
-        <span className="absolute inset-x-6 h-px animate-scan bg-lavender shadow-[0_0_12px_2px] shadow-lavender/60" />
+        {removing && (
+          <span className="absolute inset-x-6 h-px animate-scan bg-lavender shadow-[0_0_12px_2px] shadow-lavender/60" />
+        )}
       </div>
-      <p className="mt-4 text-sm text-muted">анализируем фото…</p>
+      <p className="mt-4 text-sm text-muted" aria-live="polite">
+        {removing ? "убираем фон…" : phase === "done" ? "готово" : "сохраним исходное фото"}
+      </p>
 
       <ul className="mt-10 flex w-full flex-col gap-4 rounded-card border border-border bg-surface p-5">
         {steps.map(({ label, status }) => (
           <li key={label} className="flex items-center gap-3">
-            {status === "done" && (
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-green text-surface">
-                <Check size={14} strokeWidth={2.5} />
-              </span>
-            )}
-            {status === "active" && (
-              <LoaderCircle
-                size={24}
-                strokeWidth={2}
-                className="animate-spin text-lavender"
-              />
-            )}
-            {status === "pending" && (
-              <span className="h-6 w-6 rounded-full border-2 border-border" />
-            )}
-            <span
-              className={`text-[15px] ${status === "pending" ? "text-muted" : ""}`}
-            >
+            <StatusIcon status={status} />
+            <span className={`text-[15px] ${status === "pending" || status === "skipped" ? "text-muted" : ""}`}>
               {label}
             </span>
           </li>
         ))}
       </ul>
 
-      <p className="mt-6 text-center text-xs text-muted">
-        Обычно это занимает несколько секунд
-      </p>
+      <p className="mt-6 text-center text-xs text-muted">Обычно это занимает несколько секунд</p>
     </div>
   );
 }
