@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { processPhoto } from "@/lib/garmentExtraction";
+import { MAX_EXTRACTION_ATTEMPTS, processPhoto } from "@/lib/garmentExtraction";
 import { compressImage } from "@/lib/image";
 import { createItem } from "@/lib/items";
 import type { NewWardrobeItem } from "@/lib/wardrobe";
@@ -41,6 +41,9 @@ export default function AddItemFlow() {
   const [preparing, setPreparing] = useState(false);
   const [photoError, setPhotoError] = useState("");
   const [notice, setNotice] = useState("");
+  // Сколько раз уже запускали AI-вырезание для этой вещи (каждая попытка платная).
+  const [attempts, setAttempts] = useState(0);
+  const attemptsLeft = MAX_EXTRACTION_ATTEMPTS - attempts;
   // Номер текущей обработки: ответ от устаревшей (пользователь ушёл назад) игнорируем.
   const runId = useRef(0);
 
@@ -57,6 +60,7 @@ export default function AddItemFlow() {
   // Вырезаем вещь; при неудаче оставляем исходное фото и показываем мягкое сообщение.
   const extractFor = async (photo: PickedPhoto, type: string) => {
     const id = ++runId.current;
+    setAttempts((n) => n + 1);
     const processed = await processPhoto(photo.blob, type);
     if (id !== runId.current) return null;
     setResult(processed.extracted ? toPhoto(processed.blob) : photo);
@@ -85,7 +89,7 @@ export default function AddItemFlow() {
       setOriginal(photo);
       setResult(null);
       // На шаге 3 «Загрузить другое фото»: сразу вырезаем вещь и с нового снимка.
-      if (step === 3 && category) await extractFor(photo, category);
+      if (step === 3 && category && attemptsLeft > 0) await extractFor(photo, category);
     }
     setPreparing(false);
   };
@@ -94,6 +98,13 @@ export default function AddItemFlow() {
 
   const startProcessing = async () => {
     if (!original || !category) return;
+    // Попытки закончились — без AI переходим к проверке с исходным фото.
+    if (attemptsLeft <= 0) {
+      setResult(original);
+      setNotice("");
+      setStep(3);
+      return;
+    }
     setStep(2);
     setPhase("removing");
     const extracted = await extractFor(original, category);
@@ -146,6 +157,7 @@ export default function AddItemFlow() {
           notice={notice}
           category={category ?? ""}
           onCategoryChange={setCategory}
+          retriesLeft={attemptsLeft}
           onRetake={picker.openGallery}
           onSubmit={handleSave}
         />

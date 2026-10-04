@@ -9,6 +9,10 @@ const PROCESS_MAX_SIDE = 1024;
 // чтобы «Обработка» никогда не крутилась бесконечно.
 const CLIENT_TIMEOUT_MS = 100_000;
 
+// Сколько раз можно запустить AI-вырезание для одной добавляемой вещи
+// (первая попытка + повторы через «Загрузить другое фото»). Каждая попытка платная.
+export const MAX_EXTRACTION_ATTEMPTS = 3;
+
 export type ProcessedPhoto = { blob: Blob; extracted: boolean };
 
 async function requestGarment(photo: Blob, category: string): Promise<Blob> {

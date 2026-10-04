@@ -114,8 +114,9 @@ export default function StepPhoto({
       <div className="flex gap-3 rounded-2xl bg-beige p-4">
         <Lightbulb size={20} strokeWidth={1.5} className="mt-0.5 shrink-0" />
         <p className="text-sm leading-relaxed">
-          <span className="font-medium">Совет:</span> снимайте вещь на однотонном
-          фоне — так AI распознает её точнее
+          <span className="font-medium">Совет:</span> снимайте так, чтобы вещь было
+          хорошо видно — желательно одну, без других похожих вещей в кадре. Так AI
+          вырежет её точнее
         </p>
       </div>
     </div>

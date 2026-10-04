@@ -5,6 +5,7 @@ import SubmitButton from "@/components/ui/SubmitButton";
 import { Button } from "@/components/ui/Button";
 import Photo from "@/components/ui/Photo";
 import { SaveItemError } from "@/lib/items";
+import { plural } from "@/lib/plural";
 import { CATEGORIES, type NewWardrobeItem } from "@/lib/wardrobe";
 
 const COLORS: Record<string, string> = {
@@ -84,6 +85,8 @@ type Props = {
   notice: string;
   category: string;
   onCategoryChange: (category: string) => void;
+  // Сколько ещё раз можно запустить AI-вырезание с другим фото.
+  retriesLeft: number;
   onRetake: () => void;
   onSubmit: (item: NewWardrobeItem) => Promise<void>;
 };
@@ -98,6 +101,7 @@ export default function StepReview({
   notice,
   category,
   onCategoryChange,
+  retriesLeft,
   onRetake,
   onSubmit,
 }: Props) {
@@ -170,10 +174,22 @@ export default function StepReview({
           {notice}
         </FormMessage>
       )}
-      <Button variant="secondary" onClick={onRetake} disabled={saving || preparing}>
-        <RefreshCw size={18} strokeWidth={1.75} />
-        Загрузить другое фото
-      </Button>
+      {retriesLeft > 0 ? (
+        <div>
+          <Button variant="secondary" onClick={onRetake} disabled={saving || preparing}>
+            <RefreshCw size={18} strokeWidth={1.75} />
+            Загрузить другое фото
+          </Button>
+          <p className="mt-2 text-center text-xs text-muted">
+            Можно попробовать ещё {plural(retriesLeft, ["раз", "раза", "раз"])}
+          </p>
+        </div>
+      ) : (
+        <FormMessage tone="info" icon={Info}>
+          Вы уже попробовали несколько раз. Сохраните вещь как есть или добавьте её позже с
+          другим фото.
+        </FormMessage>
+      )}
 
       <div className="flex flex-col gap-4">
         <Field label="Категория">

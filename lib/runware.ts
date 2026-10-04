@@ -35,23 +35,55 @@ export function isRunwareConfigured() {
 }
 
 // Подсказка для модели: что именно вырезать (по категории, которую выбрал пользователь).
-const GARMENT_HINTS: Record<string, string> = {
-  Верх: "upper-body garment (the t-shirt, shirt, blouse, sweatshirt, hoodie or sweater)",
-  Низ: "lower-body garment (the pants, jeans, shorts or skirt)",
-  "Верхняя одежда": "outerwear (the coat, jacket, trench or puffer)",
-  Обувь: "pair of shoes",
-  Аксессуары: "main accessory (the bag, hat, belt, scarf or jewelry)",
+// noun — как назвать вещь в задании; examples — что к ней относится, чтобы модель
+// не перепутала её с соседней одеждой.
+const GARMENT_HINTS: Record<string, { noun: string; examples: string; where: string }> = {
+  Верх: {
+    noun: "top",
+    examples: "t-shirt, shirt, blouse, sweatshirt, hoodie, sweater or top",
+    where: "on the upper body; not the jacket or coat worn over it",
+  },
+  Низ: {
+    noun: "bottoms",
+    examples: "pants, jeans, trousers, shorts or skirt",
+    where: "on the lower body",
+  },
+  "Верхняя одежда": {
+    noun: "outerwear piece",
+    examples: "coat, jacket, trench, blazer, puffer or parka",
+    where: "as the outermost layer",
+  },
+  Обувь: {
+    noun: "pair of shoes",
+    examples: "sneakers, boots, loafers, heels or sandals",
+    where: "on the feet",
+  },
+  Аксессуары: {
+    noun: "accessory",
+    examples: "bag, hat, cap, belt, scarf, sunglasses or jewelry",
+    where: "worn or carried",
+  },
 };
 
 export function garmentPrompt(category: string) {
-  const garment = GARMENT_HINTS[category] ?? "main clothing item";
-  return (
-    `From this photo, extract ONLY the ${garment} that the person is wearing. ` +
-    "Output a clean product photo of just that single item by itself, ghost-mannequin / flat-lay style, " +
-    "centered, fully visible, on a plain pure white background. Keep its real color, pattern, print, " +
-    "texture, details and shape exactly as in the photo. Remove the person, body parts, the background, " +
-    "and all other clothing and objects. No text, no watermark."
-  );
+  const h = GARMENT_HINTS[category] ?? {
+    noun: "clothing item",
+    examples: "garment",
+    where: "on the body",
+  };
+  return [
+    `Task: extract ONLY the ${h.noun} (${h.examples}) currently WORN by the main person in the photo (${h.where}).`,
+    `If no one is wearing it, use the single most prominent ${h.noun} in the center of the photo instead.`,
+    "Ignore everything else: all other clothing on the person, other people, garments on hangers or racks, " +
+      "clothes lying around or hanging in the background, furniture, plants, mirrors, phones and the background itself.",
+    `Output: a clean standalone e-commerce product photo of just that single ${h.noun}, ` +
+      "ghost-mannequin style for clothing (flat-lay for shoes and accessories), front view, centered, " +
+      "fully visible with nothing cropped, on a plain pure white background with a soft natural shadow.",
+    "Preserve the real item exactly: the same color and shade, pattern, print, logos, text, fabric texture, " +
+      "seams, buttons, zippers, length and fit. If part of it is hidden, reconstruct the hidden part " +
+      "consistently with what is visible. Do not invent new details or change the style.",
+    "No person, no skin, no hands, no hanger, no mannequin, no extra items, no added text or watermark.",
+  ].join(" ");
 }
 
 type RunwareResult = {
