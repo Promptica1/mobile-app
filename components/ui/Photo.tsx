@@ -9,9 +9,11 @@ type Props = {
   className?: string;
   // Что показать, если фото не загрузилось (например, ссылка устарела).
   fallback?: React.ReactNode;
+  // contain — вписать в рамку целиком; width — во всю ширину, высота по пропорциям.
+  fit?: "contain" | "width";
 };
 
-export default function Photo({ src, alt, className = "", fallback = null }: Props) {
+export default function Photo({ src, alt, className = "", fallback = null, fit = "contain" }: Props) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   if (failedSrc === src) return <>{fallback}</>;
   return (
@@ -21,7 +23,7 @@ export default function Photo({ src, alt, className = "", fallback = null }: Pro
       loading="lazy"
       decoding="async"
       onError={() => setFailedSrc(src)}
-      className={`h-full w-full object-contain ${className}`}
+      className={`${fit === "width" ? "block h-auto w-full" : "h-full w-full object-contain"} ${className}`}
     />
   );
 }

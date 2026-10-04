@@ -84,17 +84,20 @@ export default function TryOnScreen() {
   return (
     // Экран закреплён между верхом окна и нижней навигацией (4.5rem + 1px рамки).
     <div className="fixed inset-x-0 top-0 bottom-[calc(4.5rem+1px+env(safe-area-inset-bottom))] mx-auto w-full max-w-[430px] overflow-hidden bg-background">
-      {/* Аватар во всю ширину; фон совпадает с фоном приложения */}
-      <div
-        className="absolute inset-x-0 top-[calc(3rem+env(safe-area-inset-top))] flex items-center justify-center transition-[bottom] duration-300"
-        style={{ bottom: sheetHeight }}
-      >
+      {/* Аватар всегда во всю ширину и на одном месте: фон совпадает с фоном приложения,
+          а развёрнутая панель просто ложится поверх его нижней части.
+          Область — от заголовка до свёрнутой панели (~7rem); my-auto центрирует аватар,
+          а если он выше области, прижимает к верху (низ уходит под панель). */}
+      <div className="absolute inset-x-0 bottom-[7rem] top-[calc(3rem+env(safe-area-inset-top))] flex flex-col">
         {avatar?.url ? (
-          <Photo
-            src={avatar.url}
-            alt="Ваш аватар"
-            fallback={<Silhouette variant="filled" className="h-full w-full px-10 py-6 text-text/15" />}
-          />
+          <div className="my-auto w-full shrink-0">
+            <Photo
+              src={avatar.url}
+              alt="Ваш аватар"
+              fit="width"
+              fallback={<Silhouette variant="filled" className="h-[70vh] w-full px-10 py-6 text-text/15" />}
+            />
+          </div>
         ) : (
           <Silhouette
             variant="filled"
