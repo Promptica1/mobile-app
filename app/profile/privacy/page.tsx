@@ -5,7 +5,7 @@ import DeleteAccount from "@/components/profile/DeleteAccount";
 import ExportData from "@/components/profile/ExportData";
 import SubScreen from "@/components/profile/SubScreen";
 
-export const metadata: Metadata = { title: "Приватность и данные — Digital Wardrobe" };
+export const metadata: Metadata = { title: "Приватность и данные — MIRRO" };
 
 const POINTS = [
   {

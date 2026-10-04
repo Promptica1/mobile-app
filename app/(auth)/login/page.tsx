@@ -3,7 +3,7 @@ import LoginForm from "@/components/auth/LoginForm";
 import SupabaseMissing from "@/components/auth/SupabaseMissing";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
-export const metadata: Metadata = { title: "Вход — Digital Wardrobe" };
+export const metadata: Metadata = { title: "Вход — MIRRO" };
 
 type Props = { searchParams: Promise<{ next?: string; error?: string; deleted?: string }> };
 

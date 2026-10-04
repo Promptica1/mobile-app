@@ -68,7 +68,7 @@ export default function LookDetail({ id }: { id: string }) {
   };
 
   useEffect(() => {
-    if (state.status === "ready") document.title = `${state.look.name} — Digital Wardrobe`;
+    if (state.status === "ready") document.title = `${state.look.name} — MIRRO`;
   }, [state]);
 
   useEffect(() => {

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import AddItemFlow from "@/components/add-item/AddItemFlow";
 
-export const metadata: Metadata = { title: "Добавить вещь — Digital Wardrobe" };
+export const metadata: Metadata = { title: "Добавить вещь — MIRRO" };
 
 // Отдельный маршрут вне группы (tabs) — поэтому здесь нет нижней навигации.
 export default function AddItemPage() {

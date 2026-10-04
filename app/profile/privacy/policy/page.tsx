@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import SubScreen from "@/components/profile/SubScreen";
 
-export const metadata: Metadata = { title: "Политика конфиденциальности — Digital Wardrobe" };
+export const metadata: Metadata = { title: "Политика конфиденциальности — MIRRO" };
 
 const SECTIONS: { title: string; text: string[] }[] = [
   {
@@ -54,8 +54,8 @@ export default function PolicyPage() {
     <SubScreen title="Политика" backHref="/profile/privacy">
       <article className="flex flex-col gap-6 pb-4">
         <p className="text-sm leading-relaxed text-muted">
-          Политика конфиденциальности Digital Wardrobe. Действует для тестовой версии приложения; полная
-          редакция появится вместе с запуском подписки.
+          Политика конфиденциальности приложения MIRRO. Действует для тестовой версии; полная редакция
+          появится вместе с запуском подписки.
         </p>
         {SECTIONS.map(({ title, text }) => (
           <section key={title}>

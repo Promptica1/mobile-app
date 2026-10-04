@@ -3,7 +3,7 @@ import ItemDetail from "@/components/item-detail/ItemDetail";
 
 type Props = { params: Promise<{ id: string }> };
 
-export const metadata: Metadata = { title: "Вещь — Digital Wardrobe" };
+export const metadata: Metadata = { title: "Вещь — MIRRO" };
 
 // Отдельный маршрут вне группы (tabs) — поэтому здесь нет нижней навигации.
 // Вещь загружается в браузере от имени пользователя (RLS — только свои).

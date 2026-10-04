@@ -5,7 +5,7 @@ import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import type { Tokens } from "@/lib/tokens";
 
-export const metadata: Metadata = { title: "Профиль — Digital Wardrobe" };
+export const metadata: Metadata = { title: "Профиль — MIRRO" };
 
 type Loaded = {
   profile: Profile;

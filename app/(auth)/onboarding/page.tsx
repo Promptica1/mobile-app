@@ -6,7 +6,7 @@ import type { Profile } from "@/lib/profile";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Создайте профиль — Digital Wardrobe" };
+export const metadata: Metadata = { title: "Создайте профиль — MIRRO" };
 
 export default async function OnboardingPage() {
   if (!getSupabaseEnv()) return <SupabaseMissing />;

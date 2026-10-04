@@ -14,8 +14,8 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "Digital Wardrobe",
-  description: "Digital Wardrobe",
+  title: "MIRRO",
+  description: "MIRRO — цифровой гардероб и примерка образов на AI-аватаре",
 };
 
 export const viewport: Viewport = {

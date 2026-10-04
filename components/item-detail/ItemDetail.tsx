@@ -59,7 +59,7 @@ export default function ItemDetail({ id }: { id: string }) {
   };
 
   useEffect(() => {
-    if (state.status === "ready") document.title = `${state.item.name} — Digital Wardrobe`;
+    if (state.status === "ready") document.title = `${state.item.name} — MIRRO`;
   }, [state]);
 
   useEffect(() => {

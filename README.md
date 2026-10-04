@@ -1,4 +1,6 @@
-# Digital Wardrobe
+# MIRRO
+
+Цифровой гардероб и примерка образов на AI-аватаре. Внутреннее имя проекта — `digital-wardrobe`.
 
 Next.js (App Router) + TypeScript + Tailwind CSS + Supabase.
 
