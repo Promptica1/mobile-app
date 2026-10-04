@@ -49,7 +49,7 @@ const BottomSheet = forwardRef<HTMLElement, Props>(function BottomSheet(
       ref={ref}
       aria-label="Выбор вещей"
       style={{ transform: `translateY(${drag}px)` }}
-      className={`absolute inset-x-0 bottom-0 z-20 rounded-t-[1.75rem] border-t border-border/70 bg-surface/80 px-4 pb-3 shadow-[0_-12px_32px_-18px_rgba(44,44,42,0.25)] backdrop-blur-xl ${
+      className={`absolute inset-x-0 bottom-0 z-20 rounded-t-[1.75rem] border-t border-border/70 bg-surface/80 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-12px_32px_-18px_rgba(44,44,42,0.25)] backdrop-blur-xl ${
         drag === 0 ? "transition-transform duration-300" : ""
       }`}
     >

@@ -1,16 +1,46 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Ellipsis, Layers } from "lucide-react";
+import { ArrowLeft, Ellipsis, Layers } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Silhouette from "@/components/Silhouette";
 import Photo from "@/components/ui/Photo";
 import { fetchAvatar, hasAvatarSupport, type Avatar } from "@/lib/avatar";
 import { MOCK_WORN, type WornItem } from "@/lib/tryOn";
+import { PREV_PATH_KEY } from "@/components/BottomNav";
 import ActionsMenu from "./ActionsMenu";
 import AvatarSetup from "./AvatarSetup";
 import BottomSheet from "./BottomSheet";
 import ClothesPicker from "./ClothesPicker";
 import WornList from "./WornList";
+
+// Средний цвет по краям картинки (верхняя строка и боковые столбцы).
+function sampleEdgeColor(img: HTMLImageElement): string | null {
+  try {
+    const size = 32;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, size, size);
+    const px = ctx.getImageData(0, 0, size, size).data;
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let y = 0; y < size; y++) {
+      for (const x of y === 0 ? Array.from({ length: size }, (_, i) => i) : [0, size - 1]) {
+        const i = (y * size + x) * 4;
+        r += px[i];
+        g += px[i + 1];
+        b += px[i + 2];
+        n++;
+      }
+    }
+    return `rgb(${Math.round(r / n)}, ${Math.round(g / n)}, ${Math.round(b / n)})`;
+  } catch {
+    // Картинку нельзя прочитать (CORS) — остаётся фон приложения.
+    return null;
+  }
+}
 
 // «Пропустить пока»: не предлагаем создать аватар до конца сессии браузера.
 const SKIP_KEY = "dw:avatar-setup-skipped";
@@ -76,28 +106,48 @@ export default function TryOnScreen() {
     return () => observer.disconnect();
   }, []);
 
+  // «←»: на предыдущий экран приложения, а если «Примерку» открыли напрямую — в Гардероб.
+  const router = useRouter();
+  const goBack = () => {
+    let prev: string | null = null;
+    try {
+      prev = sessionStorage.getItem(PREV_PATH_KEY);
+    } catch {
+      // ignore
+    }
+    if (prev && prev !== "/try-on") router.back();
+    else router.push("/wardrobe");
+  };
+
+  // Цвет фона по краям картинки аватара — им закрашиваем экран вокруг него.
+  const [edgeColor, setEdgeColor] = useState<string | null>(null);
+
   const toggleLayers = () => {
     setPanel(layersOpen ? "picker" : "layers");
     setSheetOpen(true);
   };
 
   return (
-    // Экран закреплён между верхом окна и нижней навигацией (4.5rem + 1px рамки).
-    <div className="fixed inset-x-0 top-0 bottom-[calc(4.5rem+1px+env(safe-area-inset-bottom))] mx-auto w-full max-w-[430px] overflow-hidden bg-background">
-      {/* Аватар всегда во всю ширину и на одном месте: фон совпадает с фоном приложения,
-          а развёрнутая панель просто ложится поверх его нижней части.
-          Область — от заголовка до свёрнутой панели (~7rem); my-auto центрирует аватар,
-          а если он выше области, прижимает к верху (низ уходит под панель). */}
-      <div className="absolute inset-x-0 bottom-[7rem] top-[calc(3rem+env(safe-area-inset-top))] flex flex-col">
+    // Полноэкранный режим: нижней навигации здесь нет.
+    <div
+      className="fixed inset-0 mx-auto w-full max-w-[430px] overflow-hidden bg-background transition-colors duration-500"
+      style={edgeColor ? { backgroundColor: edgeColor } : undefined}
+    >
+      {/* Аватар целиком (от головы до ног) во всей области между заголовком и панелью:
+          панель никогда не закрывает ноги. Если места по высоте мало, аватар уменьшается,
+          а боковые поля закрашены цветом фона самой картинки — белых полос не видно. */}
+      <div
+        className="absolute inset-x-0 top-[calc(3.25rem+env(safe-area-inset-top))] flex items-center justify-center transition-[bottom] duration-300"
+        style={{ bottom: sheetHeight }}
+      >
         {avatar?.url ? (
-          <div className="my-auto w-full shrink-0">
-            <Photo
-              src={avatar.url}
-              alt="Ваш аватар"
-              fit="width"
-              fallback={<Silhouette variant="filled" className="h-[70vh] w-full px-10 py-6 text-text/15" />}
-            />
-          </div>
+          <Photo
+            src={avatar.url}
+            alt="Ваш аватар"
+            crossOrigin="anonymous"
+            onLoad={(img) => setEdgeColor(sampleEdgeColor(img))}
+            fallback={<Silhouette variant="filled" className="h-full w-full px-10 py-6 text-text/15" />}
+          />
         ) : (
           <Silhouette
             variant="filled"
@@ -116,10 +166,20 @@ export default function TryOnScreen() {
       </div>
 
       {/* Заголовок и меню поверх аватара */}
-      <header className="absolute inset-x-0 top-0 z-30 flex items-start justify-between px-5 pt-[calc(1rem+env(safe-area-inset-top))]">
-        <h1 className="font-serif text-3xl font-medium leading-none tracking-tight drop-shadow-[0_1px_8px_rgba(250,248,246,0.9)]">
-          Примерка
-        </h1>
+      <header className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-4 pt-[calc(0.75rem+env(safe-area-inset-top))]">
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={goBack}
+            aria-label="Назад"
+            className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-surface/60"
+          >
+            <ArrowLeft size={22} strokeWidth={1.5} />
+          </button>
+          <h1 className="font-serif text-3xl font-medium leading-none tracking-tight drop-shadow-[0_1px_8px_rgba(250,248,246,0.9)]">
+            Примерка
+          </h1>
+        </div>
         <div className="relative">
           <button
             type="button"
