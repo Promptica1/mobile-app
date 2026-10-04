@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
   console.log(`AV: has key = ${Boolean(process.env.RUNWARE_API_KEY)}`);
 
   // Платным ключом пользуются только вошедшие пользователи.
-  if (!getSupabaseEnv()) return fail("supabase_not_configured", 503);
+  if (!getSupabaseEnv()) return fail("not_configured", 503);
   const supabase = await createClient();
   const {
     data: { user },

@@ -6,9 +6,9 @@ import FormMessage from "@/components/ui/FormMessage";
 export default function SupabaseMissing() {
   return (
     <AuthShell title="Вход пока не настроен" subtitle="Приложение работает на тестовых данных">
+      {/* Для разработчика: нужны переменные окружения из .env.local.example. */}
       <FormMessage tone="info">
-        Добавьте переменные NEXT_PUBLIC_SUPABASE_URL и NEXT_PUBLIC_SUPABASE_ANON_KEY
-        в настройках проекта, чтобы включить регистрацию и вход.
+        Регистрация и вход временно недоступны. Попробуйте зайти чуть позже.
       </FormMessage>
       <Link href="/wardrobe" className="text-center text-sm font-medium underline underline-offset-4">
         Открыть приложение
