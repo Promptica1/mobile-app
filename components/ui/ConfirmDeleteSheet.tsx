@@ -9,11 +9,15 @@ import { useSubmit } from "./useSubmit";
 export default function ConfirmDeleteSheet({
   title,
   text,
+  confirmLabel = "Удалить",
+  busyLabel,
   onDelete,
   onClose,
 }: {
   title: string;
   text: string;
+  confirmLabel?: string;
+  busyLabel?: string;
   onDelete: () => Promise<void>;
   onClose: () => void;
 }) {
@@ -37,7 +41,7 @@ export default function ConfirmDeleteSheet({
           className="flex h-14 items-center justify-center gap-2 rounded-full bg-danger text-[15px] font-medium text-white transition-transform active:scale-[0.98] disabled:opacity-60"
         >
           {busy && <LoaderCircle size={18} strokeWidth={2} className="animate-spin" />}
-          Удалить
+          {busy && busyLabel ? busyLabel : confirmLabel}
         </button>
         <button
           type="button"

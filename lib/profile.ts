@@ -29,3 +29,6 @@ export const MOCK_PROFILE: Profile = {
   gender: "female",
   age_range: "25-34",
 };
+
+// Закрытый бакет с фото профиля (не аватаром): <id пользователя>/photo-<время>.jpg
+export const PROFILE_PHOTOS_BUCKET = "profile-photos";

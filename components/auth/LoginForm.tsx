@@ -1,5 +1,6 @@
 "use client";
 
+import { CircleCheck } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,7 +12,15 @@ import SocialButtons from "./SocialButtons";
 import SubmitButton from "@/components/ui/SubmitButton";
 import TextField from "./TextField";
 
-export default function LoginForm({ next, linkError }: { next?: string; linkError?: boolean }) {
+export default function LoginForm({
+  next,
+  linkError,
+  accountDeleted,
+}: {
+  next?: string;
+  linkError?: boolean;
+  accountDeleted?: boolean;
+}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -82,6 +91,9 @@ export default function LoginForm({ next, linkError }: { next?: string; linkErro
             </Link>
           </div>
         </div>
+        {accountDeleted && !error && (
+          <FormMessage tone="info" icon={CircleCheck}>Аккаунт и все данные удалены. Будем рады видеть вас снова.</FormMessage>
+        )}
         {error && <FormMessage tone="error">{error}</FormMessage>}
         <SubmitButton loading={loading}>{loading ? "Входим…" : "Войти"}</SubmitButton>
       </form>

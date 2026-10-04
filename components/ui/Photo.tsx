@@ -9,8 +9,9 @@ type Props = {
   className?: string;
   // Что показать, если фото не загрузилось (например, ссылка устарела).
   fallback?: React.ReactNode;
-  // contain — вписать в рамку целиком; width — во всю ширину, высота по пропорциям.
-  fit?: "contain" | "width";
+  // contain — вписать в рамку целиком; cover — заполнить рамку с обрезкой краёв;
+  // width — во всю ширину, высота по пропорциям.
+  fit?: "contain" | "cover" | "width";
   // Для чтения пикселей на canvas картинка должна грузиться с CORS.
   crossOrigin?: "anonymous";
   onLoad?: (img: HTMLImageElement) => void;
@@ -36,7 +37,7 @@ export default function Photo({
       crossOrigin={crossOrigin}
       onLoad={(e) => onLoad?.(e.currentTarget)}
       onError={() => setFailedSrc(src)}
-      className={`${fit === "width" ? "block h-auto w-full" : "h-full w-full object-contain"} ${className}`}
+      className={`${{ width: "block h-auto w-full", contain: "h-full w-full object-contain", cover: "h-full w-full object-cover" }[fit]} ${className}`}
     />
   );
 }
