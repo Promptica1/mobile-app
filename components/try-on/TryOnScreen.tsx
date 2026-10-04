@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Ellipsis, Layers } from "lucide-react";
 import Silhouette from "@/components/Silhouette";
 import Photo from "@/components/ui/Photo";
@@ -8,6 +8,7 @@ import { fetchAvatar, hasAvatarSupport, type Avatar } from "@/lib/avatar";
 import { MOCK_WORN, type WornItem } from "@/lib/tryOn";
 import ActionsMenu from "./ActionsMenu";
 import AvatarSetup from "./AvatarSetup";
+import BottomSheet from "./BottomSheet";
 import ClothesPicker from "./ClothesPicker";
 import WornList from "./WornList";
 
@@ -62,71 +63,96 @@ export default function TryOnScreen() {
 
   const layersOpen = panel === "layers";
 
-  return (
-    // Экран закреплён между верхом окна и нижней навигацией (4.5rem + 1px рамки),
-    // поэтому на любом телефоне аватар растягивается на всю оставшуюся высоту.
-    <div className="fixed inset-x-0 top-0 bottom-[calc(4.5rem+1px+env(safe-area-inset-bottom))] mx-auto flex w-full max-w-[430px] flex-col gap-3 px-6 pb-3 pt-[calc(1.5rem+env(safe-area-inset-top))]">
-      <header className="relative flex shrink-0 items-center justify-between">
-        <h1 className="font-serif text-4xl font-medium leading-none tracking-tight">
-          Примерка
-        </h1>
-        <button
-          type="button"
-          aria-label="Действия"
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((open) => !open)}
-          className={`relative z-40 flex h-12 w-12 items-center justify-center rounded-2xl border transition-colors ${
-            menuOpen
-              ? "border-text bg-text text-background"
-              : "border-border bg-surface text-text"
-          }`}
-        >
-          <Ellipsis size={22} strokeWidth={1.75} />
-        </button>
-        {menuOpen && (
-          <ActionsMenu
-            hasAvatar={Boolean(avatar?.path)}
-            onClose={() => setMenuOpen(false)}
-            onClearAll={() => setWorn([])}
-            onAvatar={() => {
-              if (!hasAvatarSupport()) return setToast("Аватар недоступен в тестовом режиме");
-              setSetup(avatar?.path ? "update" : "create");
-            }}
-          />
-        )}
-      </header>
+  // Нижняя панель: развёрнута (выбор вещей) или свёрнута (аватар почти на весь экран).
+  const [sheetOpen, setSheetOpen] = useState(true);
+  // Высота панели — аватар занимает всё, что над ней, и плавно растёт при сворачивании.
+  const sheetRef = useRef<HTMLElement>(null);
+  const [sheetHeight, setSheetHeight] = useState(0);
+  useEffect(() => {
+    const el = sheetRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setSheetHeight(el.offsetHeight));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
-      {/* Аватар пользователя; пока его нет — серый силуэт */}
-      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-card bg-gradient-to-b from-beige to-[#e9dfd2] px-8 py-[6%]">
+  const toggleLayers = () => {
+    setPanel(layersOpen ? "picker" : "layers");
+    setSheetOpen(true);
+  };
+
+  return (
+    // Экран закреплён между верхом окна и нижней навигацией (4.5rem + 1px рамки).
+    <div className="fixed inset-x-0 top-0 bottom-[calc(4.5rem+1px+env(safe-area-inset-bottom))] mx-auto w-full max-w-[430px] overflow-hidden bg-background">
+      {/* Аватар во всю ширину; фон совпадает с фоном приложения */}
+      <div
+        className="absolute inset-x-0 top-[calc(3rem+env(safe-area-inset-top))] flex items-center justify-center transition-[bottom] duration-300"
+        style={{ bottom: sheetHeight }}
+      >
         {avatar?.url ? (
-          <div className="absolute inset-0 bg-background">
-            <Photo
-              src={avatar.url}
-              alt="Ваш аватар"
-              fallback={<Silhouette variant="filled" className="h-full w-full px-8 py-[6%] text-text/15" />}
-            />
-          </div>
+          <Photo
+            src={avatar.url}
+            alt="Ваш аватар"
+            fallback={<Silhouette variant="filled" className="h-full w-full px-10 py-6 text-text/15" />}
+          />
         ) : (
           <Silhouette
             variant="filled"
-            className={`h-full w-full text-text/15 ${avatar === undefined ? "animate-pulse" : ""}`}
+            className={`h-full w-full px-10 py-6 text-text/15 ${avatar === undefined ? "animate-pulse" : ""}`}
           />
         )}
         {avatar && !avatar.path && setup === null && hasAvatarSupport() && (
           <button
             type="button"
             onClick={() => setSetup("create")}
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-surface/90 px-4 py-2 text-sm font-medium backdrop-blur-sm transition-colors hover:bg-surface"
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-surface/90 px-4 py-2 text-sm font-medium shadow-sm backdrop-blur-sm transition-colors hover:bg-surface"
           >
             Создать аватар
           </button>
         )}
-        {toast && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-text px-4 py-2 text-sm text-background">
-            {toast}
-          </div>
-        )}
       </div>
+
+      {/* Заголовок и меню поверх аватара */}
+      <header className="absolute inset-x-0 top-0 z-30 flex items-start justify-between px-5 pt-[calc(1rem+env(safe-area-inset-top))]">
+        <h1 className="font-serif text-3xl font-medium leading-none tracking-tight drop-shadow-[0_1px_8px_rgba(250,248,246,0.9)]">
+          Примерка
+        </h1>
+        <div className="relative">
+          <button
+            type="button"
+            aria-label="Действия"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
+            className={`relative z-40 flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-md transition-colors ${
+              menuOpen
+                ? "border-text bg-text text-background"
+                : "border-border/70 bg-surface/75 text-text"
+            }`}
+          >
+            <Ellipsis size={20} strokeWidth={1.75} />
+          </button>
+          {menuOpen && (
+            <ActionsMenu
+              hasAvatar={Boolean(avatar?.path)}
+              onClose={() => setMenuOpen(false)}
+              onClearAll={() => setWorn([])}
+              onAvatar={() => {
+                if (!hasAvatarSupport()) return setToast("Аватар недоступен в тестовом режиме");
+                setSetup(avatar?.path ? "update" : "create");
+              }}
+            />
+          )}
+        </div>
+      </header>
+
+      {toast && (
+        <div
+          className="absolute left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full bg-text px-4 py-2 text-sm text-background transition-[bottom] duration-300"
+          style={{ bottom: sheetHeight + 12 }}
+        >
+          {toast}
+        </div>
+      )}
 
       {setup && avatar && (
         <AvatarSetup
@@ -141,7 +167,33 @@ export default function TryOnScreen() {
         />
       )}
 
-      <section className="flex shrink-0 flex-col gap-3 rounded-card border border-border bg-surface p-4">
+      <BottomSheet
+        ref={sheetRef}
+        expanded={sheetOpen}
+        onExpandedChange={setSheetOpen}
+        footer={
+          <div className="flex gap-3">
+            <button
+              type="button"
+              aria-label="Надетые вещи"
+              aria-pressed={layersOpen && sheetOpen}
+              onClick={toggleLayers}
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-colors ${
+                layersOpen && sheetOpen ? "bg-lavender text-text" : "bg-lavender/30 text-text"
+              }`}
+            >
+              <Layers size={20} strokeWidth={1.75} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setToast("Сохранение образов — скоро")}
+              className="h-12 flex-1 rounded-full bg-lime text-[15px] font-medium text-text transition-transform active:scale-[0.98]"
+            >
+              Сохранить образ
+            </button>
+          </div>
+        }
+      >
         {layersOpen ? (
           <WornList
             items={worn}
@@ -151,28 +203,7 @@ export default function TryOnScreen() {
         ) : (
           <ClothesPicker />
         )}
-
-        <div className="flex gap-3">
-          <button
-            type="button"
-            aria-label="Надетые вещи"
-            aria-pressed={layersOpen}
-            onClick={() => setPanel(layersOpen ? "picker" : "layers")}
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-colors ${
-              layersOpen ? "bg-lavender text-text" : "bg-lavender/30 text-text"
-            }`}
-          >
-            <Layers size={20} strokeWidth={1.75} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setToast("Сохранение образов — скоро")}
-            className="h-12 flex-1 rounded-full bg-lime text-[15px] font-medium text-text transition-transform active:scale-[0.98]"
-          >
-            Сохранить образ
-          </button>
-        </div>
-      </section>
+      </BottomSheet>
     </div>
   );
 }
