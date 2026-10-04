@@ -24,6 +24,7 @@
   --radius-card: 1.25rem;
 
   --animate-scan: scan 1.8s ease-in-out infinite alternate;
+  --animate-fade-in: fade-in 0.4s ease-out;
 
   @keyframes scan {
     from {
@@ -31,6 +32,12 @@
     }
     to {
       top: 88%;
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
     }
   }
 }

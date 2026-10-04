@@ -275,3 +275,53 @@ export function createAvatar(
     model: process.env.RUNWARE_AVATAR_MODEL,
   });
 }
+
+// ── Примерка: аватар в выбранных вещах ─────────────────────────────────
+
+// Как называть вещь в задании по категории гардероба.
+const TRY_ON_ROLES: Record<string, string> = {
+  Верх: "top (worn on the upper body)",
+  Низ: "bottoms (worn on the lower body)",
+  "Верхняя одежда": "outerwear (worn as the outer layer over the top)",
+  Обувь: "shoes (worn on the feet)",
+  Аксессуары: "accessory",
+};
+
+export type TryOnGarment = { data: Buffer; mimeType: string; category: string; name: string };
+
+export function tryOnPrompt(garments: Pick<TryOnGarment, "category" | "name">[]) {
+  const list = garments
+    .map((g, i) => `reference image ${i + 2} — ${TRY_ON_ROLES[g.category] ?? "clothing item"} ("${g.name}")`)
+    .join("; ");
+  const hasOuter = garments.some((g) => g.category === "Верхняя одежда");
+  const hasShoes = garments.some((g) => g.category === "Обувь");
+  return [
+    "Reference image 1 is a full-body photo of a person (the avatar).",
+    `The other reference images are clothing items to put on this person: ${list}.`,
+    "Generate the SAME person from image 1 now WEARING all of these items together as one complete, realistic outfit.",
+    "Keep exactly the same face, facial features, skin tone, hair, body shape and proportions, the same pose and camera angle, " +
+      "and the same plain soft off-white studio background and lighting as in image 1.",
+    "Each item must keep its real color, pattern, print, logos, fabric texture and design exactly as in its reference image, " +
+      "and be properly fitted to the body with natural folds, drape and realistic shadows.",
+    "Correct layering: " +
+      (hasOuter ? "the outerwear is worn over the top; " : "") +
+      "the top is tucked in or left untucked as looks natural for its style; the bottoms sit naturally at the waist.",
+    "Items that are not provided stay as the plain basics from image 1" + (hasShoes ? "" : " (keep the feet as in image 1)") + ".",
+    "Full body from head to toe fully in frame with the feet visible, centered. Exactly one person, photorealistic. " +
+      "No extra accessories or items, no text, no watermark.",
+  ].join(" ");
+}
+
+// Аватар (первая картинка) + вещи → тот же человек в этом образе, в полный рост.
+export function tryOnOutfit(
+  avatar: { data: Buffer; mimeType: string },
+  garments: TryOnGarment[],
+): Promise<Buffer> {
+  return generateImage({
+    prompt: tryOnPrompt(garments),
+    images: [avatar, ...garments.map((g) => ({ data: g.data, mimeType: g.mimeType }))],
+    width: AVATAR_WIDTH,
+    height: AVATAR_HEIGHT,
+    model: process.env.RUNWARE_TRYON_MODEL,
+  });
+}

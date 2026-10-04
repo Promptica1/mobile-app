@@ -1,12 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Ellipsis, Layers } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, Ellipsis, Layers, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Silhouette from "@/components/Silhouette";
 import Photo from "@/components/ui/Photo";
 import { fetchAvatar, hasAvatarSupport, type Avatar } from "@/lib/avatar";
-import { MOCK_WORN, type WornItem } from "@/lib/tryOn";
+import { fetchItems } from "@/lib/items";
+import {
+  findCachedTryOn,
+  selectedItems,
+  selectionKey,
+  tryOn,
+  TryOnError,
+  type Selection,
+} from "@/lib/tryOn";
+import type { WardrobeItem } from "@/lib/wardrobe";
 import { PREV_PATH_KEY } from "@/components/BottomNav";
 import ActionsMenu from "./ActionsMenu";
 import AvatarSetup from "./AvatarSetup";
@@ -63,8 +72,14 @@ export default function TryOnScreen() {
   // Нижняя панель: выбор одежды (picker) или список надетого (layers).
   const [panel, setPanel] = useState<"picker" | "layers">("picker");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [worn, setWorn] = useState<WornItem[]>(MOCK_WORN);
   const [toast, setToast] = useState<string | null>(null);
+  // Вещи из гардероба: undefined — загружаются, null — ошибка.
+  const [items, setItems] = useState<WardrobeItem[] | null | undefined>(undefined);
+  // Выбранные вещи — по одной в каждой категории.
+  const [selection, setSelection] = useState<Selection>({});
+  // Готовые примерки: ключ набора (аватар + вещи) → ссылка на картинку.
+  const [results, setResults] = useState<Record<string, string>>({});
+  const [generating, setGenerating] = useState(false);
   // Аватар: undefined — ещё загружается.
   const [avatar, setAvatar] = useState<Avatar | undefined>(undefined);
   const [setup, setSetup] = useState<"create" | "update" | null>(null);
@@ -80,6 +95,60 @@ export default function TryOnScreen() {
     );
   }, []);
 
+  useEffect(() => {
+    fetchItems().then(setItems, () => setItems(null));
+  }, []);
+
+  const picked = useMemo(() => selectedItems(selection), [selection]);
+  const avatarPath = avatar?.path ?? null;
+  const comboKey = avatarPath && picked.length > 0 ? selectionKey(avatarPath, selection) : null;
+  const resultUrl = comboKey ? results[comboKey] : undefined;
+
+  // Этот набор уже примеряли раньше (в т.ч. в прошлые визиты) — показываем сразу, без генерации.
+  const checked = useRef(new Set<string>());
+  useEffect(() => {
+    if (!comboKey || !avatarPath || checked.current.has(comboKey) || !hasAvatarSupport()) return;
+    checked.current.add(comboKey);
+    const ids = comboKey.slice(avatarPath.length + 1).split(",");
+    findCachedTryOn(avatarPath, ids).then(
+      (url) => url && setResults((prev) => ({ ...prev, [comboKey]: url })),
+      () => checked.current.delete(comboKey),
+    );
+  }, [comboKey, avatarPath]);
+
+  // Новая вещь в категории заменяет прежнюю, повторное нажатие — снимает.
+  const toggleItem = (item: WardrobeItem) => {
+    if (!item.image_url && hasAvatarSupport()) {
+      setToast("Без фото вещь не примерить");
+      return;
+    }
+    setSelection((prev) => ({
+      ...prev,
+      [item.category]: prev[item.category]?.id === item.id ? undefined : item,
+    }));
+  };
+  const removeItem = (item: WardrobeItem) =>
+    setSelection((prev) => ({ ...prev, [item.category]: undefined }));
+
+  const runTryOn = async () => {
+    if (!hasAvatarSupport()) return setToast("Примерка недоступна в тестовом режиме");
+    if (!avatarPath) return setSetup("create");
+    if (!comboKey || generating) return;
+    setGenerating(true);
+    try {
+      const { url } = await tryOn(picked.map((i) => i.id));
+      setResults((prev) => ({ ...prev, [comboKey]: url }));
+    } catch (err) {
+      const reason = err instanceof TryOnError ? err.reason : "failed";
+      if (reason === "no_avatar") setSetup("create");
+      else if (reason === "items_not_found" || reason === "item_without_photo")
+        setToast("Одна из вещей недоступна. Обновите страницу и попробуйте снова.");
+      else setToast("Не получилось примерить. Попробуйте ещё раз чуть позже.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const closeSetup = useCallback(() => {
     if (setup === "create") markSkipped();
     setSetup(null);
@@ -87,7 +156,8 @@ export default function TryOnScreen() {
 
   useEffect(() => {
     if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 2000);
+    // Длинные сообщения (ошибки) висят дольше.
+    const timer = setTimeout(() => setToast(null), toast.length > 30 ? 4000 : 2000);
     return () => clearTimeout(timer);
   }, [toast]);
 
@@ -140,7 +210,17 @@ export default function TryOnScreen() {
         className="absolute inset-x-0 top-[calc(3.25rem+env(safe-area-inset-top))] flex items-center justify-center transition-[bottom] duration-300"
         style={{ bottom: sheetHeight }}
       >
-        {avatar?.url ? (
+        {resultUrl ? (
+          <Photo
+            key={resultUrl}
+            src={resultUrl}
+            alt="Аватар в образе"
+            crossOrigin="anonymous"
+            onLoad={(img) => setEdgeColor(sampleEdgeColor(img))}
+            className="animate-fade-in"
+            fallback={avatar?.url ? <Photo src={avatar.url} alt="Ваш аватар" /> : null}
+          />
+        ) : avatar?.url ? (
           <Photo
             src={avatar.url}
             alt="Ваш аватар"
@@ -153,6 +233,18 @@ export default function TryOnScreen() {
             variant="filled"
             className={`h-full w-full px-10 py-6 text-text/15 ${avatar === undefined ? "animate-pulse" : ""}`}
           />
+        )}
+        {generating && (
+          <div className="absolute inset-0 flex items-end justify-center bg-background/35 pb-6" aria-live="polite">
+            <span className="absolute inset-x-10 h-px animate-scan bg-lavender shadow-[0_0_12px_2px] shadow-lavender/60" />
+            <div className="flex flex-col items-center rounded-2xl bg-surface/90 px-5 py-3 shadow-sm backdrop-blur-md">
+              <p className="flex items-center gap-2 text-[15px] font-medium">
+                <LoaderCircle size={18} strokeWidth={2} className="animate-spin text-lavender" />
+                Примеряем образ…
+              </p>
+              <p className="mt-0.5 text-xs text-muted">Обычно это занимает 10–40 секунд</p>
+            </div>
+          </div>
         )}
         {avatar && !avatar.path && setup === null && hasAvatarSupport() && (
           <button
@@ -185,6 +277,7 @@ export default function TryOnScreen() {
             type="button"
             aria-label="Действия"
             aria-expanded={menuOpen}
+            disabled={generating}
             onClick={() => setMenuOpen((open) => !open)}
             className={`relative z-40 flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-md transition-colors ${
               menuOpen
@@ -198,7 +291,7 @@ export default function TryOnScreen() {
             <ActionsMenu
               hasAvatar={Boolean(avatar?.path)}
               onClose={() => setMenuOpen(false)}
-              onClearAll={() => setWorn([])}
+              onClearAll={() => setSelection({})}
               onAvatar={() => {
                 if (!hasAvatarSupport()) return setToast("Аватар недоступен в тестовом режиме");
                 setSetup(avatar?.path ? "update" : "create");
@@ -210,7 +303,8 @@ export default function TryOnScreen() {
 
       {toast && (
         <div
-          className="absolute left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full bg-text px-4 py-2 text-sm text-background transition-[bottom] duration-300"
+          role="status"
+          className="absolute left-1/2 z-30 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-2xl bg-text px-4 py-2 text-center text-sm text-background transition-[bottom] duration-300"
           style={{ bottom: sheetHeight + 12 }}
         >
           {toast}
@@ -247,25 +341,37 @@ export default function TryOnScreen() {
             >
               <Layers size={20} strokeWidth={1.75} />
             </button>
-            <button
-              type="button"
-              onClick={() => setToast("Сохранение образов — скоро")}
-              className="h-12 flex-1 rounded-full bg-lime text-[15px] font-medium text-text transition-transform active:scale-[0.98]"
-            >
-              Сохранить образ
-            </button>
+            {/* Результат для этого набора уже на экране — можно сохранять, иначе — примерить. */}
+            {resultUrl ? (
+              <button
+                type="button"
+                onClick={() => setToast("Сохранение в «Образы» — скоро")}
+                className="h-12 flex-1 rounded-full bg-lime text-[15px] font-medium text-text transition-transform active:scale-[0.98]"
+              >
+                Сохранить образ
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={runTryOn}
+                disabled={picked.length === 0 || generating}
+                className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-lime text-[15px] font-medium text-text transition-transform active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
+              >
+                {generating && <LoaderCircle size={18} strokeWidth={2} className="animate-spin" />}
+                {generating ? "Примеряем…" : picked.length === 0 ? "Выберите вещи" : "Примерить"}
+              </button>
+            )}
           </div>
         }
       >
-        {layersOpen ? (
-          <WornList
-            items={worn}
-            onRemove={(id) => setWorn((prev) => prev.filter((item) => item.id !== id))}
-            onClose={() => setPanel("picker")}
-          />
-        ) : (
-          <ClothesPicker />
-        )}
+        {/* Пока идёт примерка, набор не меняем. */}
+        <div inert={generating} className={generating ? "opacity-50 transition-opacity" : "transition-opacity"}>
+          {layersOpen ? (
+            <WornList items={picked} onRemove={removeItem} onClose={() => setPanel("picker")} />
+          ) : (
+            <ClothesPicker items={items} selection={selection} onToggle={toggleItem} />
+          )}
+        </div>
       </BottomSheet>
     </div>
   );
