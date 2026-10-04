@@ -10,6 +10,8 @@ import {
   ShieldCheck,
   UserRound,
 } from "lucide-react";
+import Link from "next/link";
+import { formatPrice, getPlan } from "@/lib/plans";
 import { genderLabel, type Profile } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/client";
 import type { Tokens } from "@/lib/tokens";
@@ -82,7 +84,12 @@ export default function ProfileScreen({ profile: initial, userId, photo, tokens 
 
       {tokens && <TokensCard tokens={tokens} />}
 
-      <section className="rounded-card bg-gradient-to-br from-lavender/45 via-background to-lime/60 p-5">
+      {/* Карточка тарифа целиком ведёт на экран «Подписка» */}
+      <Link
+        href="/profile/subscription"
+        aria-label="Подписка: выбрать тариф"
+        className="block rounded-card bg-gradient-to-br from-lavender/45 via-background to-lime/60 p-5 transition-transform active:scale-[0.99]"
+      >
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-serif text-2xl font-medium leading-tight">Бесплатный план</h2>
           <span className="rounded-full bg-text px-2.5 py-1 text-[10px] font-semibold tracking-wider text-background">
@@ -90,17 +97,12 @@ export default function ProfileScreen({ profile: initial, userId, photo, tokens 
           </span>
         </div>
         <p className="mt-2 max-w-[260px] text-sm leading-relaxed text-text/70">
-          Расширьте гардероб, аватар и образы без ограничений
+          Больше токенов, вещей и папки для образов — от {formatPrice(getPlan("premium").price)}/мес
         </p>
-        {/* Оплата пока не подключена */}
-        <button
-          type="button"
-          onClick={() => setToast("Premium — скоро")}
-          className="mt-5 h-12 w-full rounded-full bg-text text-[15px] font-medium text-background transition-transform active:scale-[0.98]"
-        >
+        <span className="mt-5 flex h-12 w-full items-center justify-center rounded-full bg-text text-[15px] font-medium text-background">
           Перейти на Premium
-        </button>
-      </section>
+        </span>
+      </Link>
 
       <SettingsGroup
         rows={[
