@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MAX_EXTRACTION_ATTEMPTS, processPhoto } from "@/lib/garmentExtraction";
 import { compressImage } from "@/lib/image";
 import { createItem } from "@/lib/items";
+import { markPhotoTipsSeen, usePhotoTipsSeen } from "@/lib/photoTips";
 import type { NewWardrobeItem } from "@/lib/wardrobe";
+import PhotoTips from "./PhotoTips";
 import StepHeader from "./StepHeader";
 import StepPhoto from "./StepPhoto";
 import StepProcessing, { type ProcessingPhase } from "./StepProcessing";
@@ -44,6 +46,14 @@ export default function AddItemFlow() {
   // Сколько раз уже запускали AI-вырезание для этой вещи (каждая попытка платная).
   const [attempts, setAttempts] = useState(0);
   const attemptsLeft = MAX_EXTRACTION_ATTEMPTS - attempts;
+  // Подсказка о съёмке: сама при первом открытии, потом — по кнопке «?».
+  const tipsSeen = usePhotoTipsSeen();
+  const [tipsOpen, setTipsOpen] = useState(false);
+  const showTips = tipsOpen || !tipsSeen;
+  const closeTips = useCallback(() => {
+    markPhotoTipsSeen();
+    setTipsOpen(false);
+  }, []);
   // Номер текущей обработки: ответ от устаревшей (пользователь ушёл назад) игнорируем.
   const runId = useRef(0);
 
@@ -135,7 +145,12 @@ export default function AddItemFlow() {
   return (
     <>
       {picker.inputs}
-      <StepHeader {...headers[step]} onBack={handleBack} />
+      {showTips && <PhotoTips onClose={closeTips} />}
+      <StepHeader
+        {...headers[step]}
+        onBack={handleBack}
+        onHelp={step === 1 ? () => setTipsOpen(true) : undefined}
+      />
       {step === 1 && (
         <StepPhoto
           photoUrl={original?.url ?? null}
