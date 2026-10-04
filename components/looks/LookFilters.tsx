@@ -1,24 +1,34 @@
 import { Folder, Heart, Plus } from "lucide-react";
-import { LOOK_FILTERS, type LookFilter } from "@/lib/looks";
+import type { Folder as FolderRow } from "@/lib/looks";
+
+// "all", "favorite" или id папки.
+export type LookFilter = string;
 
 type Props = {
+  folders: FolderRow[];
   selected: LookFilter;
   onSelect: (filter: LookFilter) => void;
+  onNewFolder: () => void;
 };
 
 const pill =
   "flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-sm transition-colors";
 
-export default function LookFilters({ selected, onSelect }: Props) {
+export default function LookFilters({ folders, selected, onSelect, onNewFolder }: Props) {
+  const options = [
+    { id: "all", label: "Все", kind: "all" },
+    { id: "favorite", label: "Избранное", kind: "favorite" },
+    ...folders.map((f) => ({ id: f.id, label: f.name, kind: "folder" })),
+  ];
   return (
     <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {LOOK_FILTERS.map(({ label, kind }) => {
-        const active = label === selected;
+      {options.map(({ id, label, kind }) => {
+        const active = id === selected;
         return (
           <button
-            key={label}
+            key={id}
             type="button"
-            onClick={() => onSelect(label)}
+            onClick={() => onSelect(id)}
             aria-pressed={active}
             className={`${pill} ${
               active
@@ -30,13 +40,13 @@ export default function LookFilters({ selected, onSelect }: Props) {
               <Heart size={14} strokeWidth={1.75} className="fill-pink text-pink" />
             )}
             {kind === "folder" && <Folder size={14} strokeWidth={1.75} />}
-            {label}
+            <span className="max-w-[10rem] truncate">{label}</span>
           </button>
         );
       })}
-      {/* Создание папки подключим позже */}
       <button
         type="button"
+        onClick={onNewFolder}
         className={`${pill} border-dashed border-text/25 text-muted hover:border-text/40 hover:text-text`}
       >
         <Plus size={14} strokeWidth={1.75} />

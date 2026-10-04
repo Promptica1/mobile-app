@@ -47,7 +47,8 @@ export const selectionKey = (avatarPath: string, s: Selection) =>
     .sort()
     .join(",")}`;
 
-export type TryOnResult = { url: string; cached: boolean };
+// url — временная ссылка для показа, path — файл в бакете tryons (для сохранения образа).
+export type TryOnResult = { url: string; path: string; cached: boolean };
 
 export class TryOnError extends Error {
   constructor(public reason: string) {
@@ -56,7 +57,7 @@ export class TryOnError extends Error {
 }
 
 // Закрытый бакет с готовыми примерками: <id пользователя>/<ключ набора>.jpg
-const TRYONS_BUCKET = "tryons";
+export const TRYONS_BUCKET = "tryons";
 const SIGNED_URL_TTL = 60 * 60;
 
 // Тот же ключ, что считает сервер (/api/try-on): sha256 от «аватар|id вещей по порядку».
@@ -67,7 +68,7 @@ async function comboKey(avatarPath: string, itemIds: string[]) {
 }
 
 // Этот набор на этом аватаре уже примеряли? Тогда показываем сразу, без генерации.
-export async function findCachedTryOn(avatarPath: string, itemIds: string[]): Promise<string | null> {
+export async function findCachedTryOn(avatarPath: string, itemIds: string[]): Promise<TryOnResult | null> {
   const supabase = createClient();
   const { data } = await supabase
     .from("try_on_results")
@@ -78,7 +79,7 @@ export async function findCachedTryOn(avatarPath: string, itemIds: string[]): Pr
   const { data: signed } = await supabase.storage
     .from(TRYONS_BUCKET)
     .createSignedUrl(data.image_path, SIGNED_URL_TTL);
-  return signed?.signedUrl ?? null;
+  return signed?.signedUrl ? { url: signed.signedUrl, path: data.image_path, cached: true } : null;
 }
 
 // Сервер ждёт Runware до 90 с, браузер — с запасом.
@@ -98,8 +99,8 @@ export async function tryOn(itemIds: string[]): Promise<TryOnResult> {
     throw new TryOnError("network");
   }
   const data = (await res.json().catch(() => null)) as
-    | { url?: string; cached?: boolean; error?: string }
+    | { url?: string; path?: string; cached?: boolean; error?: string }
     | null;
-  if (!res.ok || !data?.url) throw new TryOnError(data?.error ?? "failed");
-  return { url: data.url, cached: Boolean(data.cached) };
+  if (!res.ok || !data?.url || !data.path) throw new TryOnError(data?.error ?? "failed");
+  return { url: data.url, path: data.path, cached: Boolean(data.cached) };
 }

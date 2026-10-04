@@ -22,17 +22,12 @@ export class SaveItemError extends Error {
   }
 }
 
-export async function fetchItems(): Promise<WardrobeItem[]> {
-  if (!hasSupabase()) return MOCK_ITEMS;
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("items")
-    .select(COLUMNS)
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-
-  // Одним запросом получаем временные ссылки на все фото.
-  const paths = data.map((item) => item.image_url).filter((p): p is string => Boolean(p));
+// Добавляет к строкам временные ссылки на фото (одним запросом).
+async function withPhotos(
+  supabase: ReturnType<typeof createClient>,
+  rows: Omit<WardrobeItem, "photo_url">[],
+): Promise<WardrobeItem[]> {
+  const paths = rows.map((item) => item.image_url).filter((p): p is string => Boolean(p));
   const signed = new Map<string, string>();
   if (paths.length > 0) {
     const { data: urls } = await supabase.storage
@@ -43,10 +38,30 @@ export async function fetchItems(): Promise<WardrobeItem[]> {
     });
   }
   // Если ссылку получить не удалось, карточка просто покажет заглушку.
-  return data.map((item) => ({
+  return rows.map((item) => ({
     ...item,
     photo_url: item.image_url ? (signed.get(item.image_url) ?? null) : null,
   }));
+}
+
+export async function fetchItems(): Promise<WardrobeItem[]> {
+  if (!hasSupabase()) return MOCK_ITEMS;
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("items")
+    .select(COLUMNS)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return withPhotos(supabase, data);
+}
+
+// Вещи образа по id (удалённые из гардероба просто не вернутся).
+export async function fetchItemsByIds(ids: string[]): Promise<WardrobeItem[]> {
+  if (!hasSupabase() || ids.length === 0) return [];
+  const supabase = createClient();
+  const { data, error } = await supabase.from("items").select(COLUMNS).in("id", ids);
+  if (error) throw error;
+  return withPhotos(supabase, data);
 }
 
 export async function createItem(item: NewWardrobeItem, photo: Blob | null): Promise<void> {

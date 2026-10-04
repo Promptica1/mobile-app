@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Ellipsis, Layers, LoaderCircle } from "lucide-react";
+import { ArrowLeft, Check, Ellipsis, Layers, LoaderCircle } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Silhouette from "@/components/Silhouette";
 import Photo from "@/components/ui/Photo";
@@ -14,6 +15,7 @@ import {
   tryOn,
   TryOnError,
   type Selection,
+  type TryOnResult,
 } from "@/lib/tryOn";
 import type { WardrobeItem } from "@/lib/wardrobe";
 import { PREV_PATH_KEY } from "@/components/BottomNav";
@@ -21,6 +23,7 @@ import ActionsMenu from "./ActionsMenu";
 import AvatarSetup from "./AvatarSetup";
 import BottomSheet from "./BottomSheet";
 import ClothesPicker from "./ClothesPicker";
+import SaveLookSheet from "./SaveLookSheet";
 import WornList from "./WornList";
 
 // Средний цвет по краям картинки (верхняя строка и боковые столбцы).
@@ -78,7 +81,10 @@ export default function TryOnScreen() {
   // Выбранные вещи — по одной в каждой категории.
   const [selection, setSelection] = useState<Selection>({});
   // Готовые примерки: ключ набора (аватар + вещи) → ссылка на картинку.
-  const [results, setResults] = useState<Record<string, string>>({});
+  const [results, setResults] = useState<Record<string, TryOnResult>>({});
+  // Сохранённые в «Образы» наборы: ключ набора → id образа.
+  const [saved, setSaved] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   // Аватар: undefined — ещё загружается.
   const [avatar, setAvatar] = useState<Avatar | undefined>(undefined);
@@ -96,13 +102,28 @@ export default function TryOnScreen() {
   }, []);
 
   useEffect(() => {
-    fetchItems().then(setItems, () => setItems(null));
+    fetchItems().then(
+      (list) => {
+        setItems(list);
+        // «Изменить образ» открывает Примерку как /try-on?items=id1,id2 — надеваем эти вещи.
+        const ids = new URLSearchParams(window.location.search).get("items")?.split(",") ?? [];
+        if (ids.length === 0) return;
+        const preset: Selection = {};
+        list.filter((i) => ids.includes(i.id)).forEach((i) => (preset[i.category] = i));
+        setSelection(preset);
+        window.history.replaceState(null, "", "/try-on");
+        if (Object.keys(preset).length < ids.length) setToast("Часть вещей образа удалена из гардероба");
+      },
+      () => setItems(null),
+    );
   }, []);
 
   const picked = useMemo(() => selectedItems(selection), [selection]);
   const avatarPath = avatar?.path ?? null;
   const comboKey = avatarPath && picked.length > 0 ? selectionKey(avatarPath, selection) : null;
-  const resultUrl = comboKey ? results[comboKey] : undefined;
+  const result = comboKey ? results[comboKey] : undefined;
+  const resultUrl = result?.url;
+  const savedLookId = comboKey ? saved[comboKey] : undefined;
 
   // Этот набор уже примеряли раньше (в т.ч. в прошлые визиты) — показываем сразу, без генерации.
   const checked = useRef(new Set<string>());
@@ -111,7 +132,7 @@ export default function TryOnScreen() {
     checked.current.add(comboKey);
     const ids = comboKey.slice(avatarPath.length + 1).split(",");
     findCachedTryOn(avatarPath, ids).then(
-      (url) => url && setResults((prev) => ({ ...prev, [comboKey]: url })),
+      (found) => found && setResults((prev) => ({ ...prev, [comboKey]: found })),
       () => checked.current.delete(comboKey),
     );
   }, [comboKey, avatarPath]);
@@ -136,8 +157,8 @@ export default function TryOnScreen() {
     if (!comboKey || generating) return;
     setGenerating(true);
     try {
-      const { url } = await tryOn(picked.map((i) => i.id));
-      setResults((prev) => ({ ...prev, [comboKey]: url }));
+      const found = await tryOn(picked.map((i) => i.id));
+      setResults((prev) => ({ ...prev, [comboKey]: found }));
     } catch (err) {
       const reason = err instanceof TryOnError ? err.reason : "failed";
       if (reason === "no_avatar") setSetup("create");
@@ -311,6 +332,19 @@ export default function TryOnScreen() {
         </div>
       )}
 
+      {saving && comboKey && result && (
+        <SaveLookSheet
+          itemIds={picked.map((i) => i.id)}
+          imagePath={result.path}
+          onClose={() => setSaving(false)}
+          onSaved={(lookId) => {
+            setSaved((prev) => ({ ...prev, [comboKey]: lookId }));
+            setSaving(false);
+            setToast("Образ сохранён в «Образы»");
+          }}
+        />
+      )}
+
       {setup && avatar && (
         <AvatarSetup
           mode={setup}
@@ -342,10 +376,18 @@ export default function TryOnScreen() {
               <Layers size={20} strokeWidth={1.75} />
             </button>
             {/* Результат для этого набора уже на экране — можно сохранять, иначе — примерить. */}
-            {resultUrl ? (
+            {savedLookId ? (
+              <Link
+                href={`/looks/${savedLookId}`}
+                className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full border border-border bg-surface text-[15px] font-medium text-text transition-transform active:scale-[0.98]"
+              >
+                <Check size={18} strokeWidth={2} />
+                Сохранён · открыть
+              </Link>
+            ) : resultUrl ? (
               <button
                 type="button"
-                onClick={() => setToast("Сохранение в «Образы» — скоро")}
+                onClick={() => setSaving(true)}
                 className="h-12 flex-1 rounded-full bg-lime text-[15px] font-medium text-text transition-transform active:scale-[0.98]"
               >
                 Сохранить образ

@@ -25,6 +25,7 @@
 
   --animate-scan: scan 1.8s ease-in-out infinite alternate;
   --animate-fade-in: fade-in 0.4s ease-out;
+  --animate-sheet-up: sheet-up 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 
   @keyframes scan {
     from {
@@ -38,6 +39,12 @@
   @keyframes fade-in {
     from {
       opacity: 0;
+    }
+  }
+
+  @keyframes sheet-up {
+    from {
+      transform: translateY(100%);
     }
   }
 }
