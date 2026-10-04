@@ -30,7 +30,7 @@ export default function FolderPicker({ folders, value, onChange, onNewFolder }: 
             className={`${pill} ${
               active
                 ? "border-text bg-text text-background"
-                : "border-border bg-background text-text hover:border-text/30"
+                : "border-border bg-subtle text-text hover:border-text/30"
             }`}
           >
             <Icon size={14} strokeWidth={1.75} />

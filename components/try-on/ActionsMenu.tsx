@@ -35,7 +35,7 @@ export default function ActionsMenu({ hasAvatar, onClose, onClearAll, onAvatar }
               onClick();
               onClose();
             }}
-            className="flex w-full items-center gap-3 px-4 py-3 text-left text-[15px] transition-colors hover:bg-background"
+            className="flex w-full items-center gap-3 px-4 py-3 text-left text-[15px] transition-colors hover:bg-subtle"
           >
             <Icon size={18} strokeWidth={1.5} />
             {label}

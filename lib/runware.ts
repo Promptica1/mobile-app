@@ -271,7 +271,9 @@ export function avatarPrompt({ hasFullBody, heightCm, weightKg, gender }: Avatar
       "neutral relaxed pose, arms relaxed slightly away from the body, calm neutral expression, eyes looking at the camera.",
     "Clothing: plain simple fitted basics only — a plain fitted light beige crew-neck top and plain fitted light beige " +
       "shorts or leggings, no logos, no prints; barefoot.",
-    "Background: clean seamless soft off-white studio background (#FAF8F6), soft even studio lighting, " +
+    "Background: a completely plain, seamless PURE WHITE studio background (#FFFFFF) filling the entire frame edge to edge — " +
+      "no gradient, no vignette, no floor line, no horizon, no visible wall or backdrop edges, no colored tint; " +
+      "only a very soft subtle contact shadow under the feet. Soft even studio lighting, " +
       "sharp focus, realistic skin texture, natural proportions, centered composition.",
     "Exactly one person. No accessories, no jewelry, no bag, no phone, no glasses, no text, no watermark.",
   ]
@@ -318,7 +320,10 @@ export function tryOnPrompt(garments: Pick<TryOnGarment, "category" | "name">[])
     `The other reference images are clothing items to put on this person: ${list}.`,
     "Generate the SAME person from image 1 now WEARING all of these items together as one complete, realistic outfit.",
     "Keep exactly the same face, facial features, skin tone, hair, body shape and proportions, the same pose and camera angle, " +
-      "and the same plain soft off-white studio background and lighting as in image 1.",
+      "and the same soft even studio lighting as in image 1.",
+    "Background: a completely plain, seamless PURE WHITE studio background (#FFFFFF) filling the entire frame edge to edge " +
+      "(replace any other background color from image 1 with pure white) — no gradient, no vignette, no floor line, " +
+      "no visible backdrop edges, no colored tint; only a very soft subtle contact shadow under the feet.",
     "Each item must keep its real color, pattern, print, logos, fabric texture and design exactly as in its reference image, " +
       "and be properly fitted to the body with natural folds, drape and realistic shadows.",
     "Correct layering: " +

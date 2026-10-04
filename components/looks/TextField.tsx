@@ -19,7 +19,7 @@ export default function TextField({ label, value, onChange, placeholder, autoFoc
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         autoFocus={autoFocus}
-        className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-[15px] outline-none transition-colors placeholder:text-muted focus:border-lavender"
+        className="h-12 w-full rounded-2xl border border-border bg-subtle px-4 text-[15px] outline-none transition-colors placeholder:text-muted focus:border-lavender"
       />
     </label>
   );

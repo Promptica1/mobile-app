@@ -20,7 +20,7 @@ type Props = {
 export default function ItemCard({ item, onToggleFavorite }: Props) {
   const Icon = placeholderIcon[item.category] ?? Shirt;
   const placeholder = (
-    <div className="absolute inset-3 flex items-center justify-center rounded-2xl bg-background">
+    <div className="absolute inset-3 flex items-center justify-center rounded-2xl bg-subtle">
       <Icon size={28} strokeWidth={1.25} className="text-muted" />
     </div>
   );

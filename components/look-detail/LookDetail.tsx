@@ -190,7 +190,7 @@ export default function LookDetail({ id }: { id: string }) {
       </header>
 
       <div className="flex flex-col gap-6">
-        <div className="relative flex aspect-[3/4] items-center justify-center overflow-hidden rounded-card bg-gradient-to-b from-beige to-[#e9dfd2]">
+        <div className="relative flex aspect-[3/4] items-center justify-center overflow-hidden rounded-card border border-border bg-gradient-to-b from-beige to-[#e9dfd2]">
           {look.photo_url ? (
             <Photo src={look.photo_url} alt={`Образ «${look.name}»`} fallback={placeholder} />
           ) : (

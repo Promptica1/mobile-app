@@ -30,7 +30,7 @@ export default function WornList({ items, onRemove, onClose }: Props) {
             const icon = <Icon size={20} strokeWidth={1.25} className="text-muted" />;
             return (
               <li key={item.id} className="flex items-center gap-3 py-2.5">
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-background p-1 ring-1 ring-border">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-surface p-1 ring-1 ring-border">
                   {item.photo_url ? <Photo src={item.photo_url} alt="" fallback={icon} /> : icon}
                 </span>
                 <span className="min-w-0 flex-1">

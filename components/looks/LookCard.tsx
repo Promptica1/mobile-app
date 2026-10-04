@@ -19,7 +19,7 @@ export default function LookCard({ look, onToggleFavorite }: Props) {
         aria-label={`Открыть образ «${look.name}»`}
         className="absolute inset-0 z-[1] rounded-card"
       />
-      <div className="relative flex aspect-[3/4] items-center justify-center overflow-hidden rounded-card bg-gradient-to-b from-beige to-[#e9dfd2]">
+      <div className="relative flex aspect-[3/4] items-center justify-center overflow-hidden rounded-card border border-border bg-gradient-to-b from-beige to-[#e9dfd2]">
         {look.photo_url ? (
           <Photo src={look.photo_url} alt={look.name} fallback={placeholder} />
         ) : (

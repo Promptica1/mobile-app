@@ -86,7 +86,7 @@ export default function ClothesPicker({ items, selection, onToggle }: Props) {
               aria-label={item.name}
               title={item.name}
               onClick={() => onToggle(item)}
-              className={`relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-background p-1.5 transition-shadow ${
+              className={`relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-surface p-1.5 transition-shadow ${
                 active ? "ring-2 ring-lavender" : "ring-1 ring-border hover:ring-text/20"
               }`}
             >
@@ -132,7 +132,7 @@ export default function ClothesPicker({ items, selection, onToggle }: Props) {
         })}
       </div>
 
-      <label className="flex h-9 items-center gap-2 rounded-full border border-border bg-background px-3.5 transition-colors focus-within:border-lavender">
+      <label className="flex h-9 items-center gap-2 rounded-full border border-border bg-subtle px-3.5 transition-colors focus-within:border-lavender">
         <Search size={15} strokeWidth={1.5} className="shrink-0 text-muted" />
         <input
           type="search"

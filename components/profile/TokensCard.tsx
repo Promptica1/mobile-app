@@ -16,7 +16,7 @@ export default function TokensCard({ tokens }: { tokens: Tokens }) {
         <span className="tabular-nums">{tokens.total}</span>
       </p>
       <div
-        className="mt-2.5 h-2 overflow-hidden rounded-full bg-background"
+        className="mt-2.5 h-2 overflow-hidden rounded-full bg-subtle"
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={tokens.total}

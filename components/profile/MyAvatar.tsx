@@ -55,7 +55,7 @@ export default function MyAvatar() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex aspect-[3/4] items-center justify-center overflow-hidden rounded-card bg-gradient-to-b from-beige to-[#e9dfd2]">
+      <div className="flex aspect-[3/4] items-center justify-center overflow-hidden rounded-card border border-border bg-gradient-to-b from-beige to-[#e9dfd2]">
         {avatar?.url ? <Photo src={avatar.url} alt="Ваш аватар" fit="cover" fallback={silhouette} /> : silhouette}
       </div>
 

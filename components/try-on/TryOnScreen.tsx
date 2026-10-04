@@ -293,7 +293,7 @@ export default function TryOnScreen() {
           >
             <ArrowLeft size={22} strokeWidth={1.5} />
           </button>
-          <h1 className="font-serif text-3xl font-medium leading-none tracking-tight drop-shadow-[0_1px_8px_rgba(250,248,246,0.9)]">
+          <h1 className="font-serif text-3xl font-medium leading-none tracking-tight drop-shadow-[0_1px_8px_rgba(255,255,255,0.9)]">
             Примерка
           </h1>
         </div>
