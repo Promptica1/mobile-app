@@ -6,9 +6,10 @@
  * text-green, bg-beige, text-danger, bg-lime, border-border, text-muted, bg-subtle, font-sans, font-serif.
  */
 @theme {
-  --color-background: #ffffff;
+  --color-background: #faf8f6;
   --color-surface: #ffffff;
-  /* Мягкая заливка внутри белых карточек: поля, плашки иконок, превью, наведение. */
+  /* Мягкая заливка внутри белых карточек: поля, плашки иконок, наведение. */
+  /* Экран «Примерка» — на чисто белом фоне (#ffffff), остальные — на кремовом background. */
   --color-subtle: #f5f4f2;
   --color-text: #2c2c2a;
   --color-muted: #a3a09b;

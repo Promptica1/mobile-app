@@ -56,6 +56,19 @@ function sampleEdgeColor(img: HTMLImageElement): string | null {
   }
 }
 
+// Мягко растушёвываем края картинки аватара: её прямоугольник растворяется в фоне,
+// без заметных границ рядом с заголовком и нижней панелью.
+const FEATHER_MASK =
+  "linear-gradient(to right, transparent, #000 7%, #000 93%, transparent), " +
+  "linear-gradient(to bottom, transparent, #000 4%, #000 96%, transparent)";
+const FEATHER: React.CSSProperties = {
+  maskImage: FEATHER_MASK,
+  WebkitMaskImage: FEATHER_MASK,
+  maskComposite: "intersect",
+  WebkitMaskComposite: "source-in",
+  borderRadius: "2rem",
+};
+
 // «Пропустить пока»: не предлагаем создать аватар до конца сессии браузера.
 const SKIP_KEY = "dw:avatar-setup-skipped";
 const wasSkipped = () => {
@@ -225,7 +238,7 @@ export default function TryOnScreen() {
   return (
     // Полноэкранный режим: нижней навигации здесь нет.
     <div
-      className="fixed inset-0 mx-auto w-full max-w-[430px] overflow-hidden bg-background transition-colors duration-500"
+      className="fixed inset-0 mx-auto w-full max-w-[430px] overflow-hidden bg-white transition-colors duration-500"
       style={edgeColor ? { backgroundColor: edgeColor } : undefined}
     >
       {/* Аватар целиком (от головы до ног) во всей области между заголовком и панелью:
@@ -242,8 +255,10 @@ export default function TryOnScreen() {
             alt="Аватар в образе"
             crossOrigin="anonymous"
             onLoad={(img) => setEdgeColor(sampleEdgeColor(img))}
+            fit="natural"
+            style={FEATHER}
             className="animate-fade-in"
-            fallback={avatar?.url ? <Photo src={avatar.url} alt="Ваш аватар" /> : null}
+            fallback={avatar?.url ? <Photo src={avatar.url} alt="Ваш аватар" fit="natural" style={FEATHER} /> : null}
           />
         ) : avatar?.url ? (
           <Photo
@@ -251,6 +266,8 @@ export default function TryOnScreen() {
             alt="Ваш аватар"
             crossOrigin="anonymous"
             onLoad={(img) => setEdgeColor(sampleEdgeColor(img))}
+            fit="natural"
+            style={FEATHER}
             fallback={<Silhouette variant="filled" className="h-full w-full px-10 py-6 text-text/15" />}
           />
         ) : (
@@ -260,7 +277,7 @@ export default function TryOnScreen() {
           />
         )}
         {generating && (
-          <div className="absolute inset-0 flex items-end justify-center bg-background/35 pb-6" aria-live="polite">
+          <div className="absolute inset-0 flex items-end justify-center bg-white/35 pb-6" aria-live="polite">
             <span className="absolute inset-x-10 h-px animate-scan bg-lavender shadow-[0_0_12px_2px] shadow-lavender/60" />
             <div className="flex flex-col items-center rounded-2xl bg-surface/90 px-5 py-3 shadow-sm backdrop-blur-md">
               <p className="flex items-center gap-2 text-[15px] font-medium">

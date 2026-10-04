@@ -271,9 +271,10 @@ export function avatarPrompt({ hasFullBody, heightCm, weightKg, gender }: Avatar
       "neutral relaxed pose, arms relaxed slightly away from the body, calm neutral expression, eyes looking at the camera.",
     "Clothing: plain simple fitted basics only — a plain fitted light beige crew-neck top and plain fitted light beige " +
       "shorts or leggings, no logos, no prints; barefoot.",
-    "Background: a completely plain, seamless PURE WHITE studio background (#FFFFFF) filling the entire frame edge to edge — " +
-      "no gradient, no vignette, no floor line, no horizon, no visible wall or backdrop edges, no colored tint; " +
-      "only a very soft subtle contact shadow under the feet. Soft even studio lighting, " +
+    "Background: a flat, even, uniform PURE WHITE background (#FFFFFF) filling the entire frame edge to edge — " +
+      "absolutely NO shadows of any kind: no drop shadow or contact shadow under the feet, no cast shadows on the " +
+      "background, no floor, no floor line, no horizon, no gradient, no vignette, no visible backdrop edges, no colored tint. " +
+      "The figure stands cleanly on pure white as if cut out. Soft even shadowless studio lighting on the person, " +
       "sharp focus, realistic skin texture, natural proportions, centered composition.",
     "Exactly one person. No accessories, no jewelry, no bag, no phone, no glasses, no text, no watermark.",
   ]
@@ -321,9 +322,9 @@ export function tryOnPrompt(garments: Pick<TryOnGarment, "category" | "name">[])
     "Generate the SAME person from image 1 now WEARING all of these items together as one complete, realistic outfit.",
     "Keep exactly the same face, facial features, skin tone, hair, body shape and proportions, the same pose and camera angle, " +
       "and the same soft even studio lighting as in image 1.",
-    "Background: a completely plain, seamless PURE WHITE studio background (#FFFFFF) filling the entire frame edge to edge " +
-      "(replace any other background color from image 1 with pure white) — no gradient, no vignette, no floor line, " +
-      "no visible backdrop edges, no colored tint; only a very soft subtle contact shadow under the feet.",
+    "Background: a flat, even, uniform PURE WHITE background (#FFFFFF) filling the entire frame edge to edge " +
+      "(replace any other background color from image 1 with pure white) — absolutely NO shadows: no shadow under the feet, " +
+      "no cast shadows on the background, no floor line, no gradient, no vignette, no visible backdrop edges, no colored tint.",
     "Each item must keep its real color, pattern, print, logos, fabric texture and design exactly as in its reference image, " +
       "and be properly fitted to the body with natural folds, drape and realistic shadows.",
     "Correct layering: " +
