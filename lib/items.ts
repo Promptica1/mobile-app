@@ -103,3 +103,32 @@ export async function setItemFavorite(id: string, isFavorite: boolean): Promise<
     .eq("id", id);
   if (error) throw error;
 }
+
+// Одна вещь для карточки; null — вещи нет (удалена или чужая).
+export async function fetchItem(id: string): Promise<WardrobeItem | null> {
+  if (!hasSupabase()) return MOCK_ITEMS.find((i) => i.id === id) ?? null;
+  const supabase = createClient();
+  const { data, error } = await supabase.from("items").select(COLUMNS).eq("id", id).maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const [item] = await withPhotos(supabase, [data]);
+  return item;
+}
+
+// Правка полей вещи; фото и AI-вырезание не трогаем.
+export async function updateItem(id: string, fields: NewWardrobeItem): Promise<void> {
+  if (!hasSupabase()) return;
+  const { error } = await createClient().from("items").update(fields).eq("id", id);
+  if (error) throw error;
+}
+
+// Удаляет строку, затем фото из Storage. Из сохранённых образов вещь уйдёт сама
+// (look_items ... on delete cascade), картинки образов остаются.
+export async function deleteItem(item: Pick<WardrobeItem, "id" | "image_url">): Promise<void> {
+  if (!hasSupabase()) return;
+  const supabase = createClient();
+  const { error } = await supabase.from("items").delete().eq("id", item.id);
+  if (error) throw error;
+  // Если файл удалить не вышло, вещь всё равно удалена — лишний файл не мешает.
+  if (item.image_url) await supabase.storage.from(ITEMS_BUCKET).remove([item.image_url]);
+}

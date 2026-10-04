@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Bell,
   Camera,
@@ -8,10 +12,41 @@ import {
   UserRound,
 } from "lucide-react";
 import { genderLabel, type Profile } from "@/lib/profile";
+import { createClient } from "@/lib/supabase/client";
+import EditProfileSheet from "./EditProfileSheet";
 import LogoutButton from "./LogoutButton";
 import SettingsGroup from "./SettingsGroup";
 
-export default function ProfileScreen({ profile }: { profile: Profile }) {
+type Props = {
+  profile: Profile;
+  // null — тестовый режим без Supabase: изменения только на экране.
+  userId: string | null;
+};
+
+export default function ProfileScreen({ profile: initial, userId }: Props) {
+  const router = useRouter();
+  const [profile, setProfile] = useState(initial);
+  const [editing, setEditing] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 2500);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  const saveProfile = async (patch: Pick<Profile, "name" | "gender">) => {
+    if (userId) {
+      const { error } = await createClient().from("profiles").update(patch).eq("id", userId);
+      if (error) throw error;
+    }
+    setProfile((prev) => ({ ...prev, ...patch }));
+    setEditing(false);
+    setToast("Профиль сохранён");
+    // Обновляем серверные данные, чтобы при возврате на экран имя было новым.
+    router.refresh();
+  };
+
   return (
     <div className="flex flex-col gap-6 pt-[calc(1.5rem+env(safe-area-inset-top))]">
       <h1 className="font-serif text-4xl font-medium leading-none tracking-tight">
@@ -37,6 +72,7 @@ export default function ProfileScreen({ profile }: { profile: Profile }) {
         </div>
         <button
           type="button"
+          onClick={() => setEditing(true)}
           aria-label="Редактировать профиль"
           className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-border/50"
         >
@@ -77,6 +113,19 @@ export default function ProfileScreen({ profile }: { profile: Profile }) {
       />
 
       <LogoutButton />
+
+      {editing && (
+        <EditProfileSheet profile={profile} onSave={saveProfile} onClose={() => setEditing(false)} />
+      )}
+
+      {toast && (
+        <div
+          role="status"
+          className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-1/2 z-40 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-2xl bg-text px-4 py-2 text-center text-sm text-background"
+        >
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

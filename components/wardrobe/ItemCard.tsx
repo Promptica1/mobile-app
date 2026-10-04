@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Footprints, Gem, Heart, Layers, Shirt, type LucideIcon } from "lucide-react";
 import Photo from "@/components/ui/Photo";
 import type { WardrobeItem } from "@/lib/wardrobe";
@@ -25,7 +26,13 @@ export default function ItemCard({ item, onToggleFavorite }: Props) {
   );
 
   return (
-    <article>
+    <article className="relative">
+      {/* Вся карточка открывает вещь; сердечко лежит поверх ссылки */}
+      <Link
+        href={`/wardrobe/${item.id}`}
+        aria-label={`Открыть вещь «${item.name}»`}
+        className="absolute inset-0 z-[1] rounded-card"
+      />
       <div className="relative aspect-square overflow-hidden rounded-card border border-border bg-surface">
         {/* Фото вещи; у вещей без фото (и если ссылка не открылась) — заглушка */}
         {item.photo_url ? (
@@ -40,7 +47,7 @@ export default function ItemCard({ item, onToggleFavorite }: Props) {
           onClick={() => onToggleFavorite(item)}
           aria-label={item.is_favorite ? "Убрать из избранного" : "В избранное"}
           aria-pressed={item.is_favorite}
-          className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface/90 backdrop-blur-sm"
+          className="absolute right-2.5 top-2.5 z-[2] flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface/90 backdrop-blur-sm"
         >
           <Heart
             size={15}

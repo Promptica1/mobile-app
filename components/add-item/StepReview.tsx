@@ -1,5 +1,6 @@
-import { ChevronDown, Info, LoaderCircle, RefreshCw, Shirt } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { Info, LoaderCircle, RefreshCw, Shirt } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { COLORS, Field, MATERIALS, SelectRow, rowClass } from "@/components/wardrobe/ItemFields";
 import FormMessage from "@/components/ui/FormMessage";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { Button } from "@/components/ui/Button";
@@ -7,76 +8,6 @@ import Photo from "@/components/ui/Photo";
 import { SaveItemError } from "@/lib/items";
 import { plural } from "@/lib/plural";
 import { CATEGORIES, type NewWardrobeItem } from "@/lib/wardrobe";
-
-const COLORS: Record<string, string> = {
-  Чёрный: "#2c2c2a",
-  Белый: "#ffffff",
-  Бежевый: "#d9c7ae",
-  Серый: "#a3a09b",
-  Синий: "#4a5f8c",
-  Коричневый: "#7a5a43",
-};
-const MATERIALS = ["Кожа", "Хлопок", "Лён", "Шерсть", "Кашемир", "Деним", "Синтетика"];
-
-function Field({
-  label,
-  optional,
-  children,
-}: {
-  label: string;
-  optional?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 flex items-baseline gap-2 px-1 text-sm font-medium">
-        {label}
-        {optional && <span className="text-xs font-normal text-muted">необязательно</span>}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-const rowClass =
-  "flex h-14 w-full items-center gap-3 rounded-2xl border border-border bg-surface px-4 text-[15px] transition-colors focus-within:border-lavender";
-
-function SelectRow({
-  value,
-  onChange,
-  options,
-  placeholder,
-  prefix,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  options: string[];
-  placeholder?: string;
-  prefix?: ReactNode;
-}) {
-  return (
-    <div className={`relative ${rowClass}`}>
-      {prefix}
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`h-full w-full appearance-none bg-transparent pr-8 outline-none ${value ? "" : "text-muted"}`}
-      >
-        {placeholder && <option value="">{placeholder}</option>}
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
-      <ChevronDown
-        size={18}
-        strokeWidth={1.5}
-        className="pointer-events-none absolute right-4 text-muted"
-      />
-    </div>
-  );
-}
 
 type Props = {
   photoUrl: string | null;

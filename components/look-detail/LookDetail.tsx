@@ -27,7 +27,8 @@ import {
 } from "@/lib/looks";
 import { CATEGORY_ICONS } from "@/lib/tryOn";
 import type { WardrobeItem } from "@/lib/wardrobe";
-import { DeleteSheet, MoveSheet, RenameSheet } from "./LookSheets";
+import ConfirmDeleteSheet from "@/components/ui/ConfirmDeleteSheet";
+import { MoveSheet, RenameSheet } from "./LookSheets";
 
 // Вещи в ленте — в порядке слоёв образа.
 const ORDER = ["Верхняя одежда", "Верх", "Низ", "Обувь", "Аксессуары"];
@@ -304,8 +305,9 @@ export default function LookDetail({ id }: { id: string }) {
         />
       )}
       {sheet === "delete" && (
-        <DeleteSheet
-          name={look.name}
+        <ConfirmDeleteSheet
+          title="Удалить образ?"
+          text={`Образ «${look.name}» удалится насовсем. Вещи останутся в гардеробе.`}
           onClose={() => setSheet(null)}
           onDelete={async () => {
             await deleteLook(look.id);

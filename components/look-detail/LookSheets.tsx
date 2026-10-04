@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LoaderCircle } from "lucide-react";
+import { useSubmit } from "@/components/ui/useSubmit";
 import FolderPicker from "@/components/looks/FolderPicker";
 import NewFolderSheet from "@/components/looks/NewFolderSheet";
 import TextField from "@/components/looks/TextField";
@@ -9,25 +9,6 @@ import FormMessage from "@/components/ui/FormMessage";
 import Sheet from "@/components/ui/Sheet";
 import SubmitButton from "@/components/ui/SubmitButton";
 import type { Folder } from "@/lib/looks";
-
-const SAVE_ERROR = "Не получилось сохранить. Проверьте интернет и попробуйте ещё раз.";
-
-// Общая логика: кнопка ждёт сохранения, при ошибке показываем сообщение и не закрываем.
-function useSubmit(action: () => Promise<void>) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const run = async () => {
-    setError("");
-    setBusy(true);
-    try {
-      await action();
-    } catch {
-      setError(SAVE_ERROR);
-      setBusy(false);
-    }
-  };
-  return { busy, error, setError, run };
-}
 
 export function RenameSheet({
   name,
@@ -110,48 +91,5 @@ export function MoveSheet({
         />
       )}
     </>
-  );
-}
-
-export function DeleteSheet({
-  name,
-  onDelete,
-  onClose,
-}: {
-  name: string;
-  onDelete: () => Promise<void>;
-  onClose: () => void;
-}) {
-  const { busy, error, run } = useSubmit(onDelete);
-  return (
-    <Sheet title="Удалить образ?" onClose={onClose} locked={busy}>
-      <p className="-mt-2 text-sm leading-relaxed text-muted">
-        Образ «{name}» удалится насовсем. Вещи останутся в гардеробе.
-      </p>
-      {error && (
-        <div className="mt-4">
-          <FormMessage tone="error">{error}</FormMessage>
-        </div>
-      )}
-      <div className="mt-6 flex flex-col gap-2">
-        <button
-          type="button"
-          onClick={run}
-          disabled={busy}
-          className="flex h-14 items-center justify-center gap-2 rounded-full bg-danger text-[15px] font-medium text-white transition-transform active:scale-[0.98] disabled:opacity-60"
-        >
-          {busy && <LoaderCircle size={18} strokeWidth={2} className="animate-spin" />}
-          Удалить
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={busy}
-          className="h-12 rounded-full text-[15px] text-muted transition-colors hover:text-text disabled:opacity-50"
-        >
-          Отмена
-        </button>
-      </div>
-    </Sheet>
   );
 }
