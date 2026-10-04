@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { RunwareError, tryOnOutfit, type TryOnGarment } from "@/lib/runware";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
+import { spendToken, tokenBalance } from "@/lib/tokens.server";
 
 // Примерка: браузер присылает только id выбранных вещей. Сервер сам берёт аватар
 // и фото вещей из хранилища от имени пользователя (RLS — только свои), проверяет
@@ -79,6 +80,10 @@ export async function POST(request: NextRequest) {
 
   if (!process.env.RUNWARE_API_KEY) return fail("not_configured", 503);
 
+  // Токены бета-доступа: повтор из кэша (выше) бесплатный, новая примерка — 1 токен.
+  const balance = await tokenBalance(supabase, user.id);
+  if (balance !== null && balance <= 0) return fail("no_tokens", 402);
+
   const download = async (bucket: string, path: string) => {
     const { data, error } = await supabase.storage.from(bucket).download(path);
     if (error || !data) throw new Error(`download ${bucket}/${path}`);
@@ -113,7 +118,9 @@ export async function POST(request: NextRequest) {
     const url = await signed(path);
     if (!url) throw new Error("signed url");
     console.log(`TO: success ${key}, image ${Math.round(image.length / 1024)} KB`);
-    return NextResponse.json({ url, path, cached: false, comboKey: key });
+    // Пользователь получил новую примерку — только теперь списываем токен.
+    const tokens = await spendToken(supabase);
+    return NextResponse.json({ url, path, cached: false, comboKey: key, tokens });
   } catch (error) {
     console.log(`TO: error = ${error instanceof Error ? error.message : String(error)}`);
     if (error instanceof RunwareError && error.reason !== "failed") {

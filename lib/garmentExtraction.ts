@@ -1,4 +1,5 @@
 import { compressImage } from "./image";
+import { announceTokensFrom } from "./tokens";
 
 // Отправляем фото и тип вещи на наш сервер (/api/extract-garment), сервер
 // обращается к генеративной модели Runware. Ключ Runware хранится только на сервере.
@@ -13,7 +14,10 @@ const CLIENT_TIMEOUT_MS = 100_000;
 // (первая попытка + повторы через «Загрузить другое фото»). Каждая попытка платная.
 export const MAX_EXTRACTION_ATTEMPTS = 3;
 
-export type ProcessedPhoto = { blob: Blob; extracted: boolean };
+// noTokens — токены бета-доступа закончились, вырезание не запускалось.
+export type ProcessedPhoto = { blob: Blob; extracted: boolean; noTokens?: boolean };
+
+class NoTokensError extends Error {}
 
 async function requestGarment(photo: Blob, category: string): Promise<Blob> {
   const input = await compressImage(photo, { maxSide: PROCESS_MAX_SIDE });
@@ -25,9 +29,11 @@ async function requestGarment(photo: Blob, category: string): Promise<Blob> {
     body: form,
     signal: AbortSignal.timeout(CLIENT_TIMEOUT_MS),
   });
+  if (res.status === 402) throw new NoTokensError();
   if (!res.ok || !res.headers.get("content-type")?.startsWith("image/")) {
     throw new Error(`extract-garment ${res.status}`);
   }
+  announceTokensFrom(res);
   // Вещь уже на белом фоне — сохраняем как JPEG, он легче.
   return compressImage(await res.blob(), { maxSide: 1600 });
 }
@@ -36,7 +42,7 @@ async function requestGarment(photo: Blob, category: string): Promise<Blob> {
 export async function processPhoto(original: Blob, category: string): Promise<ProcessedPhoto> {
   try {
     return { blob: await requestGarment(original, category), extracted: true };
-  } catch {
-    return { blob: original, extracted: false };
+  } catch (error) {
+    return { blob: original, extracted: false, noTokens: error instanceof NoTokensError };
   }
 }

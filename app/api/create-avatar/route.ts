@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { RunwareError, createAvatar } from "@/lib/runware";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
+import { spendToken, tokenBalance, tokensHeaders } from "@/lib/tokens.server";
 
 // Серверный маршрут: браузер присылает селфи (обязательно), фото в полный рост
 // (необязательно) и рост/вес. Сервер с ключом RUNWARE_API_KEY просит Nano Banana
@@ -47,6 +48,10 @@ export async function POST(request: NextRequest) {
   const heightCm = intInRange(form?.get("height") ?? null, 100, 230);
   const weightKg = intInRange(form?.get("weight") ?? null, 30, 250);
 
+  // Токены бета-доступа: при нуле Runware не вызываем.
+  const balance = await tokenBalance(supabase, user.id);
+  if (balance !== null && balance <= 0) return fail("no_tokens", 402);
+
   // Пол из профиля помогает модели не ошибиться с фигурой.
   const { data: profile } = await supabase
     .from("profiles")
@@ -68,8 +73,10 @@ export async function POST(request: NextRequest) {
       { heightCm, weightKg, gender: profile?.gender ?? null },
     );
     console.log(`AV: success, image ${Math.round(image.length / 1024)} KB`);
+    // Списываем только после успешной генерации.
+    const left = await spendToken(supabase);
     return new NextResponse(new Uint8Array(image), {
-      headers: { "Content-Type": "image/jpeg", "Cache-Control": "no-store" },
+      headers: { "Content-Type": "image/jpeg", "Cache-Control": "no-store", ...tokensHeaders(left) },
     });
   } catch (error) {
     console.log(`AV: error = ${error instanceof Error ? error.message : String(error)}`);

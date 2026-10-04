@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MAX_EXTRACTION_ATTEMPTS, processPhoto } from "@/lib/garmentExtraction";
+import { NO_TOKENS_MESSAGE } from "@/lib/tokens";
 import { compressImage } from "@/lib/image";
 import { createItem } from "@/lib/items";
 import { markPhotoTipsSeen, usePhotoTipsSeen } from "@/lib/photoTips";
@@ -74,7 +75,13 @@ export default function AddItemFlow() {
     const processed = await processPhoto(photo.blob, type);
     if (id !== runId.current) return null;
     setResult(processed.extracted ? toPhoto(processed.blob) : photo);
-    setNotice(processed.extracted ? "" : FALLBACK_NOTICE);
+    setNotice(
+      processed.extracted
+        ? ""
+        : processed.noTokens
+          ? `${NO_TOKENS_MESSAGE} Сохраним исходное фото.`
+          : FALLBACK_NOTICE,
+    );
     return processed.extracted;
   };
 

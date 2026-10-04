@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import TokenPill from "@/components/TokenPill";
 import { fetchItems, setItemFavorite } from "@/lib/items";
 import { formatItemCount, type Filter, type WardrobeItem } from "@/lib/wardrobe";
 import CategoryFilters from "./CategoryFilters";
@@ -88,13 +89,16 @@ export default function WardrobeScreen() {
               {isLoading && <span className="inline-block h-3 w-16 animate-pulse rounded-full bg-border/70 align-middle" />}
             </p>
           </div>
-          <Link
-            href="/add-item"
-            aria-label="Добавить вещь"
-            className="flex h-12 w-12 items-center justify-center rounded-2xl bg-lavender text-text transition-transform active:scale-95"
-          >
-            <Plus size={22} strokeWidth={1.75} />
-          </Link>
+          <div className="flex items-center gap-2.5">
+            <TokenPill />
+            <Link
+              href="/add-item"
+              aria-label="Добавить вещь"
+              className="flex h-12 w-12 items-center justify-center rounded-2xl bg-lavender text-text transition-transform active:scale-95"
+            >
+              <Plus size={22} strokeWidth={1.75} />
+            </Link>
+          </div>
         </div>
 
         {status === "ready" && !isEmpty && (

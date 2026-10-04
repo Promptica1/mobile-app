@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { compressImage } from "./image";
+import { announceTokensFrom } from "./tokens";
 
 // Аватар для «Примерки»: генерирует сервер (/api/create-avatar, ключ Runware только там),
 // а браузер сохраняет результат в закрытый бакет avatars и записывает путь в профиль.
@@ -19,7 +20,7 @@ export type Avatar = {
 };
 
 export class AvatarError extends Error {
-  constructor(public stage: "generate" | "upload" | "save") {
+  constructor(public stage: "generate" | "upload" | "save" | "no_tokens") {
     super(`avatar ${stage}`);
   }
 }
@@ -71,8 +72,9 @@ export async function createAvatar(input: AvatarInput): Promise<Avatar> {
   const userId = await currentUserId();
   if (!userId) throw new AvatarError("save");
 
-  // 1. Генерация на сервере.
+  // 1. Генерация на сервере (стоит 1 токен бета-доступа).
   let generated: Blob;
+  let noTokens = false;
   try {
     const form = new FormData();
     form.append("selfie", await compressImage(input.selfie, { maxSide: INPUT_MAX_SIDE }), "selfie.jpg");
@@ -86,10 +88,12 @@ export async function createAvatar(input: AvatarInput): Promise<Avatar> {
       body: form,
       signal: AbortSignal.timeout(CLIENT_TIMEOUT_MS),
     });
+    if (res.status === 402) noTokens = true;
     if (!res.ok || !res.headers.get("content-type")?.startsWith("image/")) throw new Error(String(res.status));
+    announceTokensFrom(res);
     generated = await compressImage(await res.blob(), { maxSide: 1600 });
   } catch {
-    throw new AvatarError("generate");
+    throw new AvatarError(noTokens ? "no_tokens" : "generate");
   }
 
   // 2. Новый файл с уникальным именем — старая подписанная ссылка не покажет устаревший аватар.

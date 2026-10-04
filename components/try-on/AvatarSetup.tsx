@@ -9,6 +9,7 @@ import Photo from "@/components/ui/Photo";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { AvatarError, createAvatar, type Avatar } from "@/lib/avatar";
 import { compressImage } from "@/lib/image";
+import { NO_TOKENS_MESSAGE } from "@/lib/tokens";
 
 type Picked = { blob: Blob; url: string };
 
@@ -21,6 +22,7 @@ type Props = {
 };
 
 const ERRORS: Record<AvatarError["stage"], string> = {
+  no_tokens: NO_TOKENS_MESSAGE,
   generate: "Не получилось создать аватар. Попробуйте ещё раз чуть позже или с другим селфи.",
   upload: "Аватар создан, но не сохранился. Проверьте интернет и попробуйте ещё раз.",
   save: "Аватар создан, но не сохранился. Проверьте интернет и попробуйте ещё раз.",

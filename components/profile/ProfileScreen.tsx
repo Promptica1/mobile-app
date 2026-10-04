@@ -12,10 +12,12 @@ import {
 } from "lucide-react";
 import { genderLabel, type Profile } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/client";
+import type { Tokens } from "@/lib/tokens";
 import EditProfileSheet from "./EditProfileSheet";
 import ProfilePhoto from "./ProfilePhoto";
 import LogoutButton from "./LogoutButton";
 import SettingsGroup from "./SettingsGroup";
+import TokensCard from "./TokensCard";
 
 type Props = {
   profile: Profile;
@@ -23,9 +25,11 @@ type Props = {
   userId: string | null;
   // Фото профиля (не аватар): путь в бакете и временная ссылка.
   photo: { path: string | null; url: string | null };
+  // Токены бета-доступа; null — не настроены.
+  tokens: Tokens | null;
 };
 
-export default function ProfileScreen({ profile: initial, userId, photo }: Props) {
+export default function ProfileScreen({ profile: initial, userId, photo, tokens }: Props) {
   const router = useRouter();
   const [profile, setProfile] = useState(initial);
   const [editing, setEditing] = useState(false);
@@ -75,6 +79,8 @@ export default function ProfileScreen({ profile: initial, userId, photo }: Props
           <Pencil size={18} strokeWidth={1.5} className="text-muted" />
         </button>
       </section>
+
+      {tokens && <TokensCard tokens={tokens} />}
 
       <section className="rounded-card bg-gradient-to-br from-lavender/45 via-background to-lime/60 p-5">
         <div className="flex items-center justify-between gap-3">

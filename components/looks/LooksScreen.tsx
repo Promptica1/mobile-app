@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import TokenPill from "@/components/TokenPill";
 import {
   fetchFolders,
   fetchLooks,
@@ -77,13 +78,16 @@ export default function LooksScreen() {
             </p>
           </div>
           {/* Новый образ собирается в Примерке */}
-          <Link
-            href="/try-on"
-            aria-label="Создать образ"
-            className="flex h-12 w-12 items-center justify-center rounded-2xl bg-lime text-text transition-transform active:scale-95"
-          >
-            <Plus size={22} strokeWidth={1.75} />
-          </Link>
+          <div className="flex items-center gap-2.5">
+            <TokenPill />
+            <Link
+              href="/try-on"
+              aria-label="Создать образ"
+              className="flex h-12 w-12 items-center justify-center rounded-2xl bg-lime text-text transition-transform active:scale-95"
+            >
+              <Plus size={22} strokeWidth={1.75} />
+            </Link>
+          </div>
         </div>
 
         {looks && !isEmpty && (

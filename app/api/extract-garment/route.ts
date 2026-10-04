@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { RunwareError, extractGarment } from "@/lib/runware";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
+import { spendToken, tokenBalance, tokensHeaders } from "@/lib/tokens.server";
 import { CATEGORIES } from "@/lib/wardrobe";
 
 // Серверный маршрут: браузер присылает фото и тип вещи, сервер с ключом
@@ -44,13 +45,19 @@ export async function POST(request: NextRequest) {
   if (!(file instanceof Blob) || !ALLOWED_TYPES.includes(file.type)) return fail("bad_image", 400);
   if (file.size > MAX_BYTES) return fail("too_large", 413);
   if (!(CATEGORIES as readonly string[]).includes(category)) return fail("bad_category", 400);
+  // Токены бета-доступа: при нуле Runware не вызываем.
+  const balance = await tokenBalance(supabase, user.id);
+  if (balance !== null && balance <= 0) return fail("no_tokens", 402);
+
   console.log(`RB: image ${file.type}, ${Math.round(file.size / 1024)} KB, category = ${category}`);
 
   try {
     const image = await extractGarment(Buffer.from(await file.arrayBuffer()), file.type, category);
     console.log(`RB: success, image ${Math.round(image.length / 1024)} KB`);
+    // Списываем только после успешной генерации.
+    const left = await spendToken(supabase);
     return new NextResponse(new Uint8Array(image), {
-      headers: { "Content-Type": sniffType(image), "Cache-Control": "no-store" },
+      headers: { "Content-Type": sniffType(image), "Cache-Control": "no-store", ...tokensHeaders(left) },
     });
   } catch (error) {
     // Подробности — только в логах сервера; клиенту — короткий код.

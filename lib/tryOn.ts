@@ -48,7 +48,7 @@ export const selectionKey = (avatarPath: string, s: Selection) =>
     .join(",")}`;
 
 // url — временная ссылка для показа, path — файл в бакете tryons (для сохранения образа).
-export type TryOnResult = { url: string; path: string; cached: boolean };
+export type TryOnResult = { url: string; path: string; cached: boolean; tokens?: number | null };
 
 export class TryOnError extends Error {
   constructor(public reason: string) {
@@ -99,8 +99,8 @@ export async function tryOn(itemIds: string[]): Promise<TryOnResult> {
     throw new TryOnError("network");
   }
   const data = (await res.json().catch(() => null)) as
-    | { url?: string; path?: string; cached?: boolean; error?: string }
+    | { url?: string; path?: string; cached?: boolean; tokens?: number | null; error?: string }
     | null;
   if (!res.ok || !data?.url || !data.path) throw new TryOnError(data?.error ?? "failed");
-  return { url: data.url, path: data.path, cached: Boolean(data.cached) };
+  return { url: data.url, path: data.path, cached: Boolean(data.cached), tokens: data.tokens };
 }

@@ -8,6 +8,7 @@ import Silhouette from "@/components/Silhouette";
 import Photo from "@/components/ui/Photo";
 import { fetchAvatar, hasAvatarSupport, type Avatar } from "@/lib/avatar";
 import { fetchItems } from "@/lib/items";
+import { announceTokens, NO_TOKENS_MESSAGE } from "@/lib/tokens";
 import {
   findCachedTryOn,
   selectedItems,
@@ -19,6 +20,7 @@ import {
 } from "@/lib/tryOn";
 import type { WardrobeItem } from "@/lib/wardrobe";
 import { PREV_PATH_KEY } from "@/components/BottomNav";
+import TokenPill from "@/components/TokenPill";
 import ActionsMenu from "./ActionsMenu";
 import AvatarSetup from "./AvatarSetup";
 import BottomSheet from "./BottomSheet";
@@ -159,9 +161,11 @@ export default function TryOnScreen() {
     try {
       const found = await tryOn(picked.map((i) => i.id));
       setResults((prev) => ({ ...prev, [comboKey]: found }));
+      announceTokens(found.tokens);
     } catch (err) {
       const reason = err instanceof TryOnError ? err.reason : "failed";
       if (reason === "no_avatar") setSetup("create");
+      else if (reason === "no_tokens") setToast(NO_TOKENS_MESSAGE);
       else if (reason === "items_not_found" || reason === "item_without_photo")
         setToast("Одна из вещей недоступна. Обновите страницу и попробуйте снова.");
       else setToast("Не получилось примерить. Попробуйте ещё раз чуть позже.");
@@ -293,32 +297,35 @@ export default function TryOnScreen() {
             Примерка
           </h1>
         </div>
-        <div className="relative">
-          <button
-            type="button"
-            aria-label="Действия"
-            aria-expanded={menuOpen}
-            disabled={generating}
-            onClick={() => setMenuOpen((open) => !open)}
-            className={`relative z-40 flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-md transition-colors ${
-              menuOpen
-                ? "border-text bg-text text-background"
-                : "border-border/70 bg-surface/75 text-text"
-            }`}
-          >
-            <Ellipsis size={20} strokeWidth={1.75} />
-          </button>
-          {menuOpen && (
-            <ActionsMenu
-              hasAvatar={Boolean(avatar?.path)}
-              onClose={() => setMenuOpen(false)}
-              onClearAll={() => setSelection({})}
-              onAvatar={() => {
-                if (!hasAvatarSupport()) return setToast("Аватар недоступен в тестовом режиме");
-                setSetup(avatar?.path ? "update" : "create");
-              }}
-            />
-          )}
+        <div className="flex items-center gap-2">
+          <TokenPill />
+          <div className="relative">
+            <button
+              type="button"
+              aria-label="Действия"
+              aria-expanded={menuOpen}
+              disabled={generating}
+              onClick={() => setMenuOpen((open) => !open)}
+              className={`relative z-40 flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-md transition-colors ${
+                menuOpen
+                  ? "border-text bg-text text-background"
+                  : "border-border/70 bg-surface/75 text-text"
+              }`}
+            >
+              <Ellipsis size={20} strokeWidth={1.75} />
+            </button>
+            {menuOpen && (
+              <ActionsMenu
+                hasAvatar={Boolean(avatar?.path)}
+                onClose={() => setMenuOpen(false)}
+                onClearAll={() => setSelection({})}
+                onAvatar={() => {
+                  if (!hasAvatarSupport()) return setToast("Аватар недоступен в тестовом режиме");
+                  setSetup(avatar?.path ? "update" : "create");
+                }}
+              />
+            )}
+          </div>
         </div>
       </header>
 
