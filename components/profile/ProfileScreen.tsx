@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Bell,
   CircleHelp,
   Info,
   Pencil,
@@ -107,12 +106,7 @@ export default function ProfileScreen({ profile: initial, userId, photo, tokens 
       <SettingsGroup
         rows={[
           { label: "Мой аватар", Icon: UserRound, href: "/profile/avatar" },
-          { label: "Уведомления", Icon: Bell, href: "/profile/notifications" },
           { label: "Приватность и данные", Icon: ShieldCheck, href: "/profile/privacy" },
-        ]}
-      />
-      <SettingsGroup
-        rows={[
           { label: "Помощь и поддержка", Icon: CircleHelp, href: "/profile/help" },
           { label: "О приложении", Icon: Info, href: "/profile/about" },
         ]}
