@@ -1,6 +1,6 @@
 import "server-only";
 
-// Вырезание одной вещи с фото через генеративную модель Runware.
+// Генеративные задачи Runware: вырезание одной вещи с фото и создание аватара.
 // Этот модуль работает только на сервере: "server-only" не даст подключить его
 // в браузерный код, а RUNWARE_API_KEY без префикса NEXT_PUBLIC_ в браузер не попадает.
 //
@@ -10,7 +10,8 @@ import "server-only";
 
 const API_URL = process.env.RUNWARE_API_URL || "https://api.runware.ai/v1";
 // По умолчанию Nano Banana 2 (google:4@3). Другую модель можно задать
-// переменной RUNWARE_GARMENT_MODEL, например Nano Banana Pro — google:4@2.
+// переменными RUNWARE_GARMENT_MODEL (вещи) и RUNWARE_AVATAR_MODEL (аватар),
+// например Nano Banana Pro — google:4@2.
 const DEFAULT_MODEL = "google:4@3";
 // Квадратная карточка, как в каталоге.
 const OUTPUT_SIZE = 1024;
@@ -145,21 +146,32 @@ async function readImage(result: RunwareResult, signal: AbortSignal): Promise<Bu
   return null;
 }
 
-async function run(image: Buffer, mimeType: string, category: string, signal: AbortSignal) {
+type GenerateOptions = {
+  prompt: string;
+  // Фото-референсы (JPEG/PNG/WebP).
+  images: { data: Buffer; mimeType: string }[];
+  width: number;
+  height: number;
+  model?: string;
+};
+
+async function run({ prompt, images, width, height, model }: GenerateOptions, signal: AbortSignal) {
   const base = {
     taskType: "imageInference",
-    model: process.env.RUNWARE_GARMENT_MODEL || DEFAULT_MODEL,
-    positivePrompt: garmentPrompt(category),
-    inputs: { referenceImages: [`data:${mimeType};base64,${image.toString("base64")}`] },
+    model: model || process.env.RUNWARE_GARMENT_MODEL || DEFAULT_MODEL,
+    positivePrompt: prompt,
+    inputs: {
+      referenceImages: images.map((i) => `data:${i.mimeType};base64,${i.data.toString("base64")}`),
+    },
     numberResults: 1,
     outputType: "base64Data",
     outputFormat: "JPG",
   };
 
   let taskUUID = crypto.randomUUID();
-  let res = await call([{ ...base, taskUUID, width: OUTPUT_SIZE, height: OUTPUT_SIZE }], signal);
+  let res = await call([{ ...base, taskUUID, width, height }], signal);
   if (isSizeError(res)) {
-    // Модель не приняла 1024×1024 — пусть выберет размер сама.
+    // Модель не приняла размер — пусть выберет его сама.
     log("retrying without width/height");
     taskUUID = crypto.randomUUID();
     res = await call([{ ...base, taskUUID }], signal);
@@ -184,13 +196,13 @@ async function run(image: Buffer, mimeType: string, category: string, signal: Ab
   return out;
 }
 
-// Принимает фото и категорию вещи, возвращает изображение одной вещи на белом фоне.
-export async function extractGarment(image: Buffer, mimeType: string, category: string): Promise<Buffer> {
+// Генерация картинки по фото-референсам с общим лимитом времени.
+async function generateImage(options: GenerateOptions): Promise<Buffer> {
   if (!isRunwareConfigured()) throw new RunwareError("not_configured", "RUNWARE_API_KEY не задан");
 
   const signal = AbortSignal.timeout(TIMEOUT_MS);
   try {
-    return await run(image, mimeType, category, signal);
+    return await run(options, signal);
   } catch (error) {
     if (signal.aborted) {
       log("timeout");
@@ -198,4 +210,68 @@ export async function extractGarment(image: Buffer, mimeType: string, category: 
     }
     throw error;
   }
+}
+
+// Принимает фото и категорию вещи, возвращает изображение одной вещи на белом фоне.
+export function extractGarment(image: Buffer, mimeType: string, category: string): Promise<Buffer> {
+  return generateImage({
+    prompt: garmentPrompt(category),
+    images: [{ data: image, mimeType }],
+    width: OUTPUT_SIZE,
+    height: OUTPUT_SIZE,
+  });
+}
+
+// ── Аватар для «Примерки» ──────────────────────────────────────────────
+
+// Вертикальный кадр в полный рост (3:4).
+const AVATAR_WIDTH = 896;
+const AVATAR_HEIGHT = 1200;
+
+export type AvatarParams = {
+  hasFullBody: boolean;
+  heightCm?: number | null;
+  weightKg?: number | null;
+  gender?: "female" | "male" | null;
+};
+
+export function avatarPrompt({ hasFullBody, heightCm, weightKg, gender }: AvatarParams) {
+  const person = gender === "female" ? "woman" : gender === "male" ? "man" : "person";
+  const body = [
+    heightCm ? `height about ${heightCm} cm` : "",
+    weightKg ? `weight about ${weightKg} kg` : "",
+  ].filter(Boolean);
+  return [
+    `Create a photorealistic full-body portrait of the SAME ${person} shown in the reference photo${hasFullBody ? "s" : ""}.`,
+    "Reference image 1 is a selfie: keep exactly their face, facial features, skin tone, hair color, " +
+      "hairstyle and overall likeness — it must be clearly recognizable as the same person.",
+    hasFullBody
+      ? "Reference image 2 is a full-body photo of the same person: match their real body shape, build and proportions from it."
+      : "Infer natural, realistic body proportions that match the person in the selfie.",
+    body.length ? `Body proportions should correspond to ${body.join(" and ")}.` : "",
+    "Pose: the whole body from head to toe fully in frame with feet visible, standing straight and facing the camera, " +
+      "neutral relaxed pose, arms relaxed slightly away from the body, calm neutral expression, eyes looking at the camera.",
+    "Clothing: plain simple fitted basics only — a plain fitted light beige crew-neck top and plain fitted light beige " +
+      "shorts or leggings, no logos, no prints; barefoot.",
+    "Background: clean seamless soft off-white studio background (#FAF8F6), soft even studio lighting, " +
+      "sharp focus, realistic skin texture, natural proportions, centered composition.",
+    "Exactly one person. No accessories, no jewelry, no bag, no phone, no glasses, no text, no watermark.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+// Принимает селфи и (необязательно) фото в полный рост, возвращает аватар в полный рост.
+export function createAvatar(
+  selfie: { data: Buffer; mimeType: string },
+  fullBody: { data: Buffer; mimeType: string } | null,
+  params: Omit<AvatarParams, "hasFullBody">,
+): Promise<Buffer> {
+  return generateImage({
+    prompt: avatarPrompt({ ...params, hasFullBody: Boolean(fullBody) }),
+    images: fullBody ? [selfie, fullBody] : [selfie],
+    width: AVATAR_WIDTH,
+    height: AVATAR_HEIGHT,
+    model: process.env.RUNWARE_AVATAR_MODEL,
+  });
 }

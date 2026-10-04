@@ -1,15 +1,16 @@
 import { Eraser, RefreshCw } from "lucide-react";
 
 type Props = {
+  hasAvatar: boolean;
   onClose: () => void;
   onClearAll: () => void;
+  onAvatar: () => void;
 };
 
-export default function ActionsMenu({ onClose, onClearAll }: Props) {
+export default function ActionsMenu({ hasAvatar, onClose, onClearAll, onAvatar }: Props) {
   const actions = [
     { label: "Очистить всё", Icon: Eraser, onClick: onClearAll },
-    // Обновление аватара подключим позже.
-    { label: "Обновить аватар", Icon: RefreshCw, onClick: () => {} },
+    { label: hasAvatar ? "Обновить аватар" : "Создать аватар", Icon: RefreshCw, onClick: onAvatar },
   ];
 
   return (

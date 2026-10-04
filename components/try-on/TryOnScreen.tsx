@@ -1,12 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Ellipsis, Layers } from "lucide-react";
 import Silhouette from "@/components/Silhouette";
+import Photo from "@/components/ui/Photo";
+import { fetchAvatar, hasAvatarSupport, type Avatar } from "@/lib/avatar";
 import { MOCK_WORN, type WornItem } from "@/lib/tryOn";
 import ActionsMenu from "./ActionsMenu";
+import AvatarSetup from "./AvatarSetup";
 import ClothesPicker from "./ClothesPicker";
 import WornList from "./WornList";
+
+// «Пропустить пока»: не предлагаем создать аватар до конца сессии браузера.
+const SKIP_KEY = "dw:avatar-setup-skipped";
+const wasSkipped = () => {
+  try {
+    return sessionStorage.getItem(SKIP_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+const markSkipped = () => {
+  try {
+    sessionStorage.setItem(SKIP_KEY, "1");
+  } catch {
+    // ignore
+  }
+};
 
 export default function TryOnScreen() {
   // Нижняя панель: выбор одежды (picker) или список надетого (layers).
@@ -14,6 +34,25 @@ export default function TryOnScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [worn, setWorn] = useState<WornItem[]>(MOCK_WORN);
   const [toast, setToast] = useState<string | null>(null);
+  // Аватар: undefined — ещё загружается.
+  const [avatar, setAvatar] = useState<Avatar | undefined>(undefined);
+  const [setup, setSetup] = useState<"create" | "update" | null>(null);
+
+  useEffect(() => {
+    fetchAvatar().then(
+      (a) => {
+        setAvatar(a);
+        // Аватара нет — сразу предлагаем создать, если не пропустили в этой сессии.
+        if (!a.path && hasAvatarSupport() && !wasSkipped()) setSetup("create");
+      },
+      () => setAvatar({ path: null, url: null, heightCm: null, weightKg: null }),
+    );
+  }, []);
+
+  const closeSetup = useCallback(() => {
+    if (setup === "create") markSkipped();
+    setSetup(null);
+  }, [setup]);
 
   useEffect(() => {
     if (!toast) return;
@@ -46,21 +85,61 @@ export default function TryOnScreen() {
         </button>
         {menuOpen && (
           <ActionsMenu
+            hasAvatar={Boolean(avatar?.path)}
             onClose={() => setMenuOpen(false)}
             onClearAll={() => setWorn([])}
+            onAvatar={() => {
+              if (!hasAvatarSupport()) return setToast("Аватар недоступен в тестовом режиме");
+              setSetup(avatar?.path ? "update" : "create");
+            }}
           />
         )}
       </header>
 
-      {/* Аватар пользователя — пока серый силуэт */}
+      {/* Аватар пользователя; пока его нет — серый силуэт */}
       <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-card bg-gradient-to-b from-beige to-[#e9dfd2] px-8 py-[6%]">
-        <Silhouette variant="filled" className="h-full w-full text-text/15" />
+        {avatar?.url ? (
+          <div className="absolute inset-0 bg-background">
+            <Photo
+              src={avatar.url}
+              alt="Ваш аватар"
+              fallback={<Silhouette variant="filled" className="h-full w-full px-8 py-[6%] text-text/15" />}
+            />
+          </div>
+        ) : (
+          <Silhouette
+            variant="filled"
+            className={`h-full w-full text-text/15 ${avatar === undefined ? "animate-pulse" : ""}`}
+          />
+        )}
+        {avatar && !avatar.path && setup === null && hasAvatarSupport() && (
+          <button
+            type="button"
+            onClick={() => setSetup("create")}
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-surface/90 px-4 py-2 text-sm font-medium backdrop-blur-sm transition-colors hover:bg-surface"
+          >
+            Создать аватар
+          </button>
+        )}
         {toast && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-text px-4 py-2 text-sm text-background">
             {toast}
           </div>
         )}
       </div>
+
+      {setup && avatar && (
+        <AvatarSetup
+          mode={setup}
+          current={avatar}
+          onDone={(a) => {
+            setAvatar(a);
+            setSetup(null);
+            setToast(setup === "update" ? "Аватар обновлён" : "Аватар готов");
+          }}
+          onClose={closeSetup}
+        />
+      )}
 
       <section className="flex shrink-0 flex-col gap-3 rounded-card border border-border bg-surface p-4">
         {layersOpen ? (
