@@ -12,6 +12,7 @@ import {
 } from "@/lib/auth/errors";
 import AuthShell from "./AuthShell";
 import FormMessage from "@/components/ui/FormMessage";
+import { SHOW_SOCIAL_LOGIN } from "@/lib/features";
 import SocialButtons from "./SocialButtons";
 import SubmitButton from "@/components/ui/SubmitButton";
 import TextField from "./TextField";
@@ -112,7 +113,7 @@ export default function SignupForm() {
               конфиденциальности
             </p>
           </form>
-          <SocialButtons />
+          {SHOW_SOCIAL_LOGIN && <SocialButtons />}
         </>
       )}
     </AuthShell>

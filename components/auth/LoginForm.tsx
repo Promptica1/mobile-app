@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { authErrorMessage, safeNextPath, validateEmail } from "@/lib/auth/errors";
 import AuthShell from "./AuthShell";
 import FormMessage from "@/components/ui/FormMessage";
+import { SHOW_SOCIAL_LOGIN } from "@/lib/features";
 import SocialButtons from "./SocialButtons";
 import SubmitButton from "@/components/ui/SubmitButton";
 import TextField from "./TextField";
@@ -97,7 +98,7 @@ export default function LoginForm({
         {error && <FormMessage tone="error">{error}</FormMessage>}
         <SubmitButton loading={loading}>{loading ? "Входим…" : "Войти"}</SubmitButton>
       </form>
-      <SocialButtons />
+      {SHOW_SOCIAL_LOGIN && <SocialButtons />}
     </AuthShell>
   );
 }
