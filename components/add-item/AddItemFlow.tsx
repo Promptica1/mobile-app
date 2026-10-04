@@ -44,6 +44,8 @@ export default function AddItemFlow() {
   const [preparing, setPreparing] = useState(false);
   const [photoError, setPhotoError] = useState("");
   const [notice, setNotice] = useState("");
+  // Уточнение для AI: идёт в задание модели и сохраняется между попытками.
+  const [hint, setHint] = useState("");
   // Сколько раз уже запускали AI-вырезание для этой вещи (каждая попытка платная).
   const [attempts, setAttempts] = useState(0);
   const attemptsLeft = MAX_EXTRACTION_ATTEMPTS - attempts;
@@ -72,7 +74,7 @@ export default function AddItemFlow() {
   const extractFor = async (photo: PickedPhoto, type: string) => {
     const id = ++runId.current;
     setAttempts((n) => n + 1);
-    const processed = await processPhoto(photo.blob, type);
+    const processed = await processPhoto(photo.blob, type, hint);
     if (id !== runId.current) return null;
     setResult(processed.extracted ? toPhoto(processed.blob) : photo);
     setNotice(
@@ -112,6 +114,15 @@ export default function AddItemFlow() {
   };
 
   const picker = usePhotoPicker(handlePick);
+
+  // «Повторить с уточнением»: то же фото, новое задание для AI (1 попытка и 1 токен).
+  const handleRegenerate = async () => {
+    if (!original || !category || attemptsLeft <= 0) return;
+    setPreparing(true);
+    setPhotoError("");
+    await extractFor(original, category);
+    setPreparing(false);
+  };
 
   const startProcessing = async () => {
     if (!original || !category) return;
@@ -163,6 +174,8 @@ export default function AddItemFlow() {
           photoUrl={original?.url ?? null}
           category={category}
           onCategory={setCategory}
+          hint={hint}
+          onHintChange={setHint}
           preparing={preparing}
           error={photoError}
           onCamera={picker.openCamera}
@@ -181,6 +194,9 @@ export default function AddItemFlow() {
           onCategoryChange={setCategory}
           retriesLeft={attemptsLeft}
           onRetake={picker.openGallery}
+          hint={hint}
+          onHintChange={setHint}
+          onRegenerate={handleRegenerate}
           onSubmit={handleSave}
         />
       )}

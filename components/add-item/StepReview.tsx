@@ -1,4 +1,6 @@
-import { Info, LoaderCircle, RefreshCw, Shirt } from "lucide-react";
+import { Info, LoaderCircle, RefreshCw, Shirt, WandSparkles } from "lucide-react";
+import ZoomablePhoto from "@/components/ui/PhotoZoom";
+import HintField from "./HintField";
 import { useState, type FormEvent } from "react";
 import { COLORS, Field, MATERIALS, SelectRow, rowClass } from "@/components/wardrobe/ItemFields";
 import FormMessage from "@/components/ui/FormMessage";
@@ -19,6 +21,10 @@ type Props = {
   // Сколько ещё раз можно запустить AI-вырезание с другим фото.
   retriesLeft: number;
   onRetake: () => void;
+  // Уточнение для AI и повторное вырезание с ним (того же фото).
+  hint: string;
+  onHintChange: (hint: string) => void;
+  onRegenerate: () => void;
   onSubmit: (item: NewWardrobeItem) => Promise<void>;
 };
 
@@ -34,6 +40,9 @@ export default function StepReview({
   onCategoryChange,
   retriesLeft,
   onRetake,
+  hint,
+  onHintChange,
+  onRegenerate,
   onSubmit,
 }: Props) {
   // Категория приходит с шага 1, остальные поля заполняет пользователь.
@@ -75,7 +84,12 @@ export default function StepReview({
   return (
     <form className="flex flex-1 flex-col gap-5" onSubmit={handleSubmit} noValidate>
       <div className="flex gap-4">
-        <div className="flex aspect-[3/4] w-32 shrink-0 items-center justify-center overflow-hidden rounded-card border border-border bg-surface p-2">
+        {/* Нажатие на фото открывает его крупно */}
+        <ZoomablePhoto
+          src={preparing ? null : photoUrl}
+          alt="Фото вещи"
+          className="flex aspect-[3/4] w-32 shrink-0 items-center justify-center overflow-hidden rounded-card border border-border bg-surface p-2"
+        >
           {preparing ? (
             <LoaderCircle size={24} strokeWidth={1.5} className="animate-spin text-lavender" />
           ) : photoUrl ? (
@@ -83,7 +97,7 @@ export default function StepReview({
           ) : (
             <Shirt size={44} strokeWidth={1} className="text-muted" />
           )}
-        </div>
+        </ZoomablePhoto>
         <div className="flex min-w-0 flex-1 flex-col justify-center gap-3">
           <Field label="Название">
             <input
@@ -106,12 +120,17 @@ export default function StepReview({
         </FormMessage>
       )}
       {retriesLeft > 0 ? (
-        <div>
+        <div className="flex flex-col gap-3">
+          <HintField value={hint} onChange={onHintChange} disabled={saving || preparing} />
+          <Button variant="secondary" onClick={onRegenerate} disabled={saving || preparing}>
+            <WandSparkles size={18} strokeWidth={1.75} />
+            {hint.trim() ? "Повторить с уточнением" : "Вырезать ещё раз"}
+          </Button>
           <Button variant="secondary" onClick={onRetake} disabled={saving || preparing}>
             <RefreshCw size={18} strokeWidth={1.75} />
             Загрузить другое фото
           </Button>
-          <p className="mt-2 text-center text-xs text-muted">
+          <p className="text-center text-xs text-muted">
             Можно попробовать ещё {plural(retriesLeft, ["раз", "раза", "раз"])}
           </p>
         </div>

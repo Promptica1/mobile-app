@@ -19,11 +19,12 @@ export type ProcessedPhoto = { blob: Blob; extracted: boolean; noTokens?: boolea
 
 class NoTokensError extends Error {}
 
-async function requestGarment(photo: Blob, category: string): Promise<Blob> {
+async function requestGarment(photo: Blob, category: string, hint: string): Promise<Blob> {
   const input = await compressImage(photo, { maxSide: PROCESS_MAX_SIDE });
   const form = new FormData();
   form.append("image", input, "photo.jpg");
   form.append("category", category);
+  if (hint.trim()) form.append("hint", hint.trim());
   const res = await fetch("/api/extract-garment", {
     method: "POST",
     body: form,
@@ -39,9 +40,10 @@ async function requestGarment(photo: Blob, category: string): Promise<Blob> {
 }
 
 // Никогда не падает: при любой ошибке возвращает исходное (уже сжатое) фото.
-export async function processPhoto(original: Blob, category: string): Promise<ProcessedPhoto> {
+// hint — необязательное уточнение для AI («без лишних пуговиц», «оверсайз»…).
+export async function processPhoto(original: Blob, category: string, hint = ""): Promise<ProcessedPhoto> {
   try {
-    return { blob: await requestGarment(original, category), extracted: true };
+    return { blob: await requestGarment(original, category, hint), extracted: true };
   } catch (error) {
     return { blob: original, extracted: false, noTokens: error instanceof NoTokensError };
   }

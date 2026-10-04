@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { RunwareError, extractGarment } from "@/lib/runware";
+import { RunwareError, cleanHint, extractGarment } from "@/lib/runware";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { spendToken, tokenBalance, tokensHeaders } from "@/lib/tokens.server";
@@ -42,6 +42,8 @@ export async function POST(request: NextRequest) {
   const form = await request.formData().catch(() => null);
   const file = form?.get("image");
   const category = String(form?.get("category") ?? "");
+  // Необязательное уточнение для AI от пользователя (очищается и обрезается в промпте).
+  const hint = cleanHint(String(form?.get("hint") ?? ""));
   if (!(file instanceof Blob) || !ALLOWED_TYPES.includes(file.type)) return fail("bad_image", 400);
   if (file.size > MAX_BYTES) return fail("too_large", 413);
   if (!(CATEGORIES as readonly string[]).includes(category)) return fail("bad_category", 400);
@@ -49,10 +51,12 @@ export async function POST(request: NextRequest) {
   const balance = await tokenBalance(supabase, user.id);
   if (balance !== null && balance <= 0) return fail("no_tokens", 402);
 
-  console.log(`RB: image ${file.type}, ${Math.round(file.size / 1024)} KB, category = ${category}`);
+  console.log(
+    `RB: image ${file.type}, ${Math.round(file.size / 1024)} KB, category = ${category}, hint = ${hint ? `${hint.length} chars` : "-"}`,
+  );
 
   try {
-    const image = await extractGarment(Buffer.from(await file.arrayBuffer()), file.type, category);
+    const image = await extractGarment(Buffer.from(await file.arrayBuffer()), file.type, category, hint);
     console.log(`RB: success, image ${Math.round(image.length / 1024)} KB`);
     // Списываем только после успешной генерации.
     const left = await spendToken(supabase);

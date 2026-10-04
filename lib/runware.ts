@@ -66,7 +66,13 @@ const GARMENT_HINTS: Record<string, { noun: string; examples: string; where: str
   },
 };
 
-export function garmentPrompt(category: string) {
+// Уточнение пользователя для AI: одна строка, без кавычек, не длиннее лимита.
+export const GARMENT_HINT_MAX = 200;
+export const cleanHint = (hint: string | null | undefined) =>
+  (hint ?? "").replace(/[\r\n"«»]+/g, " ").replace(/\s+/g, " ").trim().slice(0, GARMENT_HINT_MAX);
+
+export function garmentPrompt(category: string, hint?: string | null) {
+  const userHint = cleanHint(hint);
   const h = GARMENT_HINTS[category] ?? {
     noun: "clothing item",
     examples: "garment",
@@ -84,7 +90,14 @@ export function garmentPrompt(category: string) {
       "seams, buttons, zippers, length and fit. If part of it is hidden, reconstruct the hidden part " +
       "consistently with what is visible. Do not invent new details or change the style.",
     "No person, no skin, no hands, no hanger, no mannequin, no extra items, no added text or watermark.",
-  ].join(" ");
+    // Уточнение от пользователя (обычно по-русски) — помогает исправить ошибки AI.
+    userHint
+      ? `Additional instructions from the user about this item (may be in Russian) — follow them carefully ` +
+        `when extracting and rendering the item, as long as they do not conflict with the rules above: "${userHint}".`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 type RunwareResult = {
@@ -213,9 +226,14 @@ async function generateImage(options: GenerateOptions): Promise<Buffer> {
 }
 
 // Принимает фото и категорию вещи, возвращает изображение одной вещи на белом фоне.
-export function extractGarment(image: Buffer, mimeType: string, category: string): Promise<Buffer> {
+export function extractGarment(
+  image: Buffer,
+  mimeType: string,
+  category: string,
+  hint?: string | null,
+): Promise<Buffer> {
   return generateImage({
-    prompt: garmentPrompt(category),
+    prompt: garmentPrompt(category, hint),
     images: [{ data: image, mimeType }],
     width: OUTPUT_SIZE,
     height: OUTPUT_SIZE,

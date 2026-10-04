@@ -25,14 +25,15 @@ type Props = {
 const rowMessage = "flex h-[4.25rem] items-center justify-center text-sm text-muted";
 
 export default function ClothesPicker({ items, selection, onToggle }: Props) {
-  const [filter, setFilter] = useState<TryOnFilter>("Верх");
+  const [filter, setFilter] = useState<TryOnFilter>("Все");
   const [query, setQuery] = useState("");
 
   // Категория + поиск по названию, как в «Гардеробе».
   const normalizedQuery = query.trim().toLowerCase();
   const visibleItems = (items ?? []).filter(
     (item) =>
-      (filter === "Избранное" ? item.is_favorite : item.category === FILTER_CATEGORY[filter]) &&
+      (filter === "Все" ||
+        (filter === "Избранное" ? item.is_favorite : item.category === FILTER_CATEGORY[filter])) &&
       item.name.toLowerCase().includes(normalizedQuery),
   );
 
@@ -108,7 +109,7 @@ export default function ClothesPicker({ items, selection, onToggle }: Props) {
         {TRY_ON_FILTERS.map((f) => {
           const active = f === filter;
           // Точка — в этой категории уже что-то выбрано.
-          const picked = f !== "Избранное" && Boolean(selection[FILTER_CATEGORY[f]]);
+          const picked = f !== "Все" && f !== "Избранное" && Boolean(selection[FILTER_CATEGORY[f]]);
           return (
             <button
               key={f}

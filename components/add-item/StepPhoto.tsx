@@ -3,11 +3,14 @@ import { Button } from "@/components/ui/Button";
 import FormMessage from "@/components/ui/FormMessage";
 import Photo from "@/components/ui/Photo";
 import { CATEGORIES } from "@/lib/wardrobe";
+import HintField from "./HintField";
 
 type Props = {
   photoUrl: string | null;
   category: string | null;
   onCategory: (category: string) => void;
+  hint: string;
+  onHintChange: (hint: string) => void;
   preparing: boolean;
   error: string;
   onCamera: () => void;
@@ -19,6 +22,8 @@ export default function StepPhoto({
   photoUrl,
   category,
   onCategory,
+  hint,
+  onHintChange,
   preparing,
   error,
   onCamera,
@@ -85,6 +90,7 @@ export default function StepPhoto({
           </div>
         </fieldset>
       )}
+      {photoUrl && !preparing && category && <HintField value={hint} onChange={onHintChange} />}
 
       <div className="flex flex-col gap-3">
         {photoUrl ? (

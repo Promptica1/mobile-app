@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import ConfirmDeleteSheet from "@/components/ui/ConfirmDeleteSheet";
 import FormMessage from "@/components/ui/FormMessage";
 import Photo from "@/components/ui/Photo";
+import ZoomablePhoto from "@/components/ui/PhotoZoom";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { deleteItem, fetchItem, setItemFavorite, updateItem } from "@/lib/items";
 import { CATEGORY_ICONS } from "@/lib/tryOn";
@@ -187,9 +188,14 @@ export default function ItemDetail({ id }: { id: string }) {
       </header>
 
       <form className="flex flex-col gap-5" onSubmit={handleSave} noValidate>
-        <div className="flex aspect-square items-center justify-center overflow-hidden rounded-card border border-border bg-surface p-6">
+        {/* Нажатие на фото открывает его крупно */}
+        <ZoomablePhoto
+          src={item.photo_url ?? null}
+          alt={item.name}
+          className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-card border border-border bg-surface p-6"
+        >
           {item.photo_url ? <Photo src={item.photo_url} alt={item.name} fallback={placeholder} /> : placeholder}
-        </div>
+        </ZoomablePhoto>
 
         <div className="flex flex-col gap-4">
           <Field label="Название">

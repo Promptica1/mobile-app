@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Category, WardrobeItem } from "./wardrobe";
 
 export const TRY_ON_FILTERS = [
+  "Все",
   "Избранное",
   "Верх",
   "Низ",
@@ -13,7 +14,7 @@ export const TRY_ON_FILTERS = [
 export type TryOnFilter = (typeof TRY_ON_FILTERS)[number];
 
 // Короткая подпись фильтра → категория вещи в базе.
-export const FILTER_CATEGORY: Record<Exclude<TryOnFilter, "Избранное">, Category> = {
+export const FILTER_CATEGORY: Record<Exclude<TryOnFilter, "Все" | "Избранное">, Category> = {
   Верх: "Верх",
   Низ: "Низ",
   Верхняя: "Верхняя одежда",
