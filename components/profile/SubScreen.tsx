@@ -28,14 +28,3 @@ export default function SubScreen({
     </div>
   );
 }
-
-// Заглушка «скоро» для разделов, которые появятся позже.
-export function ComingSoon({ icon, text }: { icon: ReactNode; text: string }) {
-  return (
-    <div className="flex flex-1 flex-col items-center justify-center pb-20 text-center">
-      <span className="flex h-24 w-24 items-center justify-center rounded-full bg-lavender/20">{icon}</span>
-      <p className="mt-6 font-serif text-3xl font-medium">Скоро</p>
-      <p className="mt-2 max-w-[270px] text-sm leading-relaxed text-muted">{text}</p>
-    </div>
-  );
-}

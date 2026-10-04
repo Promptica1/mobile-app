@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
-import { EyeOff, Lock, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, EyeOff, Lock, Sparkles } from "lucide-react";
 import DeleteAccount from "@/components/profile/DeleteAccount";
+import ExportData from "@/components/profile/ExportData";
 import SubScreen from "@/components/profile/SubScreen";
 
 export const metadata: Metadata = { title: "Приватность и данные — Digital Wardrobe" };
@@ -39,6 +41,21 @@ export default function PrivacyPage() {
           </li>
         ))}
       </ul>
+
+      <section className="mt-8">
+        <h2 className="px-1 text-sm font-medium">Ваши данные</h2>
+        <p className="mb-3 mt-1 px-1 text-sm leading-relaxed text-muted">
+          Скачайте всё, что приложение хранит о вас: профиль, вещи, образы и папки — одним файлом.
+        </p>
+        <ExportData />
+        <Link
+          href="/profile/privacy/policy"
+          className="mt-3 flex items-center justify-between rounded-card border border-border bg-surface px-4 py-4 text-[15px] transition-colors hover:bg-subtle"
+        >
+          Политика конфиденциальности
+          <ChevronRight size={18} strokeWidth={1.5} className="text-muted" />
+        </Link>
+      </section>
 
       <section className="mt-auto pt-10">
         <h2 className="px-1 text-sm font-medium">Удаление аккаунта</h2>
