@@ -1,4 +1,4 @@
-import { Footprints, Gem, Layers, Shirt, type LucideIcon } from "lucide-react";
+import { createLucideIcon, Footprints, Gem, Layers, PersonStanding, Shirt, type LucideIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Category, WardrobeItem } from "./wardrobe";
 
@@ -7,8 +7,11 @@ export const TRY_ON_FILTERS = [
   "Избранное",
   "Верх",
   "Низ",
+  "Платья",
+  "Комбинезоны",
   "Верхняя",
   "Обувь",
+  "Головной убор",
   "Аксессуары",
 ] as const;
 export type TryOnFilter = (typeof TRY_ON_FILTERS)[number];
@@ -17,17 +20,33 @@ export type TryOnFilter = (typeof TRY_ON_FILTERS)[number];
 export const FILTER_CATEGORY: Record<Exclude<TryOnFilter, "Все" | "Избранное">, Category> = {
   Верх: "Верх",
   Низ: "Низ",
+  Платья: "Платья",
+  Комбинезоны: "Комбинезоны",
   Верхняя: "Верхняя одежда",
   Обувь: "Обувь",
+  "Головной убор": "Головной убор",
   Аксессуары: "Аксессуары",
 };
+
+// В lucide нет платья и шляпы — рисуем в том же стиле (24×24, линия).
+const Dress = createLucideIcon("dress", [
+  ["path", { d: "M9 2v3l-1.5 3L5 21h14L16.5 8 15 5V2", key: "body" }],
+  ["path", { d: "M7.5 8h9", key: "waist" }],
+]);
+const Hat = createLucideIcon("hat", [
+  ["path", { d: "M2 17c0 1.7 4.5 3 10 3s10-1.3 10-3-4.5-3-10-3-10 1.3-10 3", key: "brim" }],
+  ["path", { d: "M6 15.5V10a6 6 0 0 1 12 0v5.5", key: "crown" }],
+]);
 
 // Иконка-заглушка, если у вещи нет фото.
 export const CATEGORY_ICONS: Record<string, LucideIcon> = {
   Верх: Shirt,
   Низ: Layers,
+  Платья: Dress,
+  Комбинезоны: PersonStanding,
   "Верхняя одежда": Shirt,
   Обувь: Footprints,
+  "Головной убор": Hat,
   Аксессуары: Gem,
 };
 
@@ -35,7 +54,16 @@ export const CATEGORY_ICONS: Record<string, LucideIcon> = {
 export type Selection = Partial<Record<string, WardrobeItem>>;
 
 // Порядок слоёв в списке «Надето на вас».
-const LAYER_ORDER = ["Верхняя одежда", "Верх", "Низ", "Обувь", "Аксессуары"];
+const LAYER_ORDER = [
+  "Головной убор",
+  "Верхняя одежда",
+  "Платья",
+  "Комбинезоны",
+  "Верх",
+  "Низ",
+  "Обувь",
+  "Аксессуары",
+];
 export const selectedItems = (s: Selection) =>
   Object.values(s)
     .filter((i): i is WardrobeItem => Boolean(i))

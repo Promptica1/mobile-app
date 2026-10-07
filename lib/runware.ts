@@ -1,4 +1,5 @@
 import "server-only";
+import { isFullBody } from "./wardrobe";
 
 // Генеративные задачи Runware: вырезание одной вещи с фото и создание аватара.
 // Этот модуль работает только на сервере: "server-only" не даст подключить его
@@ -38,7 +39,7 @@ export function isRunwareConfigured() {
 // Подсказка для модели: что именно вырезать (по категории, которую выбрал пользователь).
 // noun — как назвать вещь в задании; examples — что к ней относится, чтобы модель
 // не перепутала её с соседней одеждой.
-const GARMENT_HINTS: Record<string, { noun: string; examples: string; where: string }> = {
+const GARMENT_HINTS: Record<string, { noun: string; examples: string; where: string; note?: string }> = {
   Верх: {
     noun: "top",
     examples: "t-shirt, shirt, blouse, sweatshirt, hoodie, sweater or top",
@@ -48,6 +49,24 @@ const GARMENT_HINTS: Record<string, { noun: string; examples: string; where: str
     noun: "bottoms",
     examples: "pants, jeans, trousers, shorts or skirt",
     where: "on the lower body",
+  },
+  Платья: {
+    noun: "dress",
+    examples: "dress, sundress, maxi or midi or mini dress, slip dress, shirt dress, evening gown",
+    where: "on the body as one single garment from the shoulders down",
+    note:
+      "It is ONE single full dress, not a top: extract the whole dress as one piece from the neckline and straps " +
+      "down to the hem, keeping its full real length (mini, midi, maxi or floor-length), skirt volume and silhouette. " +
+      "Do not cut it at the waist and do not turn it into a top or a skirt.",
+  },
+  Комбинезоны: {
+    noun: "jumpsuit",
+    examples: "jumpsuit, romper, playsuit, overalls, dungarees or boiler suit",
+    where: "on the body as one single one-piece garment covering both the upper and the lower body",
+    note:
+      "It is ONE single one-piece garment with the top and the trousers or shorts joined together: extract it whole, " +
+      "from the neckline or straps down to the leg hems, keeping its full length and silhouette. " +
+      "Do not split it into a separate top and bottoms and do not turn it into a top.",
   },
   "Верхняя одежда": {
     noun: "outerwear piece",
@@ -59,9 +78,15 @@ const GARMENT_HINTS: Record<string, { noun: string; examples: string; where: str
     examples: "sneakers, boots, loafers, heels or sandals",
     where: "on the feet",
   },
+  "Головной убор": {
+    noun: "headwear item",
+    examples: "hat, cap, baseball cap, beanie, beret, bucket hat, panama, fedora, headband or headscarf",
+    where: "on the head",
+    note: "Extract only the item worn on the head — not the hair, face or any clothing below the head.",
+  },
   Аксессуары: {
     noun: "accessory",
-    examples: "bag, hat, cap, belt, scarf, sunglasses or jewelry",
+    examples: "bag, belt, scarf, sunglasses, gloves or jewelry",
     where: "worn or carried",
   },
 };
@@ -73,18 +98,19 @@ export const cleanHint = (hint: string | null | undefined) =>
 
 export function garmentPrompt(category: string, hint?: string | null) {
   const userHint = cleanHint(hint);
-  const h = GARMENT_HINTS[category] ?? {
+  const h: { noun: string; examples: string; where: string; note?: string } = GARMENT_HINTS[category] ?? {
     noun: "clothing item",
     examples: "garment",
     where: "on the body",
   };
   return [
     `Task: extract ONLY the ${h.noun} (${h.examples}) currently WORN by the main person in the photo (${h.where}).`,
+    h.note ?? "",
     `If no one is wearing it, use the single most prominent ${h.noun} in the center of the photo instead.`,
     "Ignore everything else: all other clothing on the person, other people, garments on hangers or racks, " +
       "clothes lying around or hanging in the background, furniture, plants, mirrors, phones and the background itself.",
     `Output: a clean standalone e-commerce product photo of just that single ${h.noun}, ` +
-      "ghost-mannequin style for clothing (flat-lay for shoes and accessories), front view, centered, " +
+      "ghost-mannequin style for clothing (a clean product shot for shoes, headwear and accessories), front view, centered, " +
       "fully visible with nothing cropped, on a plain pure white background with a soft natural shadow.",
     "Preserve the real item exactly: the same color and shade, pattern, print, logos, text, fabric texture, " +
       "seams, buttons, zippers, length and fit. If part of it is hidden, reconstruct the hidden part " +
@@ -303,8 +329,12 @@ export function createAvatar(
 const TRY_ON_ROLES: Record<string, string> = {
   Верх: "top (worn on the upper body)",
   Низ: "bottoms (worn on the lower body)",
-  "Верхняя одежда": "outerwear (worn as the outer layer over the top)",
+  Платья: "dress (ONE single full-body garment worn instead of a separate top and bottoms)",
+  Комбинезоны:
+    "jumpsuit (ONE single one-piece full-body garment, top and trousers joined, worn instead of a separate top and bottoms)",
+  "Верхняя одежда": "outerwear (worn as the outermost layer)",
   Обувь: "shoes (worn on the feet)",
+  "Головной убор": "headwear (worn on the head)",
   Аксессуары: "accessory",
 };
 
@@ -314,8 +344,24 @@ export function tryOnPrompt(garments: Pick<TryOnGarment, "category" | "name">[])
   const list = garments
     .map((g, i) => `reference image ${i + 2} — ${TRY_ON_ROLES[g.category] ?? "clothing item"} ("${g.name}")`)
     .join("; ");
-  const hasOuter = garments.some((g) => g.category === "Верхняя одежда");
-  const hasShoes = garments.some((g) => g.category === "Обувь");
+  const has = (c: string) => garments.some((g) => g.category === c);
+  const hasOuter = has("Верхняя одежда");
+  const hasShoes = has("Обувь");
+  const hasHeadwear = has("Головной убор");
+  // Платье или комбинезон — основа образа вместо отдельных верха и низа.
+  const fullBody = garments.find((g) => isFullBody(g.category));
+  const fullBodyNoun = fullBody?.category === "Комбинезоны" ? "jumpsuit" : "dress";
+  const layering = [
+    fullBody
+      ? `the ${fullBodyNoun} is ONE single garment covering the torso and the legs — dress the person in the whole ` +
+        `${fullBodyNoun} exactly as in its reference image, with its full real length, cut and silhouette; ` +
+        "it replaces the plain basic top and bottoms from image 1 completely (no basic top or shorts visible under or over it)"
+      : "the top is tucked in or left untucked as looks natural for its style; the bottoms sit naturally at the waist",
+    hasOuter ? `the outerwear is worn open or closed over the ${fullBody ? fullBodyNoun : "top"} as looks natural` : "",
+    hasHeadwear
+      ? "the headwear is worn on the head on top of the hair, naturally fitted, without covering or changing the face"
+      : "",
+  ].filter(Boolean);
   return [
     "Reference image 1 is a full-body photo of a person (the avatar).",
     `The other reference images are clothing items to put on this person: ${list}.`,
@@ -327,9 +373,7 @@ export function tryOnPrompt(garments: Pick<TryOnGarment, "category" | "name">[])
       "no cast shadows on the background, no floor line, no gradient, no vignette, no visible backdrop edges, no colored tint.",
     "Each item must keep its real color, pattern, print, logos, fabric texture and design exactly as in its reference image, " +
       "and be properly fitted to the body with natural folds, drape and realistic shadows.",
-    "Correct layering: " +
-      (hasOuter ? "the outerwear is worn over the top; " : "") +
-      "the top is tucked in or left untucked as looks natural for its style; the bottoms sit naturally at the waist.",
+    `Correct layering: ${layering.join("; ")}.`,
     "Items that are not provided stay as the plain basics from image 1" + (hasShoes ? "" : " (keep the feet as in image 1)") + ".",
     "Full body from head to toe fully in frame with the feet visible, centered. Exactly one person, photorealistic. " +
       "No extra accessories or items, no text, no watermark.",

@@ -1,16 +1,8 @@
 import Link from "next/link";
-import { Footprints, Gem, Heart, Layers, Shirt, type LucideIcon } from "lucide-react";
+import { Heart, Shirt } from "lucide-react";
 import Photo from "@/components/ui/Photo";
+import { CATEGORY_ICONS } from "@/lib/tryOn";
 import type { WardrobeItem } from "@/lib/wardrobe";
-
-// Иконка-заглушка, пока у вещей нет фото.
-const placeholderIcon: Record<string, LucideIcon> = {
-  Верх: Shirt,
-  Низ: Layers,
-  "Верхняя одежда": Shirt,
-  Обувь: Footprints,
-  Аксессуары: Gem,
-};
 
 type Props = {
   item: WardrobeItem;
@@ -18,7 +10,7 @@ type Props = {
 };
 
 export default function ItemCard({ item, onToggleFavorite }: Props) {
-  const Icon = placeholderIcon[item.category] ?? Shirt;
+  const Icon = CATEGORY_ICONS[item.category] ?? Shirt;
   const placeholder = (
     <div className="absolute inset-3 flex items-center justify-center rounded-2xl bg-subtle">
       <Icon size={28} strokeWidth={1.25} className="text-muted" />

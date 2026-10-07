@@ -31,7 +31,16 @@ import ConfirmDeleteSheet from "@/components/ui/ConfirmDeleteSheet";
 import { MoveSheet, RenameSheet } from "./LookSheets";
 
 // Вещи в ленте — в порядке слоёв образа.
-const ORDER = ["Верхняя одежда", "Верх", "Низ", "Обувь", "Аксессуары"];
+const ORDER = [
+  "Головной убор",
+  "Верхняя одежда",
+  "Платья",
+  "Комбинезоны",
+  "Верх",
+  "Низ",
+  "Обувь",
+  "Аксессуары",
+];
 
 type State =
   | { status: "loading" }

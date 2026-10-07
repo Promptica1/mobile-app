@@ -1,8 +1,40 @@
 import { plural } from "./plural";
 
 // Категории вещей — одни и те же для фильтров гардероба и формы добавления.
-export const CATEGORIES = ["Верх", "Низ", "Верхняя одежда", "Обувь", "Аксессуары"] as const;
+export const CATEGORIES = [
+  "Верх",
+  "Низ",
+  "Платья",
+  "Комбинезоны",
+  "Верхняя одежда",
+  "Обувь",
+  "Головной убор",
+  "Аксессуары",
+] as const;
 export type Category = (typeof CATEGORIES)[number];
+
+// Цельные вещи на всё тело: надеваются вместо отдельных верха и низа (одна за раз).
+export const FULL_BODY_CATEGORIES: readonly string[] = ["Платья", "Комбинезоны"];
+export const isFullBody = (category: string) => FULL_BODY_CATEGORIES.includes(category);
+// Верх и низ, которые цельная вещь заменяет.
+export const SEPARATES_CATEGORIES: readonly string[] = ["Верх", "Низ"];
+
+// Порядок вещей в задании для примерки: основа образа → слои поверх → обувь и детали.
+export const OUTFIT_ORDER: readonly string[] = [
+  "Платья",
+  "Комбинезоны",
+  "Верх",
+  "Низ",
+  "Верхняя одежда",
+  "Обувь",
+  "Головной убор",
+  "Аксессуары",
+];
+// Неизвестная категория (на всякий случай) — в конец.
+export const outfitRank = (category: string) => {
+  const i = OUTFIT_ORDER.indexOf(category);
+  return i === -1 ? OUTFIT_ORDER.length : i;
+};
 
 // Строка таблицы items (см. supabase/migrations).
 export type WardrobeItem = {

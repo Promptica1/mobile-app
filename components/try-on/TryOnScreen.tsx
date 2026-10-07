@@ -18,7 +18,12 @@ import {
   type Selection,
   type TryOnResult,
 } from "@/lib/tryOn";
-import type { WardrobeItem } from "@/lib/wardrobe";
+import {
+  FULL_BODY_CATEGORIES,
+  isFullBody,
+  SEPARATES_CATEGORIES,
+  type WardrobeItem,
+} from "@/lib/wardrobe";
 import { PREV_PATH_KEY } from "@/components/BottomNav";
 import TokenPill from "@/components/TokenPill";
 import ActionsMenu from "./ActionsMenu";
@@ -158,10 +163,29 @@ export default function TryOnScreen() {
       setToast("Без фото вещь не примерить");
       return;
     }
-    setSelection((prev) => ({
-      ...prev,
-      [item.category]: prev[item.category]?.id === item.id ? undefined : item,
-    }));
+    // Повторное нажатие — снять.
+    if (selection[item.category]?.id === item.id) {
+      setSelection((prev) => ({ ...prev, [item.category]: undefined }));
+      return;
+    }
+    // Платье или комбинезон — цельная вещь на всё тело: заменяет верх, низ и другую цельную вещь.
+    // Верх или низ, наоборот, снимают цельную вещь. Головной убор и остальное добавляются поверх.
+    const conflicts = isFullBody(item.category)
+      ? [...SEPARATES_CATEGORIES, ...FULL_BODY_CATEGORIES].filter((c) => c !== item.category)
+      : SEPARATES_CATEGORIES.includes(item.category)
+        ? [...FULL_BODY_CATEGORIES]
+        : [];
+    const replaced = conflicts.map((c) => selection[c]).filter((i): i is WardrobeItem => Boolean(i));
+    const next: Selection = { ...selection, [item.category]: item };
+    conflicts.forEach((c) => (next[c] = undefined));
+    setSelection(next);
+    if (replaced.length > 0) {
+      setToast(
+        isFullBody(item.category)
+          ? `${item.category === "Платья" ? "Платье" : "Комбинезон"} надевается вместо верха и низа`
+          : "Цельная вещь снята — теперь отдельно верх и низ",
+      );
+    }
   };
   const removeItem = (item: WardrobeItem) =>
     setSelection((prev) => ({ ...prev, [item.category]: undefined }));
