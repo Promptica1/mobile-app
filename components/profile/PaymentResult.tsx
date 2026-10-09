@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CircleAlert, CircleCheck, Clock, CreditCard, LoaderCircle } from "lucide-react";
+import { CircleAlert, CircleCheck, Clock, LoaderCircle } from "lucide-react";
 import { cancelReasonText, checkPayment, formatDate, type PaymentResult as Result } from "@/lib/billing";
 
 // Пока ЮKassa не дала окончательный ответ — переспрашиваем сервер каждые 2 секунды.
@@ -62,13 +62,12 @@ export default function PaymentResult({ order }: { order: string | null }) {
           Подписка <b className="font-semibold text-text">MIRRO {result.planName}</b> оформлена
           {result.periodEnd ? ` и действует до ${formatDate(result.periodEnd)}` : ""}.
         </p>
-        {result.cardLast4 && (
-          <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1.5 text-xs text-text">
-            <CreditCard size={14} strokeWidth={1.75} />
-            Карта •••• {result.cardLast4} сохранена для продления
-          </p>
-        )}
         <Actions primary={{ label: "Моя подписка", href: "/profile/subscription/manage" }} secondary={{ label: "В гардероб", href: "/wardrobe" }} />
+        {/* Условие автопродления — обязательно показываем после оформления */}
+        <p className="mt-6 max-w-[290px] text-xs leading-relaxed text-muted">
+          Подписка продлевается автоматически каждый месяц. Отменить можно в любой момент в разделе
+          «Моя подписка».
+        </p>
       </Screen>
     );
   }
