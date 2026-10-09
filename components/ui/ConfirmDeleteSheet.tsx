@@ -11,6 +11,8 @@ export default function ConfirmDeleteSheet({
   text,
   confirmLabel = "Удалить",
   busyLabel,
+  cancelLabel = "Отмена",
+  errorText = "Не получилось удалить. Проверьте интернет и попробуйте ещё раз.",
   onDelete,
   onClose,
 }: {
@@ -18,13 +20,12 @@ export default function ConfirmDeleteSheet({
   text: string;
   confirmLabel?: string;
   busyLabel?: string;
+  cancelLabel?: string;
+  errorText?: string;
   onDelete: () => Promise<void>;
   onClose: () => void;
 }) {
-  const { busy, error, run } = useSubmit(
-    onDelete,
-    "Не получилось удалить. Проверьте интернет и попробуйте ещё раз.",
-  );
+  const { busy, error, run } = useSubmit(onDelete, errorText);
   return (
     <Sheet title={title} onClose={onClose} locked={busy}>
       <p className="-mt-2 text-sm leading-relaxed text-muted">{text}</p>
@@ -49,7 +50,7 @@ export default function ConfirmDeleteSheet({
           disabled={busy}
           className="h-12 rounded-full text-[15px] text-muted transition-colors hover:text-text disabled:opacity-50"
         >
-          Отмена
+          {cancelLabel}
         </button>
       </div>
     </Sheet>

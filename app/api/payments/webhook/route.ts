@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
   // Наш заказ — по id платежа ЮKassa (и сверка с metadata внутри applyPayment).
   const { data: row, error } = await admin
     .from("payments")
-    .select("id, user_id, plan, amount, status, yookassa_payment_id")
+    .select("*")
     .eq("yookassa_payment_id", payment.id)
     .maybeSingle<PaymentRow>();
   if (error) return retryLater(`db: ${error.message}`);

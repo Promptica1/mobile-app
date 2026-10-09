@@ -29,13 +29,14 @@ export async function POST(request: NextRequest) {
   const admin = createAdminClient();
   if (!admin) return fail("not_configured", 503);
 
-  // Уже оформлен этот же тариф и он действует — второй раз не списываем.
+  // Уже оформлен этот же тариф и он действует (в т.ч. отменённый до конца периода —
+  // его можно возобновить без оплаты) — второй раз не списываем.
   const { data: sub } = await admin
     .from("subscriptions")
     .select("plan, status, current_period_end")
     .eq("user_id", user.id)
     .maybeSingle<{ plan: string; status: string; current_period_end: string | null }>();
-  if (sub?.plan === plan && sub.status === "active" && sub.current_period_end && new Date(sub.current_period_end) > new Date()) {
+  if (sub?.plan === plan && (sub.status === "active" || sub.status === "canceled") && sub.current_period_end && new Date(sub.current_period_end) > new Date()) {
     return fail("already_subscribed", 409);
   }
 

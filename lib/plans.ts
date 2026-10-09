@@ -61,4 +61,7 @@ export function formatPrice(rubles: number): string {
   return `${String(Math.round(rubles)).replace(/\B(?=(\d{3})+(?!\d))/g, ".")}₽`;
 }
 
+// Если автосписание не прошло — доступ сохраняется ещё столько дней, пока пробуем списать снова.
+export const RENEWAL_GRACE_DAYS = 3;
+
 export const PAYMENT_SOON = "Оплата скоро будет доступна";

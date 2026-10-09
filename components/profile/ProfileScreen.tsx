@@ -10,7 +10,7 @@ import {
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { fetchSubscription, formatDate, isActive, type Subscription } from "@/lib/billing";
+import { fetchSubscription, isActive, subscriptionNote, type Subscription } from "@/lib/billing";
 import { formatPrice, getPlan } from "@/lib/plans";
 import { genderLabel, type Profile } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/client";
@@ -105,7 +105,7 @@ export default function ProfileScreen({ profile: initial, userId, photo, tokens 
         </div>
         <p className="mt-2 max-w-[260px] text-sm leading-relaxed text-text/70">
           {activeSub?.current_period_end
-            ? `Подписка активна до ${formatDate(activeSub.current_period_end)}`
+            ? subscriptionNote(activeSub)
             : `Больше токенов, вещей и папки для образов — от ${formatPrice(getPlan("premium").price)}/мес`}
         </p>
         <span className="mt-5 flex h-12 w-full items-center justify-center rounded-full bg-text text-[15px] font-medium text-background">

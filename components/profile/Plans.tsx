@@ -151,8 +151,12 @@ export default function Plans() {
 
       {sub && isActive(sub) && sub.current_period_end && (
         <p className="px-1 text-sm">
-          Ваш тариф — <b className="font-semibold">{PLANS.find((p) => p.id === sub.plan)?.name}</b>, действует до{" "}
-          {formatDate(sub.current_period_end)}.
+          Ваш тариф — <b className="font-semibold">{PLANS.find((p) => p.id === sub.plan)?.name}</b>,{" "}
+          {sub.status === "canceled"
+            ? `отменён, доступ до ${formatDate(sub.current_period_end)}.`
+            : sub.status === "past_due"
+              ? "не удалось списать оплату — попробуем ещё раз."
+              : `действует до ${formatDate(sub.current_period_end)}.`}
         </p>
       )}
 

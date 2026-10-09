@@ -1,13 +1,15 @@
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseEnv } from "@/lib/supabase/env";
-import type { PlanId } from "./plans";
+import { RENEWAL_GRACE_DAYS, type PlanId } from "./plans";
 
 // Оплата подписки в браузере: только запросы к нашему серверу и чтение своей подписки.
 // Создание платежа и проверка оплаты — на сервере (ключи ЮKassa в браузер не попадают).
 
 export type Subscription = {
   plan: PlanId;
-  status: "active" | "canceled" | "past_due";
+  // active — продлится сам; canceled — отменена, доступ до конца периода;
+  // past_due — автосписание не прошло, пробуем снова; expired — закончилась.
+  status: "active" | "canceled" | "past_due" | "expired";
   current_period_end: string | null;
   card_last4: string | null;
   card_type: string | null;
@@ -31,8 +33,38 @@ export async function fetchSubscription(): Promise<Subscription | null> {
   return data;
 }
 
-export const isActive = (s: Subscription | null) =>
-  Boolean(s && s.status === "active" && s.current_period_end && new Date(s.current_period_end) > new Date());
+// Есть ли доступ к тарифу прямо сейчас. Если списание не прошло — ещё RENEWAL_GRACE_DAYS дней.
+export function isActive(s: Subscription | null) {
+  if (!s?.current_period_end || s.status === "expired") return false;
+  const end = new Date(s.current_period_end).getTime();
+  const grace = s.status === "past_due" ? RENEWAL_GRACE_DAYS * 24 * 60 * 60 * 1000 : 0;
+  return end + grace > Date.now();
+}
+
+// Короткая строка о состоянии подписки для профиля и экрана тарифов.
+export function subscriptionNote(s: Subscription) {
+  const date = s.current_period_end ? formatDate(s.current_period_end) : "";
+  if (s.status === "canceled") return `Подписка отменена, доступ до ${date}`;
+  if (s.status === "past_due") return "Не удалось списать оплату — попробуем ещё раз";
+  return `Подписка активна до ${date}`;
+}
+
+// Отмена автопродления (доступ сохраняется до конца оплаченного периода) и возобновление.
+export async function changeAutoRenew(action: "cancel" | "resume"): Promise<string | null> {
+  let res: Response;
+  try {
+    res = await fetch("/api/subscription", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+  } catch {
+    throw new Error("network");
+  }
+  const data = (await res.json().catch(() => null)) as { periodEnd?: string | null; error?: string } | null;
+  if (!res.ok) throw new Error(data?.error ?? "failed");
+  return data?.periodEnd ?? null;
+}
 
 export async function fetchPaymentMode(): Promise<{ available: boolean; test: boolean }> {
   try {

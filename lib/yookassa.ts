@@ -101,3 +101,26 @@ export function getPayment(id: string): Promise<YooKassaPayment> {
   if (!/^[\w-]{10,64}$/.test(id)) throw new YooKassaError("failed", "bad payment id");
   return call<YooKassaPayment>("GET", `/payments/${encodeURIComponent(id)}`);
 }
+
+// Автопродление: списание с сохранённой карты без участия пользователя (без подтверждения).
+// Idempotence-Key = id нашего заказа — повтор запроса не создаст второго списания.
+export function createRecurringPayment(input: {
+  amount: number;
+  description: string;
+  paymentMethodId: string;
+  metadata: Record<string, string>;
+  idempotenceKey: string;
+}): Promise<YooKassaPayment> {
+  return call<YooKassaPayment>(
+    "POST",
+    "/payments",
+    {
+      amount: { value: input.amount.toFixed(2), currency: "RUB" },
+      capture: true,
+      payment_method_id: input.paymentMethodId,
+      description: input.description,
+      metadata: input.metadata,
+    },
+    input.idempotenceKey,
+  );
+}

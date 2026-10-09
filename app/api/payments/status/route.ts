@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
   const { data: row } = await admin
     .from("payments")
-    .select("id, user_id, plan, amount, status, yookassa_payment_id")
+    .select("*")
     .eq("id", order)
     .eq("user_id", user.id)
     .maybeSingle<PaymentRow>();

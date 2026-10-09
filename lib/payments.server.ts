@@ -14,6 +14,10 @@ export type PaymentRow = {
   amount: number | string;
   status: string;
   yookassa_payment_id: string | null;
+  // Есть после SQL автопродления: initial — первая оплата, renewal — автосписание за период,
+  // который заканчивался в renewal_for.
+  kind?: "initial" | "renewal";
+  renewal_for?: string | null;
 };
 
 export type ApplyOutcome =
@@ -35,7 +39,7 @@ export async function applyPayment(
   admin: SupabaseClient,
   row: PaymentRow,
   payment: YooKassaPayment,
-  source: "return" | "webhook",
+  source: "return" | "webhook" | "cron",
 ): Promise<ApplyOutcome> {
   if (!paymentMatchesRow(payment, row)) {
     console.log(`YK[${source}]: payment ${payment.id} does not match order ${row.id}`);
@@ -64,33 +68,51 @@ export async function applyPayment(
       return { kind: "already_active" };
     }
 
-    // Тот же тариф ещё действует — продлеваем от его конца, иначе — месяц с сегодняшнего дня.
+    // Подписка сейчас. Колонки автопродления есть, если у платежа есть поле kind (SQL выполнен).
+    const renewal = row.kind === "renewal" && Boolean(row.renewal_for);
     const { data: current } = await admin
       .from("subscriptions")
       .select("plan, status, current_period_end")
       .eq("user_id", row.user_id)
       .maybeSingle<{ plan: string; status: string; current_period_end: string | null }>();
     const currentEnd = current?.current_period_end ? new Date(current.current_period_end) : null;
-    const extendFrom =
-      current?.plan === row.plan && current.status === "active" && currentEnd && currentEnd > now ? currentEnd : now;
+    const samePlan = current?.plan === row.plan;
+    let extendFrom: Date;
+    if (renewal) {
+      // Автопродление: следующий месяц начинается ровно с конца оплаченного периода.
+      const due = new Date(row.renewal_for as string);
+      extendFrom = samePlan && currentEnd && currentEnd > due ? currentEnd : due;
+    } else {
+      // Тот же тариф ещё действует (в т.ч. отменённый) — продлеваем от его конца, иначе — с сегодняшнего дня.
+      extendFrom =
+        samePlan && (current?.status === "active" || current?.status === "canceled") && currentEnd && currentEnd > now
+          ? currentEnd
+          : now;
+    }
     const end = periodEnd(extendFrom);
 
-    const { error: subError } = await admin.from("subscriptions").upsert(
-      {
-        user_id: row.user_id,
-        plan: row.plan,
-        status: "active",
-        started_at: extendFrom === now ? now.toISOString() : undefined,
-        current_period_end: end.toISOString(),
-        yookassa_payment_method_id: method?.saved ? method.id : null,
-        card_last4: method?.card?.last4 ?? null,
-        card_type: method?.card?.card_type ?? null,
-        last_payment_id: row.id,
-        test: payment.test,
-        updated_at: now.toISOString(),
-      },
-      { onConflict: "user_id" },
-    );
+    const update: Record<string, unknown> = {
+      user_id: row.user_id,
+      plan: row.plan,
+      // Отменил, пока шло списание, — продление не включаем снова.
+      status: renewal && current?.status === "canceled" ? "canceled" : "active",
+      current_period_end: end.toISOString(),
+      last_payment_id: row.id,
+      test: payment.test,
+      updated_at: now.toISOString(),
+    };
+    if (!renewal && extendFrom === now) update.started_at = now.toISOString();
+    // Карту перезаписываем только сохранённой (при автосписании это та же карта).
+    if (!renewal || method?.saved) {
+      update.yookassa_payment_method_id = method?.saved ? method.id : null;
+      update.card_last4 = method?.card?.last4 ?? null;
+      update.card_type = method?.card?.card_type ?? null;
+    }
+    if (row.kind !== undefined) {
+      update.renewal_failures = 0;
+      if (!renewal) update.canceled_at = null;
+    }
+    const { error: subError } = await admin.from("subscriptions").upsert(update, { onConflict: "user_id" });
     if (subError) {
       // Возвращаем платёж в прежний статус, чтобы следующая попытка (повтор webhook) применила его.
       await admin.from("payments").update({ status: row.status, updated_at: now.toISOString() }).eq("id", row.id);
@@ -102,13 +124,17 @@ export async function applyPayment(
 
   if (payment.status === "canceled") {
     const reason = payment.cancellation_details?.reason ?? "unknown";
-    // Подтверждённый платёж отменой не перезаписываем.
-    await admin
+    // Подтверждённый или уже отменённый платёж не трогаем — так неудача считается один раз.
+    const { data: changed } = await admin
       .from("payments")
       .update({ status: "canceled", cancellation_reason: reason, updated_at: now.toISOString() })
       .eq("id", row.id)
-      .neq("status", "succeeded");
+      .in("status", ["pending", "waiting_for_capture"])
+      .select("id");
     console.log(`YK[${source}]: payment ${payment.id} canceled: ${reason}`);
+    if (row.kind === "renewal" && row.renewal_for && changed && changed.length > 0) {
+      await markRenewalFailed(admin, row.user_id as string, row.renewal_for, source);
+    }
     return { kind: "canceled", reason };
   }
 
@@ -118,4 +144,22 @@ export async function applyPayment(
     .eq("id", row.id)
     .neq("status", "succeeded");
   return { kind: "pending" };
+}
+
+// Автосписание не прошло: доступ не отключаем сразу — статус past_due, завтра попробуем снова
+// (до RENEWAL_GRACE_DAYS дней). Только если период всё ещё не продлён и подписку не отменили.
+export async function markRenewalFailed(admin: SupabaseClient, userId: string, renewalFor: string, source: string) {
+  const { data: sub } = await admin
+    .from("subscriptions")
+    .select("status, current_period_end, renewal_failures")
+    .eq("user_id", userId)
+    .maybeSingle<{ status: string; current_period_end: string | null; renewal_failures: number | null }>();
+  if (!sub || !["active", "past_due"].includes(sub.status)) return;
+  if (sub.current_period_end && new Date(sub.current_period_end) > new Date(renewalFor)) return;
+  const failures = (sub.renewal_failures ?? 0) + 1;
+  await admin
+    .from("subscriptions")
+    .update({ status: "past_due", renewal_failures: failures, updated_at: new Date().toISOString() })
+    .eq("user_id", userId);
+  console.log(`YK[${source}]: renewal failed for user ${userId}, attempt ${failures} → past_due`);
 }
