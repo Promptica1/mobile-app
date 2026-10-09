@@ -62,7 +62,7 @@ export default function PaymentResult({ order }: { order: string | null }) {
           Подписка <b className="font-semibold text-text">MIRRO {result.planName}</b> оформлена
           {result.periodEnd ? ` и действует до ${formatDate(result.periodEnd)}` : ""}.
         </p>
-        <Actions primary={{ label: "Моя подписка", href: "/profile/subscription/manage" }} secondary={{ label: "В гардероб", href: "/wardrobe" }} />
+        <Actions primary={{ label: "Закрыть", href: "/wardrobe" }} />
         {/* Условие автопродления — обязательно показываем после оформления */}
         <p className="mt-6 max-w-[290px] text-xs leading-relaxed text-muted">
           Подписка продлевается автоматически каждый месяц. Отменить можно в любой момент в разделе
@@ -101,7 +101,7 @@ function Screen({ icon, title, children }: { icon: React.ReactNode; title: strin
 }
 
 type Action = { label: string; href?: string; onClick?: () => void };
-function Actions({ primary, secondary }: { primary: Action; secondary: Action }) {
+function Actions({ primary, secondary }: { primary: Action; secondary?: Action }) {
   const cls = "flex h-12 w-full items-center justify-center rounded-full text-[15px] font-medium";
   const render = (a: Action, style: string) =>
     a.href ? (
@@ -116,7 +116,7 @@ function Actions({ primary, secondary }: { primary: Action; secondary: Action })
   return (
     <div className="mt-8 flex w-[280px] flex-col gap-2">
       {render(primary, "bg-lime text-text")}
-      {render(secondary, "text-muted hover:text-text")}
+      {secondary && render(secondary, "text-muted hover:text-text")}
     </div>
   );
 }
