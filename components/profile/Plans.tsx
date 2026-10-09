@@ -67,7 +67,9 @@ function PlanCard({
           {formatPrice(plan.price)}
         </span>
         {paid && <span className={`text-sm ${s.muted}`}>/мес</span>}
+        {plan.usd && <span className={`ml-1.5 text-sm ${s.muted}`}>≈ ${plan.usd}</span>}
       </p>
+      {paid && <p className={`mt-1.5 text-xs ${s.muted}`}>Оплата в рублях</p>}
 
       <ul className="mt-5 flex flex-col gap-2.5">
         {plan.features.map((f) => (

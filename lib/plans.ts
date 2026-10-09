@@ -8,6 +8,8 @@ export type Plan = {
   name: string;
   // Цена в рублях за месяц (0 — бесплатно).
   price: number;
+  // Примерная цена в долларах — только для справки, списание всегда в рублях.
+  usd?: number;
   // Сколько токенов даёт тариф (для «Осталось токенов: X из N»).
   tokens: number;
   tagline: string;
@@ -28,6 +30,7 @@ export const PLANS: Plan[] = [
     id: "premium",
     name: "Premium",
     price: 1499,
+    usd: 15,
     tokens: 50,
     tagline: "Для тех, кто собирает образы каждую неделю",
     features: ["50 токенов в месяц", "До 150 вещей", "Папки для образов", "Докуп токенов"],
@@ -37,6 +40,7 @@ export const PLANS: Plan[] = [
     id: "premium_plus",
     name: "Premium+",
     price: 2499,
+    usd: 25,
     tokens: 150,
     tagline: "Весь гардероб и максимум примерок",
     features: [
