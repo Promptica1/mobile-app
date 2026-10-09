@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
-// Токены бета-доступа в браузере: только показ. Проверка и списание — на сервере.
+// Токены в браузере: только показ. Проверка, списание и начисление — на сервере.
+// Бесплатный тариф: 10 токенов один раз при регистрации. Premium / Premium+: каждый оплаченный
+// месяц баланс становится 50 / 150 (остаток не переносится).
 
-export const NO_TOKENS_MESSAGE = "Токены закончились. Это тестовый доступ.";
+export const NO_TOKENS_MESSAGE = "Токены закончились. Новые токены начисляются с подпиской Premium.";
 export const TOKENS_HEADER = "X-Tokens-Left";
 const EVENT = "dw:tokens";
 

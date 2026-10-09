@@ -67,8 +67,8 @@ export default function ManageSubscription() {
     setResuming(false);
   };
 
-  const left = Math.min(tokens?.balance ?? plan.tokens, plan.tokens);
-  const share = left / plan.tokens;
+  const left = real ? (tokens?.balance ?? 0) : plan.tokens;
+  const share = Math.min(1, left / plan.tokens);
 
   return (
     <div className="flex flex-col gap-4">
@@ -161,7 +161,11 @@ export default function ManageSubscription() {
         >
           <div className="h-full rounded-full bg-lime" style={{ width: `${share * 100}%` }} />
         </div>
-        <p className="mt-2.5 text-xs text-muted">Токены обновляются в день продления подписки.</p>
+        <p className="mt-2.5 text-xs text-muted">
+          {status === "canceled"
+            ? "Новых начислений не будет — оставшиеся токены сохранятся."
+            : `В день продления баланс обновляется до ${plan.tokens}, остаток не переносится.`}
+        </p>
         <button
           type="button"
           onClick={() => toast.show(real ? NEXT_STAGE : PAYMENT_SOON)}

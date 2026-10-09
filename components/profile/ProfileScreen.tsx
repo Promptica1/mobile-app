@@ -87,7 +87,7 @@ export default function ProfileScreen({ profile: initial, userId, photo, tokens 
         </button>
       </section>
 
-      {tokens && <TokensCard tokens={tokens} />}
+      {tokens && <TokensCard tokens={tokens} plan={activeSub ? activeSub.plan : null} />}
 
       {/* Карточка тарифа целиком ведёт на экран «Подписка» (или «Моя подписка», если она есть) */}
       <Link

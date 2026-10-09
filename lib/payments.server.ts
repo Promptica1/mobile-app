@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { periodEnd } from "./billing.server";
+import { getPlan } from "./plans";
 import { capturePayment, getPayment, type YooKassaPayment } from "./yookassa";
 
 // Применение платежа ЮKassa к нашей базе. Общий код для двух путей:
@@ -66,6 +67,15 @@ export async function applyPayment(
     if (!claimed || claimed.length === 0) {
       console.log(`YK[${source}]: payment ${payment.id} already applied — skip`);
       return { kind: "already_active" };
+    }
+
+    // Токены тарифа за этот оплаченный период: баланс = 50 / 150 (остаток не переносится).
+    // Раньше продления подписки: если продление упадёт, повтор не начислит токены второй раз.
+    try {
+      await grantPlanTokens(admin, row, source);
+    } catch (e) {
+      await admin.from("payments").update({ status: row.status, updated_at: now.toISOString() }).eq("id", row.id);
+      throw e;
     }
 
     // Подписка сейчас. Колонки автопродления есть, если у платежа есть поле kind (SQL выполнен).
@@ -192,4 +202,24 @@ export async function settlePayment(
     current = await capturePayment(current.id, current.amount, `capture-${row.id}`);
   }
   return applyPayment(admin, row, current, source);
+}
+
+// Начисление токенов тарифа (модель «сброс»). Идемпотентно в базе: один платёж — одно начисление.
+async function grantPlanTokens(admin: SupabaseClient, row: PaymentRow, source: string) {
+  const tokens = getPlan(row.plan).tokens;
+  const { data, error } = await admin.rpc("grant_plan_tokens", {
+    p_payment_id: row.id,
+    p_user_id: row.user_id,
+    p_plan: row.plan,
+    p_tokens: tokens,
+  });
+  if (error) {
+    // SQL с начислением ещё не выполнен — подписку всё равно включаем, токены не трогаем.
+    if (error.code === "PGRST202" || error.code === "42883") {
+      console.log(`TOKENS[${source}]: grant_plan_tokens not installed — skip`);
+      return;
+    }
+    throw new Error(`grant tokens: ${error.message}`);
+  }
+  console.log(`TOKENS[${source}]: user ${row.user_id}, plan = ${row.plan}, payment ${row.id} → ${data ? `set ${tokens}` : "already granted"}`);
 }
