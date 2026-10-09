@@ -51,6 +51,48 @@ export type YooKassaPayment = {
   cancellation_details?: { party: string; reason: string };
 };
 
+// Чек по 54-ФЗ («Чеки от ЮKassa»): ЮKassa сама формирует чек и отправляет его на почту покупателя.
+// ИП на УСН «доходы», без НДС, продаём услугу с полной оплатой сразу.
+// Значения из справочника ЮKassa:
+//   tax_system_code 2   — УСН «доходы» (1 — ОСН, 3 — УСН «доходы минус расходы»);
+//   vat_code 1          — без НДС;
+//   payment_subject     — "service" (услуга);
+//   payment_mode        — "full_payment" (полный расчёт).
+export const RECEIPT_TAX_SYSTEM_CODE = 2;
+export const RECEIPT_VAT_CODE = 1;
+const RECEIPT_DESCRIPTION_MAX = 128;
+
+export type Receipt = {
+  customer: { email: string };
+  tax_system_code: number;
+  items: {
+    description: string;
+    quantity: string;
+    amount: { value: string; currency: "RUB" };
+    vat_code: number;
+    payment_subject: "service";
+    payment_mode: "full_payment";
+  }[];
+};
+
+// Одна позиция на платёж: подписка или пакет токенов.
+export function buildReceipt(input: { email: string; description: string; amount: number }): Receipt {
+  return {
+    customer: { email: input.email },
+    tax_system_code: RECEIPT_TAX_SYSTEM_CODE,
+    items: [
+      {
+        description: input.description.slice(0, RECEIPT_DESCRIPTION_MAX),
+        quantity: "1.00",
+        amount: { value: input.amount.toFixed(2), currency: "RUB" },
+        vat_code: RECEIPT_VAT_CODE,
+        payment_subject: "service",
+        payment_mode: "full_payment",
+      },
+    ],
+  };
+}
+
 async function call<T>(method: "GET" | "POST", path: string, body?: unknown, idempotenceKey?: string): Promise<T> {
   const headers: Record<string, string> = { Authorization: credentials(), "Content-Type": "application/json" };
   if (idempotenceKey) headers["Idempotence-Key"] = idempotenceKey;
@@ -80,6 +122,7 @@ export function createPayment(input: {
   returnUrl: string;
   metadata: Record<string, string>;
   idempotenceKey: string;
+  receipt: Receipt;
 }): Promise<YooKassaPayment> {
   return call<YooKassaPayment>(
     "POST",
@@ -92,6 +135,7 @@ export function createPayment(input: {
       save_payment_method: true,
       description: input.description,
       metadata: input.metadata,
+      receipt: input.receipt,
     },
     input.idempotenceKey,
   );
@@ -110,6 +154,7 @@ export function createRecurringPayment(input: {
   paymentMethodId: string;
   metadata: Record<string, string>;
   idempotenceKey: string;
+  receipt: Receipt;
 }): Promise<YooKassaPayment> {
   return call<YooKassaPayment>(
     "POST",
@@ -120,6 +165,7 @@ export function createRecurringPayment(input: {
       payment_method_id: input.paymentMethodId,
       description: input.description,
       metadata: input.metadata,
+      receipt: input.receipt,
     },
     input.idempotenceKey,
   );

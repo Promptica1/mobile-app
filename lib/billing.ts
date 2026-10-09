@@ -104,6 +104,7 @@ export const CHECKOUT_ERRORS: Record<string, string> = {
   live_not_allowed: "Оплата временно недоступна. Попробуйте чуть позже.",
   already_subscribed: "Этот тариф у вас уже оформлен.",
   unauthorized: "Войдите в аккаунт, чтобы оформить подписку.",
+  no_email: "Для оплаты нужна почта в аккаунте — на неё придёт чек.",
 };
 export const checkoutErrorText = (reason: string) =>
   CHECKOUT_ERRORS[reason] ?? "Не получилось перейти к оплате. Проверьте интернет и попробуйте ещё раз.";

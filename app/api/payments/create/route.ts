@@ -4,7 +4,7 @@ import { isPaidPlan, planDescription, planPrice } from "@/lib/billing.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
-import { createPayment, YooKassaError } from "@/lib/yookassa";
+import { buildReceipt, createPayment, YooKassaError } from "@/lib/yookassa";
 
 // Создаёт платёж в ЮKassa для тарифа и возвращает ссылку на страницу оплаты ЮKassa.
 // Сумма и описание — только с сервера; браузер присылает лишь id тарифа. Логи — "YK:".
@@ -28,6 +28,8 @@ export async function POST(request: NextRequest) {
 
   const admin = createAdminClient();
   if (!admin) return fail("not_configured", 503);
+  // Чек по 54-ФЗ приходит на почту — без неё платёж не создаём.
+  if (!user.email) return fail("no_email", 400);
 
   // Уже оформлен этот же тариф и он действует (в т.ч. отменённый до конца периода —
   // его можно возобновить без оплаты) — второй раз не списываем.
@@ -56,6 +58,7 @@ export async function POST(request: NextRequest) {
     const payment = await createPayment({
       amount,
       description: planDescription(plan),
+      receipt: buildReceipt({ email: user.email, description: planDescription(plan), amount }),
       returnUrl: `${base}/profile/subscription/result?order=${orderId}`,
       metadata: { user_id: user.id, plan, order_id: orderId },
       // Новый ключ на каждый заказ: повтор этого же запроса не создаст второй платёж.

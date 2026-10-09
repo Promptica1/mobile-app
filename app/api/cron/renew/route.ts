@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
-import { planDescription, planPrice } from "@/lib/billing.server";
+import { planDescription, planPrice, userEmail } from "@/lib/billing.server";
 import { markRenewalFailed, settlePayment, waitForFinal, type PaymentRow } from "@/lib/payments.server";
 import { RENEWAL_GRACE_DAYS } from "@/lib/plans";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createRecurringPayment, getPayment, YooKassaError } from "@/lib/yookassa";
+import { buildReceipt, createRecurringPayment, getPayment, YooKassaError } from "@/lib/yookassa";
 
 // Ежедневное автопродление подписок (расписание — в vercel.json, раз в сутки).
 // Находит подписки, у которых закончился оплаченный период, и списывает плату
@@ -146,7 +146,11 @@ async function renew(admin: Admin, sub: DueSub, now: Date, deadline: number): Pr
   };
   let payment;
   try {
+    // Чек по 54-ФЗ на почту из аккаунта (пользователь при автосписании не участвует).
+    const email = await userEmail(admin, sub.user_id);
+    if (!email) throw new YooKassaError("failed", "no email for receipt");
     payment = await createRecurringPayment({
+      receipt: buildReceipt({ email, description: planDescription(sub.plan), amount }),
       amount,
       description: planDescription(sub.plan),
       paymentMethodId: sub.yookassa_payment_method_id,
