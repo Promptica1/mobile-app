@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { periodEnd } from "@/lib/billing.server";
+import { applyPayment, type PaymentRow } from "@/lib/payments.server";
 import { getPlan } from "@/lib/plans";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseEnv } from "@/lib/supabase/env";
@@ -8,15 +8,6 @@ import { getPayment, YooKassaError } from "@/lib/yookassa";
 
 // Возврат с оплаты: проверяем платёж в ЮKassa (а не верим браузеру) и при успехе
 // оформляем подписку и запоминаем сохранённую карту. Повторный вызов ничего не дублирует.
-
-type Row = {
-  id: string;
-  user_id: string;
-  plan: "premium" | "premium_plus";
-  amount: number | string;
-  status: string;
-  yookassa_payment_id: string | null;
-};
 
 const json = (body: Record<string, unknown>, status = 200) =>
   NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
@@ -39,7 +30,7 @@ export async function GET(request: NextRequest) {
     .select("id, user_id, plan, amount, status, yookassa_payment_id")
     .eq("id", order)
     .eq("user_id", user.id)
-    .maybeSingle<Row>();
+    .maybeSingle<PaymentRow>();
   if (!row) return json({ error: "not_found" }, 404);
 
   const planName = getPlan(row.plan).name;
@@ -62,55 +53,30 @@ export async function GET(request: NextRequest) {
     return json({ error: error instanceof YooKassaError ? error.reason : "failed" }, 502);
   }
 
-  // Платёж должен быть именно этим заказом этого пользователя на ту же сумму.
-  const amountOk = Number(payment.amount.value) === Number(row.amount) && payment.amount.currency === "RUB";
-  const ownerOk = payment.metadata?.order_id === row.id && payment.metadata?.user_id === user.id;
-  if (!amountOk || !ownerOk || !payment.test) {
-    console.log(`YK: payment ${payment.id} mismatch (amount ${amountOk}, owner ${ownerOk}, test ${payment.test})`);
-    return json({ error: "mismatch" }, 409);
+  let outcome;
+  try {
+    outcome = await applyPayment(admin, row, payment, "return");
+  } catch (error) {
+    console.log(`YK[return]: apply failed: ${error instanceof Error ? error.message : String(error)}`);
+    return json({ error: "failed" }, 502);
   }
 
-  const now = new Date();
-  if (payment.status === "succeeded" && payment.paid) {
-    const method = payment.payment_method;
-    const savedMethodId = method?.saved ? method.id : null;
-    await admin
-      .from("payments")
-      .update({ status: "succeeded", payment_method_id: method?.id ?? null, paid_at: now.toISOString(), updated_at: now.toISOString() })
-      .eq("id", row.id);
-    const end = periodEnd(now);
-    const { error: subError } = await admin.from("subscriptions").upsert(
-      {
-        user_id: user.id,
-        plan: row.plan,
-        status: "active",
-        started_at: now.toISOString(),
-        current_period_end: end.toISOString(),
-        yookassa_payment_method_id: savedMethodId,
-        card_last4: method?.card?.last4 ?? null,
-        card_type: method?.card?.card_type ?? null,
-        last_payment_id: row.id,
-        test: payment.test,
-        updated_at: now.toISOString(),
-      },
-      { onConflict: "user_id" },
-    );
-    if (subError) console.log(`YK: subscription upsert failed: ${subError.message}`);
-    console.log(`YK: payment ${payment.id} succeeded, plan = ${row.plan}, card saved = ${Boolean(savedMethodId)}`);
-    return json({ status: "succeeded", plan: row.plan, planName, cardLast4: method?.card?.last4 ?? null, periodEnd: end.toISOString() });
+  switch (outcome.kind) {
+    case "mismatch":
+      return json({ error: "mismatch" }, 409);
+    case "activated":
+    case "already_active": {
+      // Подписку мог включить и webhook — отвечаем по данным из базы.
+      const { data: sub } = await admin
+        .from("subscriptions")
+        .select("card_last4, current_period_end")
+        .eq("user_id", user.id)
+        .maybeSingle<{ card_last4: string | null; current_period_end: string | null }>();
+      return json({ status: "succeeded", plan: row.plan, planName, cardLast4: sub?.card_last4 ?? null, periodEnd: sub?.current_period_end ?? null });
+    }
+    case "canceled":
+      return json({ status: "canceled", reason: outcome.reason, planName });
+    default:
+      return json({ status: "pending", planName });
   }
-
-  if (payment.status === "canceled") {
-    const reason = payment.cancellation_details?.reason ?? "unknown";
-    await admin
-      .from("payments")
-      .update({ status: "canceled", cancellation_reason: reason, updated_at: now.toISOString() })
-      .eq("id", row.id);
-    console.log(`YK: payment ${payment.id} canceled: ${reason}`);
-    return json({ status: "canceled", reason, planName });
-  }
-
-  // pending / waiting_for_capture — пользователь ещё не закончил оплату или банк думает.
-  await admin.from("payments").update({ status: payment.status, updated_at: now.toISOString() }).eq("id", row.id);
-  return json({ status: "pending", planName });
 }

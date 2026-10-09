@@ -99,6 +99,12 @@ metadata с id пользователя, тарифом и номером зак
 Переменные: `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
 необязательно `APP_URL`. Миграция — `supabase/migrations/20261010120000_payments_subscriptions.sql`.
 
+**Webhook ЮKassa** — `POST /api/payments/webhook` (события `payment.succeeded`,
+`payment.canceled`, `payment.waiting_for_capture`). Включает подписку, даже если пользователь
+не вернулся в приложение. Телу уведомления не доверяет: берёт id платежа и заново запрашивает
+платёж в API ЮKassa. Возврат в приложение и webhook используют общую идемпотентную логику
+(`lib/payments.server.ts`): подписка включается один раз. Логи — `YK[webhook]:` / `YK[return]:`.
+
 ## Деплой
 
 Vercel собирает ветку `main` автоматически после каждого push.

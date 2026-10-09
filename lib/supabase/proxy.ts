@@ -2,8 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { getSupabaseEnv } from "./env";
 
-// Страницы, доступные без входа.
-const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/auth"];
+// Страницы, доступные без входа. Webhook ЮKassa приходит без сессии — его подлинность
+// проверяет сам обработчик (повторный запрос платежа в API ЮKassa).
+const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/auth", "/api/payments/webhook"];
 // С этих страниц вошедшего пользователя сразу отправляем в приложение.
 const GUEST_ONLY_PATHS = ["/login", "/signup", "/forgot-password"];
 
