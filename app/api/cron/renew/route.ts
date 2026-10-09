@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { planDescription, planPrice } from "@/lib/billing.server";
-import { applyPayment, markRenewalFailed, type PaymentRow } from "@/lib/payments.server";
+import { markRenewalFailed, settlePayment, waitForFinal, type PaymentRow } from "@/lib/payments.server";
 import { RENEWAL_GRACE_DAYS } from "@/lib/plans";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createRecurringPayment, getPayment, YooKassaError } from "@/lib/yookassa";
@@ -14,6 +14,12 @@ import { createRecurringPayment, getPayment, YooKassaError } from "@/lib/yookass
 // - в базе уникальный индекс «одно активное автосписание на пользователя и период»;
 // - Idempotence-Key в ЮKassa = id нашего заказа;
 // - подтверждение (здесь или через webhook) применяется ровно один раз (applyPayment).
+//
+// Автосписание создаётся без участия пользователя: payment_method_id сохранённой карты,
+// capture: true, без confirmation (никаких редиректов и 3-D Secure). ЮKassa обычно сразу
+// отвечает «pending» и через пару секунд переводит платёж в succeeded — поэтому ждём финальный
+// статус здесь же, а если не дождались — его применит webhook или следующий запуск cron
+// (в начале каждого запуска досверяем все незавершённые автосписания).
 //
 // Вызывать может только Vercel Cron: заголовок Authorization: Bearer <CRON_SECRET>.
 // Логи — "YK[cron]:".
@@ -36,6 +42,10 @@ type DueSub = {
 
 type Result = "renewed" | "pending" | "failed" | "skipped" | "expired" | "error";
 
+// Сколько ждём финальный статус одного списания и всего запуска (лимит функции — 60 с).
+const WAIT_PER_CHARGE_MS = 12_000;
+const RUN_BUDGET_MS = 45_000;
+
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
@@ -50,6 +60,11 @@ export async function GET(request: NextRequest) {
 
   const now = new Date();
   const nowIso = now.toISOString();
+
+  const deadline = Date.now() + RUN_BUDGET_MS;
+
+  // Сначала досверяем незавершённые автосписания прошлых запусков (если webhook не дошёл).
+  const settled = await settlePendingRenewals(admin);
 
   // Отменённые подписки, у которых закончился период, и неоплаченные дольше льготного срока — закрываем.
   const graceLimit = new Date(now.getTime() - RENEWAL_GRACE_DAYS * DAY).toISOString();
@@ -71,18 +86,23 @@ export async function GET(request: NextRequest) {
   for (const sub of (due ?? []) as DueSub[]) {
     let result: Result;
     try {
-      result = await renew(admin, sub, now);
+      result = await renew(admin, sub, now, deadline);
     } catch (e) {
       console.log(`YK[cron]: user ${sub.user_id} error: ${e instanceof Error ? e.message : String(e)}`);
       result = "error";
     }
     summary[result] += 1;
   }
-  console.log(`YK[cron]: done, due = ${due?.length ?? 0}, ${JSON.stringify(summary)}`);
-  return NextResponse.json({ ok: true, due: due?.length ?? 0, ...summary });
+  console.log(`YK[cron]: done, due = ${due?.length ?? 0}, settled earlier = ${settled}, ${JSON.stringify(summary)}`);
+  return NextResponse.json({ ok: true, due: due?.length ?? 0, settledEarlier: settled, ...summary });
 }
 
-async function renew(admin: NonNullable<ReturnType<typeof createAdminClient>>, sub: DueSub, now: Date): Promise<Result> {
+type Admin = NonNullable<ReturnType<typeof createAdminClient>>;
+
+const resultOf = (kind: string): Result =>
+  kind === "activated" || kind === "already_active" ? "renewed" : kind === "pending" ? "pending" : "failed";
+
+async function renew(admin: Admin, sub: DueSub, now: Date, deadline: number): Promise<Result> {
   const nowIso = now.toISOString();
   // Без сохранённой карты продлить нельзя — подписка заканчивается.
   if (!sub.yookassa_payment_method_id) {
@@ -147,13 +167,45 @@ async function renew(admin: NonNullable<ReturnType<typeof createAdminClient>>, s
   row.yookassa_payment_id = payment.id;
   console.log(`YK[cron]: charge ${payment.id} for user ${sub.user_id}, plan = ${sub.plan}, status = ${payment.status}`);
 
-  const outcome = await applyPayment(admin, row, payment, "cron");
-  if (outcome.kind === "activated" || outcome.kind === "already_active") return "renewed";
-  if (outcome.kind === "canceled" || outcome.kind === "mismatch") return "failed";
-  return "pending"; // подтвердит webhook
+  if (payment.confirmation) {
+    // Для автосписания подтверждение пользователя не должно требоваться. Если банк всё же его
+    // запросил — платёж отменится по таймауту, и это засчитается как неудачная попытка.
+    console.log(`YK[cron]: charge ${payment.id} unexpectedly requires confirmation (${payment.confirmation.type})`);
+  }
+  // Ждём, пока ЮKassa завершит списание (обычно 1–3 секунды).
+  try {
+    payment = await waitForFinal(payment, Math.min(WAIT_PER_CHARGE_MS, deadline - Date.now()));
+  } catch (e) {
+    console.log(`YK[cron]: status check failed for ${payment.id}: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  const outcome = await settlePayment(admin, row, payment, "cron");
+  console.log(`YK[cron]: charge ${payment.id} → ${payment.status} (${outcome.kind})`);
+  return resultOf(outcome.kind); // pending — завершит webhook или следующий запуск
 }
 
-async function checkExisting(admin: NonNullable<ReturnType<typeof createAdminClient>>, sub: DueSub): Promise<Result> {
+// Незавершённые автосписания (pending / waiting_for_capture): спрашиваем ЮKassa и применяем.
+async function settlePendingRenewals(admin: Admin): Promise<number> {
+  const { data: rows } = await admin
+    .from("payments")
+    .select("*")
+    .eq("kind", "renewal")
+    .in("status", ["pending", "waiting_for_capture"])
+    .limit(100);
+  let done = 0;
+  for (const row of ((rows ?? []) as PaymentRow[]).filter((r) => r.yookassa_payment_id)) {
+    try {
+      const payment = await getPayment(row.yookassa_payment_id as string);
+      const outcome = await settlePayment(admin, row, payment, "cron");
+      console.log(`YK[cron]: pending renewal ${payment.id} → ${payment.status} (${outcome.kind})`);
+      if (outcome.kind !== "pending") done += 1;
+    } catch (e) {
+      console.log(`YK[cron]: pending renewal check failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  return done;
+}
+
+async function checkExisting(admin: Admin, sub: DueSub): Promise<Result> {
   const { data: row } = await admin
     .from("payments")
     .select("*")
@@ -165,7 +217,7 @@ async function checkExisting(admin: NonNullable<ReturnType<typeof createAdminCli
   if (!row?.yookassa_payment_id) return "skipped";
   try {
     const payment = await getPayment(row.yookassa_payment_id);
-    const outcome = await applyPayment(admin, row, payment, "cron");
+    const outcome = await settlePayment(admin, row, payment, "cron");
     return outcome.kind === "activated" ? "renewed" : "skipped";
   } catch {
     return "skipped";

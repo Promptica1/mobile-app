@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { applyPayment, type PaymentRow } from "@/lib/payments.server";
+import { settlePayment, type PaymentRow } from "@/lib/payments.server";
 import { getPlan } from "@/lib/plans";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseEnv } from "@/lib/supabase/env";
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 
   let outcome;
   try {
-    outcome = await applyPayment(admin, row, payment, "return");
+    outcome = await settlePayment(admin, row, payment, "return");
   } catch (error) {
     console.log(`YK[return]: apply failed: ${error instanceof Error ? error.message : String(error)}`);
     return json({ error: "failed" }, 502);

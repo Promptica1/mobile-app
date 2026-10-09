@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { periodEnd } from "./billing.server";
-import type { YooKassaPayment } from "./yookassa";
+import { capturePayment, getPayment, type YooKassaPayment } from "./yookassa";
 
 // Применение платежа ЮKassa к нашей базе. Общий код для двух путей:
 // возврата пользователя в приложение (/api/payments/status) и уведомления ЮKassa (webhook).
@@ -162,4 +162,34 @@ export async function markRenewalFailed(admin: SupabaseClient, userId: string, r
     .update({ status: "past_due", renewal_failures: failures, updated_at: new Date().toISOString() })
     .eq("user_id", userId);
   console.log(`YK[${source}]: renewal failed for user ${userId}, attempt ${failures} → past_due`);
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Автосписание ЮKassa обычно сразу отвечает «pending» и через секунду-другую переводит платёж
+// в succeeded/canceled. Ждём финальный статус до maxMs, опрашивая API.
+export async function waitForFinal(payment: YooKassaPayment, maxMs: number): Promise<YooKassaPayment> {
+  const deadline = Date.now() + maxMs;
+  let current = payment;
+  while (current.status === "pending" && Date.now() < deadline) {
+    await sleep(1500);
+    current = await getPayment(current.id);
+  }
+  return current;
+}
+
+// Довести платёж до конца и применить к базе: если он ждёт подтверждения — подтверждаем (capture),
+// затем applyPayment. Используют cron, webhook и возврат в приложение.
+export async function settlePayment(
+  admin: SupabaseClient,
+  row: PaymentRow,
+  payment: YooKassaPayment,
+  source: "return" | "webhook" | "cron",
+): Promise<ApplyOutcome> {
+  let current = payment;
+  if (current.status === "waiting_for_capture" && paymentMatchesRow(current, row)) {
+    console.log(`YK[${source}]: payment ${current.id} waiting_for_capture → capture`);
+    current = await capturePayment(current.id, current.amount, `capture-${row.id}`);
+  }
+  return applyPayment(admin, row, current, source);
 }

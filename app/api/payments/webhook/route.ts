@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { applyPayment, type PaymentRow } from "@/lib/payments.server";
+import { settlePayment, type PaymentRow } from "@/lib/payments.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPayment, YooKassaError } from "@/lib/yookassa";
 
@@ -46,20 +46,31 @@ export async function POST(request: NextRequest) {
     return retryLater(error instanceof Error ? error.message : String(error));
   }
 
-  // Наш заказ — по id платежа ЮKassa (и сверка с metadata внутри applyPayment).
-  const { data: row, error } = await admin
+  // Наш заказ — по id платежа ЮKassa. Если уведомление пришло раньше, чем мы успели записать
+  // этот id (автосписание проходит за секунду), — по номеру заказа из metadata.
+  // Подлинность всё равно сверяется в applyPayment (заказ, пользователь, сумма, тариф).
+  let { data: row, error } = await admin
     .from("payments")
     .select("*")
     .eq("yookassa_payment_id", payment.id)
     .maybeSingle<PaymentRow>();
+  const orderId = payment.metadata?.order_id ?? "";
+  if (!row && !error && /^[0-9a-f-]{36}$/i.test(orderId)) {
+    ({ data: row, error } = await admin.from("payments").select("*").eq("id", orderId).maybeSingle<PaymentRow>());
+    if (row && row.yookassa_payment_id && row.yookassa_payment_id !== payment.id) row = null;
+    if (row && !row.yookassa_payment_id) {
+      await admin.from("payments").update({ yookassa_payment_id: payment.id }).eq("id", row.id).is("yookassa_payment_id", null);
+      row.yookassa_payment_id = payment.id;
+    }
+  }
   if (error) return retryLater(`db: ${error.message}`);
   if (!row) {
-    console.log(`YK[webhook]: no order for payment ${payment.id} (order_id in metadata = ${payment.metadata?.order_id ?? "-"}) — ignore`);
+    console.log(`YK[webhook]: no order for payment ${payment.id} (order_id in metadata = ${orderId || "-"}) — ignore`);
     return ok();
   }
 
   try {
-    const outcome = await applyPayment(admin, row, payment, "webhook");
+    const outcome = await settlePayment(admin, row, payment, "webhook");
     console.log(`YK[webhook]: payment ${payment.id} → ${outcome.kind}`);
     return ok();
   } catch (e) {

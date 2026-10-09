@@ -124,3 +124,10 @@ export function createRecurringPayment(input: {
     input.idempotenceKey,
   );
 }
+
+// Подтверждение (списание) платежа в статусе waiting_for_capture. Мы всегда создаём платежи
+// с capture: true, так что это страховка: если ЮKassa всё же оставила платёж ждать подтверждения.
+export function capturePayment(id: string, amount: { value: string; currency: string }, idempotenceKey: string): Promise<YooKassaPayment> {
+  if (!/^[\w-]{10,64}$/.test(id)) throw new YooKassaError("failed", "bad payment id");
+  return call<YooKassaPayment>("POST", `/payments/${encodeURIComponent(id)}/capture`, { amount }, idempotenceKey);
+}
