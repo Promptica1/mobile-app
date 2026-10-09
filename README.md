@@ -87,6 +87,18 @@ Nano Banana одеть аватар и сохраняет результат в 
 `protect_profile_tokens`). Логи списаний начинаются с `TK:`. Миграция и SQL для
 пополнения — `supabase/migrations/20261007120000_beta_tokens.sql`.
 
+## Оплата подписки (ЮKassa, этап 1 — тест)
+
+«Оформить» на экране «Подписка» вызывает `/api/payments/create`: сервер создаёт платёж в
+ЮKassa (сумма — с сервера, `capture: true`, `save_payment_method: true`, Idempotence-Key,
+metadata с id пользователя, тарифом и номером заказа) и отдаёт ссылку на страницу оплаты.
+После оплаты ЮKassa возвращает на `/profile/subscription/result?order=…`, где
+`/api/payments/status` проверяет платёж через `GET /v3/payments/{id}` и при успехе записывает
+подписку и сохранённую карту в `subscriptions` (сервисным ключом; браузер эти таблицы только
+читает). Принимаются только тестовые ключи (`test_…`). Логи — `YK:`.
+Переменные: `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
+необязательно `APP_URL`. Миграция — `supabase/migrations/20261010120000_payments_subscriptions.sql`.
+
 ## Деплой
 
 Vercel собирает ветку `main` автоматически после каждого push.

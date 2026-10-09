@@ -51,8 +51,6 @@ export const PLANS: Plan[] = [
 
 export const getPlan = (id: PlanId) => PLANS.find((p) => p.id === id) as Plan;
 
-// Пока подписок нет — у всех бесплатный тариф.
-export const CURRENT_PLAN: PlanId = "free";
 
 // 1499 → «1.499₽», 0 → «0₽»: точка — разделитель тысяч.
 export function formatPrice(rubles: number): string {
