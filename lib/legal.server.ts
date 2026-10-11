@@ -16,7 +16,8 @@ export function legalVersion(doc: LegalDoc): string {
 }
 
 // Простая разметка: пустая строка — новый абзац, строка с «# » или «## » — заголовок,
-// перенос строки внутри абзаца сохраняется.
+// перенос строки внутри абзаца сохраняется, «- » в начале строки — пункт списка,
+// **текст** — жирный.
 export type LegalBlock = { kind: "h1" | "h2" | "p"; text: string };
 
 export function legalBlocks(doc: LegalDoc): LegalBlock[] {

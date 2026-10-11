@@ -7,6 +7,19 @@ import { legalBlocks } from "@/lib/legal.server";
 // Публичная оферта и Политика конфиденциальности. Доступны без входа (ссылка из регистрации).
 // Текст — из content/legal/<doc>.md, страница собирается заранее при деплое.
 
+// **жирный** внутри строки.
+function inline(text: string) {
+  return text.split(/\*\*(.+?)\*\*/g).map((part, i) =>
+    i % 2 ? (
+      <strong key={i} className="font-semibold text-text">
+        {part}
+      </strong>
+    ) : (
+      part
+    ),
+  );
+}
+
 const isDoc = (v: string): v is LegalDoc => v === "offer" || v === "privacy";
 
 export const dynamicParams = false;
@@ -32,8 +45,19 @@ export default async function LegalPage({ params }: { params: Promise<{ doc: str
       <article className="flex flex-col gap-3 pb-4 text-sm leading-relaxed">
         {blocks.map((b, i) =>
           b.kind === "p" ? (
-            <p key={i} className="whitespace-pre-line text-text/80">
-              {b.text}
+            <p key={i} className="text-text/80">
+              {b.text.split("\n").map((line, j) =>
+                line.startsWith("- ") ? (
+                  <span key={j} className="flex gap-2 pl-1">
+                    <span aria-hidden>•</span>
+                    <span>{inline(line.slice(2))}</span>
+                  </span>
+                ) : (
+                  <span key={j} className="block">
+                    {inline(line)}
+                  </span>
+                ),
+              )}
             </p>
           ) : (
             <h2 key={i} className={`font-medium text-text ${b.kind === "h1" ? "mt-4 text-lg" : "mt-3 text-[15px]"}`}>
