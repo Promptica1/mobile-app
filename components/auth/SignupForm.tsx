@@ -139,7 +139,16 @@ export default function SignupForm({ privacyVersion }: { privacyVersion: string 
               {loading ? "Создаём аккаунт…" : "Создать аккаунт"}
             </SubmitButton>
           </form>
-          {SHOW_SOCIAL_LOGIN && <SocialButtons />}
+          {SHOW_SOCIAL_LOGIN && (
+            <SocialButtons
+              next="/onboarding"
+              privacyVersion={privacyVersion}
+              consent={{
+                agreed,
+                onMissing: () => setError("Подтвердите согласие с Политикой конфиденциальности."),
+              }}
+            />
+          )}
         </>
       )}
     </AuthShell>

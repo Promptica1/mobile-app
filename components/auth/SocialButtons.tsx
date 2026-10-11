@@ -1,6 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { LoaderCircle } from "lucide-react";
+import FormMessage from "@/components/ui/FormMessage";
+import { SHOW_APPLE_LOGIN, SHOW_GOOGLE_LOGIN } from "@/lib/features";
+import { LEGAL_DOCS } from "@/lib/legal";
+import { createClient } from "@/lib/supabase/client";
 
 function GoogleIcon() {
   return (
@@ -21,14 +27,47 @@ function AppleIcon() {
   );
 }
 
-// Вход через Google и Apple подключим позже — пока кнопки показывают подсказку.
-export default function SocialButtons() {
-  const [notice, setNotice] = useState<string | null>(null);
+// Внутри Telegram (Mini App) открывается встроенный браузер — Google запрещает в нём вход
+// («disallowed_useragent»). Там предлагаем войти по почте или открыть сайт в обычном браузере.
+function inTelegram() {
+  if (typeof window === "undefined") return false;
+  const w = window as unknown as { TelegramWebviewProxy?: unknown; Telegram?: { WebApp?: { initData?: string } } };
+  return Boolean(w.TelegramWebviewProxy || w.Telegram?.WebApp?.initData || /Telegram/i.test(navigator.userAgent));
+}
 
-  const providers = [
-    { name: "Google", Icon: GoogleIcon },
-    { name: "Apple", Icon: AppleIcon },
-  ];
+type Props = {
+  // Куда вести после входа (по умолчанию — гардероб; новых пользователей приложение само отправит в анкету).
+  next?: string;
+  // Редакция политики конфиденциальности — запишем согласие, если аккаунт создаётся через Google.
+  privacyVersion: string;
+  // На экране регистрации согласие даётся галочкой: без неё Google не открываем.
+  consent?: { agreed: boolean; onMissing: () => void };
+};
+
+export default function SocialButtons({ next = "/wardrobe", privacyVersion, consent }: Props) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ tone: "info" | "error"; text: string } | null>(null);
+  const [telegram, setTelegram] = useState(false);
+
+  async function google() {
+    setMessage(null);
+    if (consent && !consent.agreed) return consent.onMissing();
+    if (inTelegram()) return setTelegram(true);
+    setBusy(true);
+    const params = new URLSearchParams({ next, consent: privacyVersion });
+    const { error } = await createClient().auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?${params}`,
+        queryParams: { prompt: "select_account" },
+      },
+    });
+    // При успехе браузер уже уходит на страницу Google.
+    if (error) {
+      setMessage({ tone: "error", text: "Не получилось открыть вход через Google. Попробуйте ещё раз." });
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -37,24 +76,45 @@ export default function SocialButtons() {
         или
         <span className="h-px flex-1 bg-border" />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        {providers.map(({ name, Icon }) => (
-          <button
-            key={name}
-            type="button"
-            onClick={() => setNotice(`Вход через ${name} скоро появится`)}
-            className="relative flex h-12 items-center justify-center gap-2 rounded-full border border-border bg-surface text-sm font-medium transition-colors hover:border-text/30"
-          >
-            <Icon />
-            {name}
-          </button>
-        ))}
-      </div>
-      {notice && (
-        <p role="status" className="text-center text-xs text-muted">
-          {notice}
+      {SHOW_GOOGLE_LOGIN && (
+        <button
+          type="button"
+          onClick={google}
+          disabled={busy}
+          className="flex h-12 items-center justify-center gap-2 rounded-full border border-border bg-surface text-sm font-medium transition-colors hover:border-text/30 disabled:opacity-60"
+        >
+          {busy ? <LoaderCircle size={18} strokeWidth={2} className="animate-spin" /> : <GoogleIcon />}
+          Продолжить с Google
+        </button>
+      )}
+      {SHOW_APPLE_LOGIN && (
+        <button
+          type="button"
+          onClick={() => setMessage({ tone: "info", text: "Вход через Apple скоро появится" })}
+          className="flex h-12 items-center justify-center gap-2 rounded-full border border-border bg-surface text-sm font-medium transition-colors hover:border-text/30"
+        >
+          <AppleIcon />
+          Продолжить с Apple
+        </button>
+      )}
+      {!consent && (
+        <p className="px-2 text-center text-xs leading-relaxed text-muted">
+          Продолжая с Google, я принимаю{" "}
+          <Link href={LEGAL_DOCS.privacy.href} target="_blank" className="text-text underline underline-offset-2">
+            Политику конфиденциальности
+          </Link>
         </p>
       )}
+      {telegram && (
+        <FormMessage tone="info">
+          Google не разрешает вход внутри Telegram. Войдите по почте или{" "}
+          <a href={`${window.location.origin}/login`} target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-2">
+            откройте MIRRO в браузере
+          </a>
+          .
+        </FormMessage>
+      )}
+      {message && <FormMessage tone={message.tone}>{message.text}</FormMessage>}
     </div>
   );
 }

@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/payments/create": ["./content/legal/**/*"],
     "/signup": ["./content/legal/**/*"],
+    "/login": ["./content/legal/**/*"],
+    "/auth/callback": ["./content/legal/**/*"],
   },
 };
 

@@ -16,18 +16,26 @@ import TextField from "./TextField";
 export default function LoginForm({
   next,
   linkError,
+  oauthError,
   accountDeleted,
+  privacyVersion,
 }: {
   next?: string;
   linkError?: boolean;
+  oauthError?: boolean;
   accountDeleted?: boolean;
+  privacyVersion: string;
 }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(
-    linkError ? "Ссылка из письма устарела или уже использована. Войдите или запросите новую." : "",
+    linkError
+      ? "Ссылка из письма устарела или уже использована. Войдите или запросите новую."
+      : oauthError
+        ? "Не удалось войти через Google. Попробуйте ещё раз или войдите по почте."
+        : "",
   );
 
   async function handleSubmit(e: FormEvent) {
@@ -98,7 +106,7 @@ export default function LoginForm({
         {error && <FormMessage tone="error">{error}</FormMessage>}
         <SubmitButton loading={loading}>{loading ? "Входим…" : "Войти"}</SubmitButton>
       </form>
-      {SHOW_SOCIAL_LOGIN && <SocialButtons />}
+      {SHOW_SOCIAL_LOGIN && <SocialButtons next={safeNextPath(next)} privacyVersion={privacyVersion} />}
     </AuthShell>
   );
 }

@@ -26,7 +26,19 @@ export default async function OnboardingPage() {
   return (
     <OnboardingForm
       userId={user.id}
-      initial={data ?? { name: null, gender: null, age_range: null }}
+      initial={{
+        name: null,
+        gender: null,
+        age_range: null,
+        ...data,
+        // Вход через Google: подставляем имя из аккаунта Google, его можно поменять.
+        ...(!data?.name && googleName(user.user_metadata) ? { name: googleName(user.user_metadata) } : {}),
+      }}
     />
   );
+}
+
+function googleName(meta: Record<string, unknown> | undefined) {
+  const name = meta?.given_name ?? meta?.full_name ?? meta?.name;
+  return typeof name === "string" && name.trim() ? name.trim().slice(0, 40) : null;
 }
