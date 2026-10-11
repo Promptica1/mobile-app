@@ -113,6 +113,12 @@ Idempotence-Key и идемпотентное применение платеж�
 `Authorization: Bearer $CRON_SECRET` (Vercel добавляет его сам). Логи — `YK[cron]:`.
 Миграция — `supabase/migrations/20261011120000_subscription_renewal.sql`.
 
+**Оферта и политика** — тексты в `content/legal/offer.md` и `content/legal/privacy.md`
+(пустая строка — новый абзац, `## ` — заголовок). Страницы `/legal/offer`, `/legal/privacy`
+открываются без входа. Согласия пишутся в `legal_consents`: при регистрации (галочка, триггер
+базы) и при оформлении подписки (сервер, с номером заказа, IP и браузером). Редакция документа —
+отпечаток текста, меняется сама при правке. Миграция — `20261013120000_legal_consents.sql`.
+
 **Чеки 54-ФЗ** («Чеки от ЮKassa») — каждый платёж (первая оплата, автосписание, в будущем —
 пакет токенов) создаётся с `receipt`: почта пользователя, одна позиция, `tax_system_code: 2`
 (УСН «доходы»), `vat_code: 1` (без НДС), `payment_subject: service`, `payment_mode: full_payment`.

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { LEGAL_DOCS } from "@/lib/legal";
 import { Check, ChevronRight, FlaskConical, Info, LoaderCircle, Lock, Sparkles } from "lucide-react";
 import { useToast } from "@/components/ui/useToast";
 import {
@@ -170,6 +171,17 @@ export default function Plans() {
           onSubscribe={() => subscribe(plan)}
         />
       ))}
+
+      <p className="px-2 text-center text-xs leading-relaxed text-muted">
+        Оформляя подписку, я принимаю{" "}
+        <Link href={LEGAL_DOCS.offer.href} className="text-text underline underline-offset-2">
+          Оферту
+        </Link>{" "}
+        и{" "}
+        <Link href={LEGAL_DOCS.privacy.href} className="text-text underline underline-offset-2">
+          Политику конфиденциальности
+        </Link>
+      </p>
 
       <p className="flex items-center justify-center gap-1.5 pt-1 text-center text-xs text-muted">
         {mode?.available ? <Lock size={13} strokeWidth={1.75} /> : <Info size={14} strokeWidth={1.75} />}

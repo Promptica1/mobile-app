@@ -4,6 +4,7 @@ import { isPaidPlan, planDescription, planPrice } from "@/lib/billing.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
+import { legalVersion } from "@/lib/legal.server";
 import { buildReceipt, createPayment, YooKassaError } from "@/lib/yookassa";
 
 // Создаёт платёж в ЮKassa для тарифа и возвращает ссылку на страницу оплаты ЮKassa.
@@ -22,9 +23,11 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return fail("unauthorized", 401);
 
-  const body = (await request.json().catch(() => null)) as { plan?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { plan?: unknown; consent?: unknown } | null;
   const plan = body?.plan;
   if (!isPaidPlan(plan)) return fail("bad_plan", 400);
+  // Без согласия с офертой и политикой подписку не оформляем.
+  if (body?.consent !== true) return fail("consent_required", 400);
 
   const admin = createAdminClient();
   if (!admin) return fail("not_configured", 503);
@@ -52,6 +55,22 @@ export async function POST(request: NextRequest) {
     console.log(`YK: payments insert failed: ${insertError.message}`);
     return fail("db_failed", 500);
   }
+
+  // Доказательство согласия: какие редакции документов, когда, с какого IP и браузера, к какому заказу.
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+  const userAgent = request.headers.get("user-agent")?.slice(0, 500) || null;
+  const { error: consentError } = await admin.from("legal_consents").insert(
+    (["offer", "privacy"] as const).map((document) => ({
+      user_id: user.id,
+      document,
+      version: legalVersion(document),
+      context: "payment",
+      payment_id: orderId,
+      ip,
+      user_agent: userAgent,
+    })),
+  );
+  if (consentError) console.log(`LEGAL: consent insert failed: ${consentError.message}`);
 
   const base = (process.env.APP_URL || request.nextUrl.origin).replace(/\/$/, "");
   try {

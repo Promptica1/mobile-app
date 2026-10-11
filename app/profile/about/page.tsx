@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
-import { Shirt } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, Shirt } from "lucide-react";
 import SubScreen from "@/components/profile/SubScreen";
+import { LEGAL_DOCS } from "@/lib/legal";
 import pkg from "@/package.json";
 
 export const metadata: Metadata = { title: "О приложении — MIRRO" };
@@ -20,6 +22,18 @@ export default function AboutPage() {
           Версия {pkg.version}
         </p>
       </div>
+      <nav aria-label="Документы" className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface">
+        {[LEGAL_DOCS.offer, LEGAL_DOCS.privacy].map((d) => (
+          <Link
+            key={d.href}
+            href={d.href}
+            className="flex items-center justify-between px-4 py-4 text-[15px] transition-colors hover:bg-subtle"
+          >
+            {d.title}
+            <ChevronRight size={18} strokeWidth={1.5} className="text-muted" />
+          </Link>
+        ))}
+      </nav>
     </SubScreen>
   );
 }

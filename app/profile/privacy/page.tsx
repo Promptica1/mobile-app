@@ -49,7 +49,7 @@ export default function PrivacyPage() {
         </p>
         <ExportData />
         <Link
-          href="/profile/privacy/policy"
+          href="/legal/privacy"
           className="mt-3 flex items-center justify-between rounded-card border border-border bg-surface px-4 py-4 text-[15px] transition-colors hover:bg-subtle"
         >
           Политика конфиденциальности

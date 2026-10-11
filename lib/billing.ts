@@ -89,7 +89,8 @@ export async function startCheckout(plan: Exclude<PlanId, "free">): Promise<void
     res = await fetch("/api/payments/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plan }),
+      // Пользователь видел строку «Оформляя подписку, я принимаю Оферту и Политику…» рядом с кнопкой.
+      body: JSON.stringify({ plan, consent: true }),
     });
   } catch {
     throw new CheckoutError("network");
@@ -105,6 +106,7 @@ export const CHECKOUT_ERRORS: Record<string, string> = {
   already_subscribed: "Этот тариф у вас уже оформлен.",
   unauthorized: "Войдите в аккаунт, чтобы оформить подписку.",
   no_email: "Для оплаты нужна почта в аккаунте — на неё придёт чек.",
+  consent_required: "Подтвердите согласие с офертой и политикой конфиденциальности.",
 };
 export const checkoutErrorText = (reason: string) =>
   CHECKOUT_ERRORS[reason] ?? "Не получилось перейти к оплате. Проверьте интернет и попробуйте ещё раз.";

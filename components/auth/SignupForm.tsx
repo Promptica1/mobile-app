@@ -13,14 +13,17 @@ import {
 import AuthShell from "./AuthShell";
 import FormMessage from "@/components/ui/FormMessage";
 import { SHOW_SOCIAL_LOGIN } from "@/lib/features";
+import { LEGAL_DOCS } from "@/lib/legal";
 import SocialButtons from "./SocialButtons";
 import SubmitButton from "@/components/ui/SubmitButton";
 import TextField from "./TextField";
 
-export default function SignupForm() {
+// privacyVersion — редакция политики, с которой соглашается пользователь (записывается в базу).
+export default function SignupForm({ privacyVersion }: { privacyVersion: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   // Если в Supabase включено подтверждение почты — просим открыть письмо.
@@ -34,6 +37,10 @@ export default function SignupForm() {
       setError(invalid);
       return;
     }
+    if (!agreed) {
+      setError("Подтвердите согласие с Политикой конфиденциальности.");
+      return;
+    }
     setLoading(true);
 
     const cleanEmail = email.trim();
@@ -42,6 +49,8 @@ export default function SignupForm() {
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
+        // Согласие с политикой: база запишет его (с временем сервера) при создании аккаунта.
+        data: { privacy_accepted: true, privacy_version: privacyVersion },
       },
     });
 
@@ -104,14 +113,31 @@ export default function SignupForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            <label className="flex cursor-pointer items-start gap-2.5 px-1 text-xs leading-relaxed text-muted">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => {
+                  setAgreed(e.target.checked);
+                  if (e.target.checked) setError("");
+                }}
+                className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-text"
+              />
+              <span>
+                Регистрируясь, я принимаю{" "}
+                <Link
+                  href={LEGAL_DOCS.privacy.href}
+                  target="_blank"
+                  className="text-text underline underline-offset-2"
+                >
+                  Политику конфиденциальности
+                </Link>
+              </span>
+            </label>
             {error && <FormMessage tone="error">{error}</FormMessage>}
             <SubmitButton loading={loading}>
               {loading ? "Создаём аккаунт…" : "Создать аккаунт"}
             </SubmitButton>
-            <p className="px-2 text-center text-xs leading-relaxed text-muted">
-              Создавая аккаунт, вы соглашаетесь с Условиями использования и Политикой
-              конфиденциальности
-            </p>
           </form>
           {SHOW_SOCIAL_LOGIN && <SocialButtons />}
         </>
