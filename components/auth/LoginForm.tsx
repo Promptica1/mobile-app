@@ -18,12 +18,14 @@ export default function LoginForm({
   linkError,
   oauthError,
   accountDeleted,
+  passwordChanged,
   privacyVersion,
 }: {
   next?: string;
   linkError?: boolean;
   oauthError?: boolean;
   accountDeleted?: boolean;
+  passwordChanged?: boolean;
   privacyVersion: string;
 }) {
   const router = useRouter();
@@ -100,6 +102,9 @@ export default function LoginForm({
             </Link>
           </div>
         </div>
+        {passwordChanged && !error && (
+          <FormMessage tone="info" icon={CircleCheck}>Пароль изменён, войдите с новым паролем.</FormMessage>
+        )}
         {accountDeleted && !error && (
           <FormMessage tone="info" icon={CircleCheck}>Аккаунт и все данные удалены. Будем рады видеть вас снова.</FormMessage>
         )}

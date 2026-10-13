@@ -25,7 +25,9 @@ export default function ForgotPasswordForm() {
     setLoading(true);
     setError("");
     const { error } = await createClient().auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+      // На боевом сайте это https://mirro-wardrobe.online/reset-password (адрес должен быть
+      // в Supabase → Authentication → URL Configuration → Redirect URLs).
+      redirectTo: `${window.location.origin}/reset-password`,
     });
     setLoading(false);
     if (error) setError(authErrorMessage(error));

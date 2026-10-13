@@ -5,7 +5,8 @@ import { getSupabaseEnv } from "./env";
 // Страницы, доступные без входа. Webhook ЮKassa и ежедневный cron приходят без сессии: webhook
 // проверяется повторным запросом платежа в API ЮKassa, cron — секретом CRON_SECRET.
 // /legal — оферта и политика: открываются и до регистрации.
-const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/auth", "/api/payments/webhook", "/api/cron", "/legal"];
+// /reset-password — ссылка из письма: сессия восстановления появляется уже на самой странице.
+const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/reset-password", "/auth", "/api/payments/webhook", "/api/cron", "/legal"];
 // С этих страниц вошедшего пользователя сразу отправляем в приложение.
 const GUEST_ONLY_PATHS = ["/login", "/signup", "/forgot-password"];
 
