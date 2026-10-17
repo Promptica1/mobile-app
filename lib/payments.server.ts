@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { periodEnd } from "./billing.server";
 import { getPlan } from "./plans";
-import { capturePayment, getPayment, type YooKassaPayment } from "./yookassa";
+import { capturePayment, getPayment, yookassaIsTest, type YooKassaPayment } from "./yookassa";
 
 // Применение платежа ЮKassa к нашей базе. Общий код для двух путей:
 // возврата пользователя в приложение (/api/payments/status) и уведомления ЮKassa (webhook).
@@ -19,6 +19,7 @@ export type PaymentRow = {
   // который заканчивался в renewal_for.
   kind?: "initial" | "renewal";
   renewal_for?: string | null;
+  test?: boolean;
 };
 
 export type ApplyOutcome =
@@ -28,12 +29,14 @@ export type ApplyOutcome =
   | { kind: "pending" }
   | { kind: "mismatch" };
 
-// Платёж должен быть именно этим заказом, этого пользователя, на ту же сумму и тестовым.
+// Платёж должен быть именно этим заказом, этого пользователя, на ту же сумму и из того же
+// магазина (тестовый платёж не включит боевую подписку и наоборот).
 export function paymentMatchesRow(payment: YooKassaPayment, row: PaymentRow) {
   const amountOk = Number(payment.amount.value) === Number(row.amount) && payment.amount.currency === "RUB";
   const ownerOk = payment.metadata?.order_id === row.id && Boolean(row.user_id) && payment.metadata?.user_id === row.user_id;
   const planOk = payment.metadata?.plan === row.plan;
-  return amountOk && ownerOk && planOk && payment.test === true;
+  const modeOk = payment.test === (row.test ?? yookassaIsTest());
+  return amountOk && ownerOk && planOk && modeOk;
 }
 
 export async function applyPayment(

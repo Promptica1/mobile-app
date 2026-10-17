@@ -95,7 +95,7 @@ metadata с id пользователя, тарифом и номером зак
 После оплаты ЮKassa возвращает на `/profile/subscription/result?order=…`, где
 `/api/payments/status` проверяет платёж через `GET /v3/payments/{id}` и при успехе записывает
 подписку и сохранённую карту в `subscriptions` (сервисным ключом; браузер эти таблицы только
-читает). Принимаются только тестовые ключи (`test_…`). Логи — `YK:`.
+читает). Режим — по ключу: `test_…` — тестовый магазин, `live_…` — боевой. Логи — `YK:`.
 Переменные: `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
 необязательно `APP_URL`. Миграция — `supabase/migrations/20261010120000_payments_subscriptions.sql`.
 

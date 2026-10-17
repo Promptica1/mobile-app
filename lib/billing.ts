@@ -102,7 +102,7 @@ export async function startCheckout(plan: Exclude<PlanId, "free">): Promise<void
 
 export const CHECKOUT_ERRORS: Record<string, string> = {
   not_configured: "Оплата временно недоступна. Попробуйте чуть позже.",
-  live_not_allowed: "Оплата временно недоступна. Попробуйте чуть позже.",
+  bad_key: "Оплата временно недоступна. Попробуйте чуть позже.",
   already_subscribed: "Этот тариф у вас уже оформлен.",
   unauthorized: "Войдите в аккаунт, чтобы оформить подписку.",
   no_email: "Для оплаты нужна почта в аккаунте — на неё придёт чек.",

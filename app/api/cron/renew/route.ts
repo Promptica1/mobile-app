@@ -4,7 +4,7 @@ import { planDescription, planPrice, userEmail } from "@/lib/billing.server";
 import { markRenewalFailed, settlePayment, waitForFinal, type PaymentRow } from "@/lib/payments.server";
 import { RENEWAL_GRACE_DAYS } from "@/lib/plans";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { buildReceipt, createRecurringPayment, getPayment, YooKassaError } from "@/lib/yookassa";
+import { buildReceipt, createRecurringPayment, getPayment, yookassaIsTest, YooKassaError } from "@/lib/yookassa";
 
 // Ежедневное автопродление подписок (расписание — в vercel.json, раз в сутки).
 // Находит подписки, у которых закончился оплаченный период, и списывает плату
@@ -38,6 +38,7 @@ type DueSub = {
   current_period_end: string;
   yookassa_payment_method_id: string | null;
   last_renewal_attempt_at: string | null;
+  test: boolean;
 };
 
 type Result = "renewed" | "pending" | "failed" | "skipped" | "expired" | "error";
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
 
   const { data: due, error } = await admin
     .from("subscriptions")
-    .select("user_id, plan, status, current_period_end, yookassa_payment_method_id, last_renewal_attempt_at")
+    .select("user_id, plan, status, current_period_end, yookassa_payment_method_id, last_renewal_attempt_at, test")
     .in("status", ["active", "past_due"])
     .lte("current_period_end", nowIso)
     .limit(200);
@@ -104,6 +105,13 @@ const resultOf = (kind: string): Result =>
 
 async function renew(admin: Admin, sub: DueSub, now: Date, deadline: number): Promise<Result> {
   const nowIso = now.toISOString();
+  // Подписка оформлена в другом магазине (например, тестовая, а сейчас подключён боевой):
+  // её карта здесь не работает — не списываем, подписка заканчивается.
+  if (sub.test !== yookassaIsTest()) {
+    await admin.from("subscriptions").update({ status: "expired", updated_at: nowIso }).eq("user_id", sub.user_id);
+    console.log(`YK[cron]: user ${sub.user_id} subscription is from the ${sub.test ? "test" : "live"} shop → expired, no charge`);
+    return "expired";
+  }
   // Без сохранённой карты продлить нельзя — подписка заканчивается.
   if (!sub.yookassa_payment_method_id) {
     await admin.from("subscriptions").update({ status: "expired", updated_at: nowIso }).eq("user_id", sub.user_id);
@@ -122,7 +130,7 @@ async function renew(admin: Admin, sub: DueSub, now: Date, deadline: number): Pr
     plan: sub.plan,
     amount,
     status: "pending",
-    test: true,
+    test: yookassaIsTest(),
     kind: "renewal",
     renewal_for: sub.current_period_end,
   });
@@ -143,6 +151,7 @@ async function renew(admin: Admin, sub: DueSub, now: Date, deadline: number): Pr
     yookassa_payment_id: null,
     kind: "renewal",
     renewal_for: sub.current_period_end,
+    test: yookassaIsTest(),
   };
   let payment;
   try {

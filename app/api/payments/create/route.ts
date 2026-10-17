@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { legalVersion } from "@/lib/legal.server";
-import { buildReceipt, createPayment, YooKassaError } from "@/lib/yookassa";
+import { buildReceipt, createPayment, yookassaIsTest, YooKassaError } from "@/lib/yookassa";
 
 // Создаёт платёж в ЮKassa для тарифа и возвращает ссылку на страницу оплаты ЮKassa.
 // Сумма и описание — только с сервера; браузер присылает лишь id тарифа. Логи — "YK:".
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
   const amount = planPrice(plan);
   const { error: insertError } = await admin
     .from("payments")
-    .insert({ id: orderId, user_id: user.id, plan, amount, status: "pending", test: true });
+    .insert({ id: orderId, user_id: user.id, plan, amount, status: "pending", test: yookassaIsTest() });
   if (insertError) {
     console.log(`YK: payments insert failed: ${insertError.message}`);
     return fail("db_failed", 500);

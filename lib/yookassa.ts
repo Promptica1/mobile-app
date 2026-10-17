@@ -4,13 +4,14 @@ import "server-only";
 // берутся из переменных окружения YOOKASSA_SHOP_ID и YOOKASSA_SECRET_KEY и никогда не уходят
 // в браузер и логи. Логи начинаются с "YK:".
 //
-// Этап 1 — ТОЛЬКО тестовый режим: секретный ключ должен начинаться с "test_".
+// Режим определяется ключом: "test_…" — тестовый магазин (деньги не списываются),
+// "live_…" — боевой магазин (настоящие платежи).
 
 const API_URL = process.env.YOOKASSA_API_URL ?? "https://api.yookassa.ru/v3";
 const TIMEOUT_MS = 20_000;
 
 export class YooKassaError extends Error {
-  constructor(public reason: "not_configured" | "live_not_allowed" | "failed", message?: string) {
+  constructor(public reason: "not_configured" | "bad_key" | "failed", message?: string) {
     super(message ?? reason);
   }
 }
@@ -19,17 +20,21 @@ function credentials() {
   const shopId = process.env.YOOKASSA_SHOP_ID?.trim();
   const secret = process.env.YOOKASSA_SECRET_KEY?.trim();
   if (!shopId || !secret) throw new YooKassaError("not_configured");
-  // Боевые ключи на этом этапе не принимаем — чтобы случайно не списать реальные деньги.
-  if (!secret.startsWith("test_")) throw new YooKassaError("live_not_allowed");
+  // Ключ ЮKassa всегда начинается с test_ или live_ — иначе это опечатка в настройках.
+  if (!/^(test|live)_/.test(secret)) throw new YooKassaError("bad_key");
   return "Basic " + Buffer.from(`${shopId}:${secret}`).toString("base64");
 }
 
+// Тестовый ли магазин сейчас подключён (по ключу). От этого зависит пометка test у платежей.
+export const yookassaIsTest = () => !process.env.YOOKASSA_SECRET_KEY?.trim().startsWith("live_");
+
 export const yookassaMode = () => {
+  const test = yookassaIsTest();
   try {
     credentials();
-    return { available: true, test: true } as const;
+    return { available: true, test } as const;
   } catch (e) {
-    return { available: false, test: true, reason: (e as YooKassaError).reason } as const;
+    return { available: false, test, reason: (e as YooKassaError).reason } as const;
   }
 };
 

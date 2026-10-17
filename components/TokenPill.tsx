@@ -12,7 +12,7 @@ export default function TokenPill({ className = "" }: { className?: string }) {
     <Link
       href="/profile"
       aria-label={`Осталось токенов: ${tokens.balance}`}
-      title="Токены тестового доступа"
+      title="Токены"
       className={`flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border/80 bg-surface/80 px-3 text-xs font-medium tabular-nums backdrop-blur-md transition-colors hover:border-text/30 ${className}`}
     >
       <span className={`h-2 w-2 rounded-full ${empty ? "bg-pink" : "bg-lime ring-1 ring-text/15"}`} />
