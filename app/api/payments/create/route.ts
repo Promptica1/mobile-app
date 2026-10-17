@@ -93,11 +93,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ confirmationUrl: url, orderId });
   } catch (error) {
     const reason = error instanceof YooKassaError ? error.reason : "failed";
+    const details = error instanceof YooKassaError ? error.details : undefined;
     console.log(`YK: create failed (${reason}): ${error instanceof Error ? error.message : String(error)}`);
     await admin
       .from("payments")
-      .update({ status: "canceled", cancellation_reason: `create_${reason}`, updated_at: new Date().toISOString() })
+      .update({
+        status: "canceled",
+        cancellation_reason: `create_${details?.code ?? reason}`.slice(0, 100),
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", orderId);
+    // Отказ ЮKassa — отдаём её код (без секретов), чтобы на экране была понятная причина.
+    if (details?.status) {
+      return NextResponse.json(
+        { error: "yookassa", code: details.code ?? null, parameter: details.parameter ?? null, status: details.status },
+        { status: 502 },
+      );
+    }
     return fail(reason, reason === "failed" ? 502 : 503);
   }
 }

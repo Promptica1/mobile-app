@@ -11,7 +11,12 @@ const API_URL = process.env.YOOKASSA_API_URL ?? "https://api.yookassa.ru/v3";
 const TIMEOUT_MS = 20_000;
 
 export class YooKassaError extends Error {
-  constructor(public reason: "not_configured" | "bad_key" | "failed", message?: string) {
+  // details — что ответила ЮKassa (HTTP-статус, код ошибки, параметр). Секретов не содержит.
+  constructor(
+    public reason: "not_configured" | "bad_key" | "failed",
+    message?: string,
+    public details?: { status?: number; code?: string; parameter?: string; description?: string },
+  ) {
     super(message ?? reason);
   }
 }
@@ -113,9 +118,15 @@ async function call<T>(method: "GET" | "POST", path: string, body?: unknown, ide
   } catch (e) {
     throw new YooKassaError("failed", `network: ${e instanceof Error ? e.message : String(e)}`);
   }
-  const data = (await res.json().catch(() => null)) as (T & { type?: string; code?: string; description?: string }) | null;
+  const data = (await res.json().catch(() => null)) as
+    | (T & { type?: string; code?: string; description?: string; parameter?: string })
+    | null;
   if (!res.ok || !data || data.type === "error") {
-    throw new YooKassaError("failed", `HTTP ${res.status} ${data?.code ?? ""} ${data?.description ?? ""}`.trim());
+    throw new YooKassaError(
+      "failed",
+      `HTTP ${res.status} ${data?.code ?? ""} ${data?.parameter ? `[${data.parameter}] ` : ""}${data?.description ?? ""}`.trim(),
+      { status: res.status, code: data?.code, parameter: data?.parameter, description: data?.description },
+    );
   }
   return data;
 }
@@ -181,4 +192,18 @@ export function createRecurringPayment(input: {
 export function capturePayment(id: string, amount: { value: string; currency: string }, idempotenceKey: string): Promise<YooKassaPayment> {
   if (!/^[\w-]{10,64}$/.test(id)) throw new YooKassaError("failed", "bad payment id");
   return call<YooKassaPayment>("POST", `/payments/${encodeURIComponent(id)}/capture`, { amount }, idempotenceKey);
+}
+
+// Информация о магазине (GET /me): проверка, что ShopID и ключ подходят друг к другу,
+// какой это магазин (тестовый/боевой) и включены ли чеки.
+export type YooKassaShop = {
+  account_id: string;
+  test: boolean;
+  status?: string;
+  fiscalization_enabled?: boolean;
+  fiscalization?: { enabled?: boolean; provider?: string };
+  payment_methods?: string[];
+};
+export function getShop(): Promise<YooKassaShop> {
+  return call<YooKassaShop>("GET", "/me");
 }

@@ -128,7 +128,7 @@ export default function Plans() {
       await startCheckout(plan.id);
       // Дальше браузер уходит на страницу оплаты — кнопку не возвращаем.
     } catch (e) {
-      toast.show(checkoutErrorText(e instanceof CheckoutError ? e.reason : "failed"));
+      toast.show(e instanceof CheckoutError ? checkoutErrorText(e.reason, e.code, e.parameter) : checkoutErrorText("failed"));
       setBusy(null);
     }
   };

@@ -77,7 +77,12 @@ export async function fetchPaymentMode(): Promise<{ available: boolean; test: bo
 }
 
 export class CheckoutError extends Error {
-  constructor(public reason: string) {
+  // code/parameter — ответ ЮKassa, если платёж отклонила она.
+  constructor(
+    public reason: string,
+    public code?: string | null,
+    public parameter?: string | null,
+  ) {
     super(reason);
   }
 }
@@ -95,8 +100,10 @@ export async function startCheckout(plan: Exclude<PlanId, "free">): Promise<void
   } catch {
     throw new CheckoutError("network");
   }
-  const data = (await res.json().catch(() => null)) as { confirmationUrl?: string; error?: string } | null;
-  if (!res.ok || !data?.confirmationUrl) throw new CheckoutError(data?.error ?? "failed");
+  const data = (await res.json().catch(() => null)) as
+    | { confirmationUrl?: string; error?: string; code?: string | null; parameter?: string | null }
+    | null;
+  if (!res.ok || !data?.confirmationUrl) throw new CheckoutError(data?.error ?? "failed", data?.code, data?.parameter);
   window.location.assign(data.confirmationUrl);
 }
 
@@ -108,8 +115,25 @@ export const CHECKOUT_ERRORS: Record<string, string> = {
   no_email: "Для оплаты нужна почта в аккаунте — на неё придёт чек.",
   consent_required: "Подтвердите согласие с офертой и политикой конфиденциальности.",
 };
-export const checkoutErrorText = (reason: string) =>
-  CHECKOUT_ERRORS[reason] ?? "Не получилось перейти к оплате. Проверьте интернет и попробуйте ещё раз.";
+// Коды ошибок ЮKassa → понятный текст. Код в скобках помогает быстро найти причину.
+const YOOKASSA_ERRORS: Record<string, string> = {
+  invalid_credentials: "Платёжный сервис не принял ключи магазина.",
+  forbidden: "Платёжный сервис не разрешил эту операцию для магазина.",
+  invalid_request: "Платёжный сервис отклонил запрос.",
+  not_supported: "Этот способ оплаты недоступен для магазина.",
+  too_many_requests: "Слишком много попыток. Попробуйте через минуту.",
+  internal_server_error: "Платёжный сервис временно недоступен. Попробуйте позже.",
+};
+
+export function checkoutErrorText(reason: string, code?: string | null, parameter?: string | null) {
+  if (reason === "yookassa") {
+    const text = (code && YOOKASSA_ERRORS[code]) || "Платёжный сервис отклонил запрос.";
+    const ref = [code, parameter].filter(Boolean).join(", ");
+    return `${text} Попробуйте позже или напишите в поддержку${ref ? ` (код: ${ref})` : ""}.`;
+  }
+  if (reason === "network") return "Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.";
+  return CHECKOUT_ERRORS[reason] ?? "Не получилось перейти к оплате. Попробуйте ещё раз чуть позже.";
+}
 
 export type PaymentResult =
   | { status: "succeeded"; plan: PlanId; planName: string; cardLast4: string | null; periodEnd: string | null }
