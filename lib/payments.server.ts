@@ -116,10 +116,11 @@ export async function applyPayment(
     };
     if (!renewal && extendFrom === now) update.started_at = now.toISOString();
     // Карту перезаписываем только сохранённой (при автосписании это та же карта).
+    // Если пользователь не разрешил запомнить карту, нечего показывать и нечем продлевать.
     if (!renewal || method?.saved) {
       update.yookassa_payment_method_id = method?.saved ? method.id : null;
-      update.card_last4 = method?.card?.last4 ?? null;
-      update.card_type = method?.card?.card_type ?? null;
+      update.card_last4 = method?.saved ? (method.card?.last4 ?? null) : null;
+      update.card_type = method?.saved ? (method.card?.card_type ?? null) : null;
     }
     if (row.kind !== undefined) {
       update.renewal_failures = 0;

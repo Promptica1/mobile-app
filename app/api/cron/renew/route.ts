@@ -67,10 +67,11 @@ export async function GET(request: NextRequest) {
   // Сначала досверяем незавершённые автосписания прошлых запусков (если webhook не дошёл).
   const settled = await settlePendingRenewals(admin);
 
+  // Закончившиеся подписки: заодно удаляем сохранённую карту (токен) — она больше не нужна.
   // Отменённые подписки, у которых закончился период, и неоплаченные дольше льготного срока — закрываем.
   const graceLimit = new Date(now.getTime() - RENEWAL_GRACE_DAYS * DAY).toISOString();
-  await admin.from("subscriptions").update({ status: "expired", updated_at: nowIso }).eq("status", "canceled").lte("current_period_end", nowIso);
-  await admin.from("subscriptions").update({ status: "expired", updated_at: nowIso }).eq("status", "past_due").lte("current_period_end", graceLimit);
+  await admin.from("subscriptions").update({ status: "expired", yookassa_payment_method_id: null, card_last4: null, card_type: null, updated_at: nowIso }).eq("status", "canceled").lte("current_period_end", nowIso);
+  await admin.from("subscriptions").update({ status: "expired", yookassa_payment_method_id: null, card_last4: null, card_type: null, updated_at: nowIso }).eq("status", "past_due").lte("current_period_end", graceLimit);
 
   const { data: due, error } = await admin
     .from("subscriptions")
@@ -108,13 +109,13 @@ async function renew(admin: Admin, sub: DueSub, now: Date, deadline: number): Pr
   // Подписка оформлена в другом магазине (например, тестовая, а сейчас подключён боевой):
   // её карта здесь не работает — не списываем, подписка заканчивается.
   if (sub.test !== yookassaIsTest()) {
-    await admin.from("subscriptions").update({ status: "expired", updated_at: nowIso }).eq("user_id", sub.user_id);
+    await admin.from("subscriptions").update({ status: "expired", yookassa_payment_method_id: null, card_last4: null, card_type: null, updated_at: nowIso }).eq("user_id", sub.user_id);
     console.log(`YK[cron]: user ${sub.user_id} subscription is from the ${sub.test ? "test" : "live"} shop → expired, no charge`);
     return "expired";
   }
   // Без сохранённой карты продлить нельзя — подписка заканчивается.
   if (!sub.yookassa_payment_method_id) {
-    await admin.from("subscriptions").update({ status: "expired", updated_at: nowIso }).eq("user_id", sub.user_id);
+    await admin.from("subscriptions").update({ status: "expired", yookassa_payment_method_id: null, card_last4: null, card_type: null, updated_at: nowIso }).eq("user_id", sub.user_id);
     console.log(`YK[cron]: user ${sub.user_id} has no saved card → expired`);
     return "expired";
   }

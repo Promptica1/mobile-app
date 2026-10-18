@@ -11,6 +11,7 @@ import {
   fetchPaymentMode,
   fetchSubscription,
   formatDate,
+  hasCard,
   isActive,
   startCheckout,
   type Subscription,
@@ -31,12 +32,15 @@ const STYLES: Record<Plan["id"], { card: string; muted: string; check: string }>
 function PlanCard({
   plan,
   current,
+  renewByHand,
   busy,
   disabled,
   onSubscribe,
 }: {
   plan: Plan;
   current: boolean;
+  // Тариф действует, но карта не привязана: продлить можно оплатой вручную.
+  renewByHand: boolean;
   busy: boolean;
   disabled: boolean;
   onSubscribe: () => void;
@@ -84,7 +88,7 @@ function PlanCard({
       </ul>
 
       {paid &&
-        (current ? (
+        (current && !renewByHand ? (
           <Link
             href="/profile/subscription/manage"
             className="mt-6 flex h-12 w-full items-center justify-center rounded-full border border-border bg-surface text-[15px] font-medium text-text"
@@ -99,7 +103,7 @@ function PlanCard({
             className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-lime text-[15px] font-medium text-text transition-transform active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100"
           >
             {busy && <LoaderCircle size={18} strokeWidth={2} className="animate-spin" />}
-            {busy ? "Переходим к оплате…" : `Оформить за ${formatPrice(plan.price)}`}
+            {busy ? "Переходим к оплате…" : `${current ? "Продлить" : "Оформить"} за ${formatPrice(plan.price)}`}
           </button>
         ))}
     </article>
@@ -166,6 +170,7 @@ export default function Plans() {
           key={plan.id}
           plan={plan}
           current={sub !== undefined && plan.id === currentPlan}
+          renewByHand={Boolean(sub && isActive(sub) && !hasCard(sub))}
           busy={busy === plan.id}
           disabled={busy !== null || sub === undefined}
           onSubscribe={() => subscribe(plan)}

@@ -41,6 +41,9 @@ export function isActive(s: Subscription | null) {
   return end + grace > Date.now();
 }
 
+// Привязана ли карта для автопродления (токен карты в браузер не отдаётся — только последние цифры).
+export const hasCard = (s: Subscription | null) => Boolean(s?.card_last4);
+
 // Короткая строка о состоянии подписки для профиля и экрана тарифов.
 export function subscriptionNote(s: Subscription) {
   const date = s.current_period_end ? formatDate(s.current_period_end) : "";
@@ -50,7 +53,7 @@ export function subscriptionNote(s: Subscription) {
 }
 
 // Отмена автопродления (доступ сохраняется до конца оплаченного периода) и возобновление.
-export async function changeAutoRenew(action: "cancel" | "resume"): Promise<string | null> {
+export async function changeAutoRenew(action: "cancel" | "resume" | "unlink_card"): Promise<string | null> {
   let res: Response;
   try {
     res = await fetch("/api/subscription", {
@@ -114,6 +117,7 @@ export const CHECKOUT_ERRORS: Record<string, string> = {
   unauthorized: "Войдите в аккаунт, чтобы оформить подписку.",
   no_email: "Для оплаты нужна почта в аккаунте — на неё придёт чек.",
   consent_required: "Подтвердите согласие с офертой и политикой конфиденциальности.",
+  no_card: "Карта не привязана. Оформите подписку заново — карта сохранится для продления.",
 };
 // Коды ошибок ЮKassa → понятный текст. Код в скобках помогает быстро найти причину.
 const YOOKASSA_ERRORS: Record<string, string> = {

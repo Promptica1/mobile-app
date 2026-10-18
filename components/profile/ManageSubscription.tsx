@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AlertCircle, CalendarDays, ChevronRight, CreditCard, Crown, Eye, FlaskConical, LoaderCircle, Plus } from "lucide-react";
 import ConfirmDeleteSheet from "@/components/ui/ConfirmDeleteSheet";
 import { useToast } from "@/components/ui/useToast";
-import { changeAutoRenew, fetchSubscription, formatDate, isActive, type Subscription } from "@/lib/billing";
+import { changeAutoRenew, fetchSubscription, formatDate, hasCard, isActive, type Subscription } from "@/lib/billing";
 import { getPlan, formatPrice, PAYMENT_SOON, RENEWAL_GRACE_DAYS } from "@/lib/plans";
 import { useTokens } from "@/lib/tokens";
 
@@ -34,6 +34,7 @@ export default function ManageSubscription() {
   const [sub, setSub] = useState<Subscription | null | undefined>(undefined);
   const [confirming, setConfirming] = useState(false);
   const [resuming, setResuming] = useState(false);
+  const [unlinking, setUnlinking] = useState(false);
   useEffect(() => {
     fetchSubscription().then(setSub, () => setSub(null));
   }, []);
@@ -48,12 +49,29 @@ export default function ManageSubscription() {
     );
   }
   const status = real?.status ?? "active";
+  const cardSaved = hasCard(real);
   const endDate = real?.current_period_end ? formatDate(real.current_period_end) : "";
 
   const cancel = async () => {
     const end = await changeAutoRenew("cancel");
     setSub((s) => (s ? { ...s, status: "canceled", current_period_end: end ?? s.current_period_end } : s));
     setConfirming(false);
+  };
+  const unlinkCard = async () => {
+    const end = await changeAutoRenew("unlink_card");
+    setSub((s) =>
+      s
+        ? {
+            ...s,
+            card_last4: null,
+            card_type: null,
+            status: s.status === "active" || s.status === "past_due" ? "canceled" : s.status,
+            current_period_end: end ?? s.current_period_end,
+          }
+        : s,
+    );
+    setUnlinking(false);
+    toast.show("Карта отвязана и удалена");
   };
   const resume = async () => {
     setResuming(true);
@@ -103,22 +121,35 @@ export default function ManageSubscription() {
           <CalendarDays size={18} strokeWidth={1.5} className="shrink-0" />
           <span className="text-sm">
             <span className="block text-xs text-text/60">
-              {!real ? "Следующее продление" : status === "active" ? "Продлится автоматически" : "Доступ до"}
+              {!real ? "Следующее продление" : status === "active" && cardSaved ? "Продлится автоматически" : "Доступ до"}
             </span>
             <span className="font-medium" suppressHydrationWarning>
               {real?.current_period_end ? formatDate(accessUntil(real)) : renewalDate()}
             </span>
           </span>
         </div>
-        {real?.card_last4 && (
-          <div className="mt-2 flex items-center gap-3 rounded-2xl bg-surface/70 px-4 py-3">
-            <CreditCard size={18} strokeWidth={1.5} className="shrink-0" />
-            <span className="text-sm">
-              <span className="block text-xs text-text/60">Карта для продления</span>
-              <span className="font-medium">
-                {real.card_type ? `${real.card_type} ` : ""}•••• {real.card_last4}
+        {real && (
+          <div className="mt-2 rounded-2xl bg-surface/70 px-4 py-3">
+            <div className="flex items-center gap-3">
+              <CreditCard size={18} strokeWidth={1.5} className="shrink-0" />
+              <span className="min-w-0 flex-1 text-sm">
+                <span className="block text-xs text-text/60">Карта для продления</span>
+                <span className="font-medium">
+                  {cardSaved
+                    ? `${real.card_type ? `${real.card_type} ` : ""}•••• ${real.card_last4}`
+                    : "Не привязана"}
+                </span>
               </span>
-            </span>
+            </div>
+            {cardSaved && (
+              <button
+                type="button"
+                onClick={() => setUnlinking(true)}
+                className="ml-[30px] mt-1.5 text-xs font-medium text-text/70 underline underline-offset-4 transition-colors hover:text-danger"
+              >
+                Отвязать карту
+              </button>
+            )}
           </div>
         )}
       </section>
@@ -126,17 +157,27 @@ export default function ManageSubscription() {
       {status === "canceled" && (
         <div className="rounded-card border border-border bg-surface p-5" role="status">
           <p className="text-[15px] leading-relaxed">
-            Подписка отменена. Доступ сохранится до <b className="font-semibold">{endDate}</b>, продления не будет.
+            {cardSaved ? "Подписка отменена. " : "Карта не привязана. "}
+            Доступ сохранится до <b className="font-semibold">{endDate}</b>, продления не будет.
           </p>
-          <button
-            type="button"
-            onClick={resume}
-            disabled={resuming}
-            className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-text text-[15px] font-medium text-background transition-transform active:scale-[0.98] disabled:opacity-60"
-          >
-            {resuming && <LoaderCircle size={18} strokeWidth={2} className="animate-spin" />}
-            Возобновить подписку
-          </button>
+          {cardSaved ? (
+            <button
+              type="button"
+              onClick={resume}
+              disabled={resuming}
+              className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-text text-[15px] font-medium text-background transition-transform active:scale-[0.98] disabled:opacity-60"
+            >
+              {resuming && <LoaderCircle size={18} strokeWidth={2} className="animate-spin" />}
+              Возобновить подписку
+            </button>
+          ) : (
+            <Link
+              href="/profile/subscription"
+              className="mt-4 flex h-12 w-full items-center justify-center rounded-full bg-text text-[15px] font-medium text-background transition-transform active:scale-[0.98]"
+            >
+              Продлить подписку
+            </Link>
+          )}
         </div>
       )}
       {status === "past_due" && (
@@ -192,6 +233,19 @@ export default function ManageSubscription() {
         >
           Отменить подписку
         </button>
+      )}
+
+      {unlinking && real && (
+        <ConfirmDeleteSheet
+          title="Отвязать карту?"
+          text={`Карта ${real.card_type ? `${real.card_type} ` : ""}•••• ${real.card_last4} будет удалена из MIRRO, автопродление отключится. Доступ к ${plan.name} сохранится до ${endDate}.`}
+          confirmLabel="Отвязать карту"
+          busyLabel="Отвязываем…"
+          cancelLabel="Оставить карту"
+          errorText="Не получилось отвязать карту. Проверьте интернет и попробуйте ещё раз."
+          onDelete={unlinkCard}
+          onClose={() => setUnlinking(false)}
+        />
       )}
 
       {confirming && real && (
