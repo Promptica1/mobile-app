@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { periodEnd } from "./billing.server";
+import { storedMethodFields } from "./payment-method";
 import { getPlan } from "./plans";
 import { capturePayment, getPayment, yookassaIsTest, type YooKassaPayment } from "./yookassa";
 
@@ -116,11 +117,11 @@ export async function applyPayment(
     };
     if (!renewal && extendFrom === now) update.started_at = now.toISOString();
     // Карту перезаписываем только сохранённой (при автосписании это та же карта).
-    // Если пользователь не разрешил запомнить карту, нечего показывать и нечем продлевать.
+    // Если пользователь не разрешил запомнить способ оплаты, нечего показывать и нечем продлевать.
+    // Способ — карта или СБП: токен один и тот же (payment_method_id), отличается только подпись.
     if (!renewal || method?.saved) {
       update.yookassa_payment_method_id = method?.saved ? method.id : null;
-      update.card_last4 = method?.saved ? (method.card?.last4 ?? null) : null;
-      update.card_type = method?.saved ? (method.card?.card_type ?? null) : null;
+      Object.assign(update, storedMethodFields(method));
     }
     if (row.kind !== undefined) {
       update.renewal_failures = 0;
@@ -132,7 +133,7 @@ export async function applyPayment(
       await admin.from("payments").update({ status: row.status, updated_at: now.toISOString() }).eq("id", row.id);
       throw new Error(`subscription upsert: ${subError.message}`);
     }
-    console.log(`YK[${source}]: payment ${payment.id} applied, plan = ${row.plan}, until ${end.toISOString()}, card saved = ${Boolean(method?.saved)}`);
+    console.log(`YK[${source}]: payment ${payment.id} applied, plan = ${row.plan}, until ${end.toISOString()}, method = ${method?.type ?? "-"}, saved = ${Boolean(method?.saved)}`);
     return { kind: "activated", periodEnd: end.toISOString() };
   }
 

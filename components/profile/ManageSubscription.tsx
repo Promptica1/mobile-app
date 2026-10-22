@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AlertCircle, CalendarDays, ChevronRight, CreditCard, Crown, Eye, FlaskConical, LoaderCircle, Plus } from "lucide-react";
 import ConfirmDeleteSheet from "@/components/ui/ConfirmDeleteSheet";
 import { useToast } from "@/components/ui/useToast";
-import { changeAutoRenew, fetchSubscription, formatDate, hasCard, isActive, type Subscription } from "@/lib/billing";
+import { changeAutoRenew, fetchSubscription, formatDate, hasSavedMethod, isActive, isSbp, type Subscription } from "@/lib/billing";
 import { getPlan, formatPrice, PAYMENT_SOON, RENEWAL_GRACE_DAYS } from "@/lib/plans";
 import { useTokens } from "@/lib/tokens";
 
@@ -49,7 +49,12 @@ export default function ManageSubscription() {
     );
   }
   const status = real?.status ?? "active";
-  const cardSaved = hasCard(real);
+  const cardSaved = hasSavedMethod(real);
+  const sbp = isSbp(real);
+  // Как назвать сохранённый способ оплаты: «•••• 4477» для карты, «Оплата через СБП» для СБП.
+  const methodText = sbp
+    ? "Оплата через СБП"
+    : `${real?.card_type ? `${real.card_type} ` : ""}•••• ${real?.card_last4}`;
   const endDate = real?.current_period_end ? formatDate(real.current_period_end) : "";
 
   const cancel = async () => {
@@ -71,7 +76,7 @@ export default function ManageSubscription() {
         : s,
     );
     setUnlinking(false);
-    toast.show("Карта отвязана и удалена");
+    toast.show(sbp ? "Способ оплаты отвязан и удалён" : "Карта отвязана и удалена");
   };
   const resume = async () => {
     setResuming(true);
@@ -133,12 +138,10 @@ export default function ManageSubscription() {
             <div className="flex items-center gap-3">
               <CreditCard size={18} strokeWidth={1.5} className="shrink-0" />
               <span className="min-w-0 flex-1 text-sm">
-                <span className="block text-xs text-text/60">Карта для продления</span>
-                <span className="font-medium">
-                  {cardSaved
-                    ? `${real.card_type ? `${real.card_type} ` : ""}•••• ${real.card_last4}`
-                    : "Не привязана"}
+                <span className="block text-xs text-text/60">
+                  {sbp ? "Способ оплаты для продления" : "Карта для продления"}
                 </span>
+                <span className="font-medium">{cardSaved ? methodText : "Не привязана"}</span>
               </span>
             </div>
             {cardSaved && (
@@ -147,7 +150,7 @@ export default function ManageSubscription() {
                 onClick={() => setUnlinking(true)}
                 className="ml-[30px] mt-1.5 text-xs font-medium text-text/70 underline underline-offset-4 transition-colors hover:text-danger"
               >
-                Отвязать карту
+                {sbp ? "Отвязать способ оплаты" : "Отвязать карту"}
               </button>
             )}
           </div>
@@ -157,7 +160,7 @@ export default function ManageSubscription() {
       {status === "canceled" && (
         <div className="rounded-card border border-border bg-surface p-5" role="status">
           <p className="text-[15px] leading-relaxed">
-            {cardSaved ? "Подписка отменена. " : "Карта не привязана. "}
+            {cardSaved ? "Подписка отменена. " : "Автопродление отключено. "}
             Доступ сохранится до <b className="font-semibold">{endDate}</b>, продления не будет.
           </p>
           {cardSaved ? (
@@ -237,12 +240,16 @@ export default function ManageSubscription() {
 
       {unlinking && real && (
         <ConfirmDeleteSheet
-          title="Отвязать карту?"
-          text={`Карта ${real.card_type ? `${real.card_type} ` : ""}•••• ${real.card_last4} будет удалена из MIRRO, автопродление отключится. Доступ к ${plan.name} сохранится до ${endDate}.`}
-          confirmLabel="Отвязать карту"
+          title={sbp ? "Отвязать способ оплаты?" : "Отвязать карту?"}
+          text={
+            sbp
+              ? `Оплата через СБП будет удалена из MIRRO, автопродление отключится. Доступ к ${plan.name} сохранится до ${endDate}.`
+              : `Карта ${methodText} будет удалена из MIRRO, автопродление отключится. Доступ к ${plan.name} сохранится до ${endDate}.`
+          }
+          confirmLabel={sbp ? "Отвязать способ оплаты" : "Отвязать карту"}
           busyLabel="Отвязываем…"
-          cancelLabel="Оставить карту"
-          errorText="Не получилось отвязать карту. Проверьте интернет и попробуйте ещё раз."
+          cancelLabel={sbp ? "Оставить" : "Оставить карту"}
+          errorText="Не получилось отвязать. Проверьте интернет и попробуйте ещё раз."
           onDelete={unlinkCard}
           onClose={() => setUnlinking(false)}
         />

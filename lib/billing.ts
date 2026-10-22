@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseEnv } from "@/lib/supabase/env";
+import { SBP } from "./payment-method";
 import { RENEWAL_GRACE_DAYS, type PlanId } from "./plans";
 
 // Оплата подписки в браузере: только запросы к нашему серверу и чтение своей подписки.
@@ -41,8 +42,9 @@ export function isActive(s: Subscription | null) {
   return end + grace > Date.now();
 }
 
-// Привязана ли карта для автопродления (токен карты в браузер не отдаётся — только последние цифры).
-export const hasCard = (s: Subscription | null) => Boolean(s?.card_last4);
+// Сохранён ли способ оплаты для продления: карта (есть цифры) или СБП.
+export const isSbp = (s: Subscription | null) => s?.card_type === SBP;
+export const hasSavedMethod = (s: Subscription | null) => Boolean(s?.card_last4) || isSbp(s);
 
 // Короткая строка о состоянии подписки для профиля и экрана тарифов.
 export function subscriptionNote(s: Subscription) {
@@ -117,7 +119,7 @@ export const CHECKOUT_ERRORS: Record<string, string> = {
   unauthorized: "Войдите в аккаунт, чтобы оформить подписку.",
   no_email: "Для оплаты нужна почта в аккаунте — на неё придёт чек.",
   consent_required: "Подтвердите согласие с офертой и политикой конфиденциальности.",
-  no_card: "Карта не привязана. Оформите подписку заново — карта сохранится для продления.",
+  no_card: "Способ оплаты не привязан. Оформите подписку заново — он сохранится для продления.",
 };
 // Коды ошибок ЮKassa → понятный текст. Код в скобках помогает быстро найти причину.
 const YOOKASSA_ERRORS: Record<string, string> = {

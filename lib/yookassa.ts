@@ -54,8 +54,9 @@ export type YooKassaPayment = {
   confirmation?: { type: string; confirmation_url?: string };
   payment_method?: {
     id: string;
-    type: string;
+    type: string; // bank_card, sbp, …
     saved: boolean;
+    title?: string;
     card?: { last4?: string; card_type?: string };
   };
   cancellation_details?: { party: string; reason: string };
@@ -131,7 +132,7 @@ async function call<T>(method: "GET" | "POST", path: string, body?: unknown, ide
   return data;
 }
 
-// Первый платёж подписки: списание сразу (capture) и сохранение карты для будущих автосписаний.
+// Первый платёж подписки: списание сразу (capture) и сохранение способа оплаты для автосписаний.
 export function createPayment(input: {
   amount: number;
   description: string;
@@ -147,7 +148,8 @@ export function createPayment(input: {
       amount: { value: input.amount.toFixed(2), currency: "RUB" },
       capture: true,
       confirmation: { type: "redirect", return_url: input.returnUrl },
-      payment_method_data: { type: "bank_card" },
+      // Способ оплаты (карта, СБП…) пользователь выбирает на странице ЮKassa («Умный платёж»);
+      // save_payment_method — запомнить его для автопродления.
       save_payment_method: true,
       description: input.description,
       metadata: input.metadata,

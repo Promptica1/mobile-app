@@ -11,7 +11,7 @@ import {
   fetchPaymentMode,
   fetchSubscription,
   formatDate,
-  hasCard,
+  hasSavedMethod,
   isActive,
   startCheckout,
   type Subscription,
@@ -170,7 +170,7 @@ export default function Plans() {
           key={plan.id}
           plan={plan}
           current={sub !== undefined && plan.id === currentPlan}
-          renewByHand={Boolean(sub && isActive(sub) && !hasCard(sub))}
+          renewByHand={Boolean(sub && isActive(sub) && !hasSavedMethod(sub))}
           busy={busy === plan.id}
           disabled={busy !== null || sub === undefined}
           onSubscribe={() => subscribe(plan)}
@@ -191,7 +191,7 @@ export default function Plans() {
       <p className="flex items-center justify-center gap-1.5 pt-1 text-center text-xs text-muted">
         {mode?.available ? <Lock size={13} strokeWidth={1.75} /> : <Info size={14} strokeWidth={1.75} />}
         {mode?.available
-          ? "Оплата на защищённой странице ЮKassa. Карта сохраняется для продления подписки."
+          ? "Оплата на защищённой странице ЮKassa. Способ оплаты сохраняется для продления подписки."
           : "Оплата появится в ближайшее время."}
       </p>
 
