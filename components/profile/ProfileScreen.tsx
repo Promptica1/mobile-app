@@ -14,7 +14,8 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { LanguageSheet } from "@/components/LanguageSwitcher";
 import { LOCALE_NAMES, isLocale } from "@/i18n/config";
-import { fetchSubscription, isActive, subscriptionNote, type Subscription } from "@/lib/billing";
+import { fetchSubscription, formatUsd, isActive, subscriptionNote, type Subscription } from "@/lib/billing";
+import { OFFER_INFO } from "@/lib/stripe/rules";
 import { formatPrice, getPlan } from "@/lib/plans";
 import type { Profile } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/client";
@@ -33,9 +34,11 @@ type Props = {
   photo: { path: string | null; url: string | null };
   // Токены бета-доступа; null — не настроены.
   tokens: Tokens | null;
+  // Платит в долларах (Stripe) — цены показываем в $.
+  usd?: boolean;
 };
 
-export default function ProfileScreen({ profile: initial, userId, photo, tokens }: Props) {
+export default function ProfileScreen({ profile: initial, userId, photo, tokens, usd = false }: Props) {
   const router = useRouter();
   const t = useTranslations("profile");
   const tGender = useTranslations("gender");
@@ -116,7 +119,7 @@ export default function ProfileScreen({ profile: initial, userId, photo, tokens 
         <p className="mt-2 max-w-[260px] text-sm leading-relaxed text-text/70">
           {activeSub?.current_period_end
             ? subscriptionNote(activeSub, tBilling, locale)
-            : t("moreTokens", { price: formatPrice(getPlan("premium").price, locale) })}
+            : t("moreTokens", { price: usd ? formatUsd(OFFER_INFO.monthly.recurringUsd) : formatPrice(getPlan("premium").price, locale) })}
         </p>
         <span className="mt-5 flex h-12 w-full items-center justify-center rounded-full bg-text text-[15px] font-medium text-background">
           {activeSub ? t("manage") : t("goPremium")}

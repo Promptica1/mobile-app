@@ -16,7 +16,14 @@ export type Subscription = {
   card_last4: string | null;
   card_type: string | null;
   test: boolean;
+  // Только у подписок Stripe (после SQL Stripe): откуда подписка и какое предложение.
+  provider?: "yookassa" | "stripe";
+  offer?: "trial" | "trial_free" | "annual" | "monthly" | null;
+  is_trial?: boolean;
+  trial_end?: string | null;
 };
+
+export const isStripeSub = (s: Subscription | null) => s?.provider === "stripe";
 
 // null — подписки нет (бесплатный тариф) или таблица ещё не создана.
 export async function fetchSubscription(): Promise<Subscription | null> {
@@ -26,11 +33,16 @@ export async function fetchSubscription(): Promise<Subscription | null> {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session) return null;
-  const { data, error } = await supabase
+  const base = "plan, status, current_period_end, card_last4, card_type, test";
+  let { data, error } = await supabase
     .from("subscriptions")
-    .select("plan, status, current_period_end, card_last4, card_type, test")
+    .select(`${base}, provider, offer, is_trial, trial_end`)
     .eq("user_id", session.user.id)
     .maybeSingle<Subscription>();
+  if (error) {
+    // Колонок Stripe ещё нет (SQL не запущен) — читаем прежние поля.
+    ({ data, error } = await supabase.from("subscriptions").select(base).eq("user_id", session.user.id).maybeSingle<Subscription>());
+  }
   if (error || !data || data.plan === "free") return null;
   return data;
 }
@@ -72,7 +84,9 @@ export async function changeAutoRenew(action: "cancel" | "resume" | "unlink_card
   return data?.periodEnd ?? null;
 }
 
-export async function fetchPaymentMode(): Promise<{ available: boolean; test: boolean }> {
+export type PaymentMode = { available: boolean; test: boolean; provider?: "yookassa" | "stripe"; currency?: "RUB" | "USD" };
+
+export async function fetchPaymentMode(): Promise<PaymentMode> {
   try {
     const res = await fetch("/api/payments/mode", { cache: "no-store" });
     if (!res.ok) return { available: false, test: true };
@@ -81,6 +95,58 @@ export async function fetchPaymentMode(): Promise<{ available: boolean; test: bo
     return { available: false, test: true };
   }
 }
+
+// ── Stripe (пользователи вне России, доллары) ─────────────────────────────────────────────
+export type StripeOffer = "trial" | "trial_free" | "annual" | "monthly";
+
+async function postJson<T>(url: string, body: unknown): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  } catch {
+    throw new CheckoutError("network");
+  }
+  const data = (await res.json().catch(() => null)) as (T & { error?: string }) | null;
+  if (!res.ok || !data) throw new CheckoutError(data?.error ?? "failed");
+  return data;
+}
+
+// Создаёт страницу оплаты Stripe на сервере и уводит на неё.
+export async function startStripeCheckout(offer: StripeOffer): Promise<void> {
+  const data = await postJson<{ url?: string }>("/api/stripe/checkout", { offer, consent: true });
+  if (!data.url) throw new CheckoutError("failed");
+  window.location.assign(data.url);
+}
+
+// Отмена и возобновление продления, удаление карты (Stripe). Доступ — до конца оплаченного периода.
+export async function changeStripeRenewal(action: "cancel" | "resume" | "unlink_card"): Promise<string | null> {
+  const data = await postJson<{ periodEnd?: string | null }>("/api/stripe/subscription", { action });
+  return data.periodEnd ?? null;
+}
+
+export async function startCardChange(): Promise<void> {
+  const data = await postJson<{ url?: string }>("/api/stripe/subscription", { action: "change_card" });
+  if (!data.url) throw new CheckoutError("failed");
+  window.location.assign(data.url);
+}
+
+export async function finishCardChange(sessionId: string): Promise<void> {
+  await postJson("/api/stripe/subscription", { action: "finish_card_change", sessionId });
+}
+
+export async function checkStripeSession(session: string): Promise<PaymentResult> {
+  try {
+    const res = await fetch(`/api/stripe/status?session=${encodeURIComponent(session)}`, { cache: "no-store" });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.status) return { status: "error", error: data?.error ?? "failed" };
+    return data as PaymentResult;
+  } catch {
+    return { status: "error", error: "network" };
+  }
+}
+
+// $9.99 — цены Stripe всегда в долларах, без пересчёта по курсу.
+export const formatUsd = (n: number) => `$${n.toFixed(2)}`;
 
 export class CheckoutError extends Error {
   // code/parameter — ответ ЮKassa, если платёж отклонила она.
@@ -123,6 +189,9 @@ const YOOKASSA_CODES = new Set([
   "internal_server_error",
 ]);
 const CHECKOUT_CODES = new Set([
+  "trial_used",
+  "wrong_provider",
+  "bad_offer",
   "not_configured",
   "bad_key",
   "already_subscribed",
@@ -144,7 +213,17 @@ export function checkoutErrorText(reason: string, code: string | null | undefine
 }
 
 export type PaymentResult =
-  | { status: "succeeded"; plan: PlanId; planName: string; cardLast4: string | null; periodEnd: string | null }
+  | {
+      status: "succeeded";
+      plan: PlanId;
+      planName: string;
+      cardLast4: string | null;
+      periodEnd: string | null;
+      // Только Stripe: триал ли это и когда он заканчивается.
+      offer?: StripeOffer | null;
+      trial?: boolean;
+      trialEnd?: string | null;
+    }
   | { status: "canceled"; reason: string; planName: string }
   | { status: "pending"; planName: string }
   | { status: "error"; error: string };

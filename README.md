@@ -77,6 +77,16 @@ Nano Banana одеть аватар и сохраняет результат в 
 - Оферта и политика: `content/legal/*.en.md` (пока пустые → показывается русский текст), см. `content/legal/README.md`.
 - Письма Supabase (`supabase/email-templates/`, вставить в Authentication → Emails): только на английском, язык по пользователю не определяется.
 
+## Оплата за границей (Stripe, доллары)
+
+- Провайдер выбирается сам по стране (заголовок Vercel `x-vercel-ip-country`): Россия → ЮKassa (рубли), остальные → Stripe (USD). Telegram (Mini App) всегда платит через ЮKassa. Ручного переключателя нет, пересчёта по курсу нет.
+- Предложения (`lib/stripe/rules.ts`): триал $4,99 на 5 дней → Premium $9,99/мес (15 credits, затем 30 в месяц); Premium annual $49,99/год (25 credits каждый месяц); вариант B — бесплатные 3 дня с картой (5 credits), включается `STRIPE_FREE_TRIAL` в `lib/features.ts`; Premium $9,99/мес без триала — для тех, кто триал уже брал.
+- Один триал на человека: по аккаунту и нормализованной почте (до оплаты) и по отпечатку карты (после ввода карты; повтор — отмена и возврат денег).
+- Credits при каждой оплате «сбрасываются» до числа тарифа, при окончании подписки обнуляются. Годовой план: месячные пакеты начисляет cron `/api/cron/stripe` (он же шлёт письма: за 7 дней до продления года и на 4-й день триала). Письма — через Resend, на английском.
+- Webhook: `/api/stripe/webhook` (события `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted`).
+- SQL: `supabase/migrations/20261015120000_stripe.sql`. Переменные: см. `.env.local.example`.
+- Проверки: `npm test`, SQL-тест `supabase/tests/stripe_credits_trial.sql`, сквозной стенд `tests/stand/README.md`.
+
 ## Профиль
 
 Фото профиля (отдельно от аватара) сжимается в браузере и хранится в закрытом бакете

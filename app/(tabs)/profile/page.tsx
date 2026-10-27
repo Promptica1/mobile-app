@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import ProfileScreen from "@/components/profile/ProfileScreen";
+import { getPaymentProvider } from "@/lib/payment-provider.server";
 import { MOCK_PROFILE, PROFILE_PHOTOS_BUCKET, type Profile } from "@/lib/profile";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -56,5 +57,7 @@ async function loadProfile(): Promise<Loaded> {
 
 export default async function ProfilePage() {
   const { profile, userId, photo, tokens } = await loadProfile();
-  return <ProfileScreen profile={profile} userId={userId} photo={photo} tokens={tokens} />;
+  // Цена в профиле — в валюте платёжной системы пользователя (Stripe — доллары, ЮKassa — рубли).
+  const usd = (await getPaymentProvider()) === "stripe";
+  return <ProfileScreen profile={profile} userId={userId} photo={photo} tokens={tokens} usd={usd} />;
 }

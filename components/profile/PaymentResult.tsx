@@ -4,13 +4,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { CircleAlert, CircleCheck, Clock, LoaderCircle } from "lucide-react";
-import { cancelReasonText, checkPayment, formatDate, type PaymentResult as Result } from "@/lib/billing";
+import { cancelReasonText, checkPayment, checkStripeSession, formatDate, formatUsd, type PaymentResult as Result } from "@/lib/billing";
+import { OFFER_INFO } from "@/lib/stripe/rules";
 
 // Пока ЮKassa не дала окончательный ответ — переспрашиваем сервер каждые 2 секунды.
 const POLL_MS = 2000;
 const MAX_POLLS = 10;
 
-export default function PaymentResult({ order }: { order: string | null }) {
+export default function PaymentResult({ order: yookassaOrder, stripeSession = null }: { order: string | null; stripeSession?: string | null }) {
+  // Номер заказа ЮKassa или сессия Stripe — что пришло в адресе возврата.
+  const order = stripeSession ?? yookassaOrder;
   const t = useTranslations("subscription.result");
   const tCancel = useTranslations("billing.cancel");
   const tPlans = useTranslations("plans");
@@ -21,11 +24,11 @@ export default function PaymentResult({ order }: { order: string | null }) {
 
   const check = useCallback(() => {
     if (!order) return;
-    checkPayment(order).then((r) => {
+    (stripeSession ? checkStripeSession(order) : checkPayment(order)).then((r) => {
       setResult(r);
       setPolls((n) => n + 1);
     });
-  }, [order]);
+  }, [order, stripeSession]);
 
   useEffect(check, [check]);
   useEffect(() => {
@@ -60,6 +63,24 @@ export default function PaymentResult({ order }: { order: string | null }) {
     );
   }
 
+  if (result?.status === "succeeded" && stripeSession) {
+    const offer = result.offer ?? "monthly";
+    const info = OFFER_INFO[offer];
+    const price = `${formatUsd(info.recurringUsd)}/${info.interval === "year" ? "year" : "month"}`;
+    const date = formatDate((result.trial ? result.trialEnd : result.periodEnd) ?? "", locale);
+    return (
+      <Screen icon={<CircleCheck size={40} strokeWidth={1.25} className="text-green" />} title={result.trial ? t("stripeTrialTitle") : t("paidTitle")}>
+        <p>
+          {result.trial
+            ? t("stripeTrialText", { date, price })
+            : t("stripePaidText", { price, date: result.periodEnd ? formatDate(result.periodEnd, locale) : "" })}
+        </p>
+        <Actions primary={{ label: t("close"), href: "/wardrobe" }} />
+        <p className="mt-6 max-w-[290px] text-xs leading-relaxed text-muted">{t("stripeRenewNote", { price })}</p>
+      </Screen>
+    );
+  }
+
   if (result?.status === "succeeded") {
     return (
       <Screen icon={<CircleCheck size={40} strokeWidth={1.25} className="text-green" />} title={t("paidTitle")}>
@@ -90,7 +111,11 @@ export default function PaymentResult({ order }: { order: string | null }) {
   // canceled
   return (
     <Screen icon={<CircleAlert size={36} strokeWidth={1.25} className="text-danger" />} title={t("failedTitle")}>
-      <p>{result?.status === "canceled" ? cancelReasonText(result.reason, tCancel) : ""} {t("noCharge")}</p>
+      <p>
+        {result?.status === "canceled" && result.reason === "trial_used"
+          ? t("trialUsedRefund")
+          : `${result?.status === "canceled" ? cancelReasonText(result.reason, tCancel) : ""} ${t("noCharge")}`}
+      </p>
       <Actions primary={{ label: t("tryAgain"), href: "/profile/subscription" }} secondary={{ label: t("toProfile"), href: "/profile" }} />
     </Screen>
   );

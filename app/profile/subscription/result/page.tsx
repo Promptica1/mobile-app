@@ -8,15 +8,15 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t("pay")} — MIRRO` };
 }
 
-type Props = { searchParams: Promise<{ order?: string }> };
+type Props = { searchParams: Promise<{ order?: string; stripe_session?: string }> };
 
-// Сюда ЮKassa возвращает пользователя после оплаты (?order=<наш номер заказа>).
+// Сюда возвращают пользователя после оплаты: ЮKassa — ?order=<наш номер заказа>, Stripe — ?stripe_session=<сессия>.
 export default async function PaymentResultPage({ searchParams }: Props) {
-  const { order } = await searchParams;
+  const { order, stripe_session: stripeSession } = await searchParams;
   const t = await getTranslations("pages");
   return (
     <SubScreen title={t("pay")} backHref="/profile/subscription">
-      <PaymentResult order={order ?? null} />
+      <PaymentResult order={order ?? null} stripeSession={stripeSession ?? null} />
     </SubScreen>
   );
 }

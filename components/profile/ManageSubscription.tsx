@@ -6,7 +6,21 @@ import { useLocale, useTranslations } from "next-intl";
 import { AlertCircle, CalendarDays, ChevronRight, CreditCard, Crown, Eye, FlaskConical, LoaderCircle, Plus } from "lucide-react";
 import ConfirmDeleteSheet from "@/components/ui/ConfirmDeleteSheet";
 import { useToast } from "@/components/ui/useToast";
-import { changeAutoRenew, fetchSubscription, formatDate, hasSavedMethod, isActive, isSbp, type Subscription } from "@/lib/billing";
+import {
+  changeAutoRenew,
+  changeStripeRenewal,
+  fetchSubscription,
+  finishCardChange,
+  formatDate,
+  formatUsd,
+  hasSavedMethod,
+  isActive,
+  isSbp,
+  isStripeSub,
+  startCardChange,
+  type Subscription,
+} from "@/lib/billing";
+import { OFFER_INFO } from "@/lib/stripe/rules";
 import { getPlan, formatPrice, RENEWAL_GRACE_DAYS } from "@/lib/plans";
 import { useTokens } from "@/lib/tokens";
 
@@ -38,8 +52,21 @@ export default function ManageSubscription() {
   const [confirming, setConfirming] = useState(false);
   const [resuming, setResuming] = useState(false);
   const [unlinking, setUnlinking] = useState(false);
+  const [changingCard, setChangingCard] = useState(false);
   useEffect(() => {
+    const url = new URL(window.location.href);
+    const cardSession = url.searchParams.get("card_session");
+    // Вернулись со страницы смены карты (Stripe): применяем новую карту и убираем параметр из адреса.
+    if (cardSession) {
+      window.history.replaceState(null, "", url.pathname);
+      finishCardChange(cardSession)
+        .then(() => toast.show(t("stripeCardUpdated")))
+        .catch(() => toast.show(t("stripeCardError")))
+        .finally(() => fetchSubscription().then(setSub, () => setSub(null)));
+      return;
+    }
     fetchSubscription().then(setSub, () => setSub(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const real = sub && isActive(sub) ? sub : null;
   const plan = getPlan(real ? real.plan : "premium");
@@ -54,6 +81,7 @@ export default function ManageSubscription() {
   const status = real?.status ?? "active";
   const cardSaved = hasSavedMethod(real);
   const sbp = isSbp(real);
+  const stripe = isStripeSub(real);
   // Как назвать сохранённый способ оплаты: «•••• 4477» для карты, «Оплата через СБП» для СБП.
   const methodText = sbp
     ? t("payViaSbp")
@@ -61,13 +89,33 @@ export default function ManageSubscription() {
   const endDate = real?.current_period_end ? formatDate(real.current_period_end, locale) : "";
   const planName = tPlans(`${plan.id}.name`);
 
+  // Stripe: отмена продления в один тап, без окна подтверждения — доступ остаётся до конца периода.
+  const cancelStripe = async () => {
+    try {
+      const end = await changeStripeRenewal("cancel");
+      setSub((s) => (s ? { ...s, status: "canceled", current_period_end: end ?? s.current_period_end } : s));
+      toast.show(t("stripeCanceled", { date: formatDate(end ?? real?.current_period_end ?? "", locale) }));
+    } catch {
+      toast.show(t("cancelError"));
+    }
+  };
+  const changeCard = async () => {
+    setChangingCard(true);
+    try {
+      await startCardChange();
+    } catch {
+      toast.show(t("stripeCardError"));
+      setChangingCard(false);
+    }
+  };
+
   const cancel = async () => {
     const end = await changeAutoRenew("cancel");
     setSub((s) => (s ? { ...s, status: "canceled", current_period_end: end ?? s.current_period_end } : s));
     setConfirming(false);
   };
   const unlinkCard = async () => {
-    const end = await changeAutoRenew("unlink_card");
+    const end = await (stripe ? changeStripeRenewal("unlink_card") : changeAutoRenew("unlink_card"));
     setSub((s) =>
       s
         ? {
@@ -85,7 +133,7 @@ export default function ManageSubscription() {
   const resume = async () => {
     setResuming(true);
     try {
-      await changeAutoRenew("resume");
+      await (stripe ? changeStripeRenewal("resume") : changeAutoRenew("resume"));
       setSub((s) => (s ? { ...s, status: "active" } : s));
       toast.show(t("toastResumed"));
     } catch {
@@ -94,8 +142,11 @@ export default function ManageSubscription() {
     setResuming(false);
   };
 
+  // Для Stripe «из N» — сколько credits дал последний платёж (профиль хранит это число).
+  const total = stripe && tokens ? tokens.total || plan.tokens : plan.tokens;
   const left = real ? (tokens?.balance ?? 0) : plan.tokens;
-  const share = Math.min(1, left / plan.tokens);
+  const share = total > 0 ? Math.min(1, left / total) : 0;
+  const offerInfo = stripe && real?.offer ? OFFER_INFO[real.offer] : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -103,13 +154,19 @@ export default function ManageSubscription() {
         real.test && (
           <p className="flex items-center gap-2 rounded-2xl bg-lime/40 px-4 py-3 text-xs leading-relaxed">
             <FlaskConical size={15} strokeWidth={1.75} className="shrink-0" />
-            {t("testBanner")}
+            {stripe ? t("stripeTestBanner") : t("testBanner")}
           </p>
         )
       ) : (
         <p className="flex items-center gap-2 rounded-2xl bg-lavender/20 px-4 py-3 text-xs leading-relaxed">
           <Eye size={15} strokeWidth={1.75} className="shrink-0" />
           {t("preview")}
+        </p>
+      )}
+
+      {stripe && real?.is_trial && real.trial_end && (
+        <p className="rounded-2xl bg-lavender/20 px-4 py-3 text-xs leading-relaxed">
+          {t("stripeTrialBanner", { date: formatDate(real.trial_end, locale), price: formatUsd(OFFER_INFO.monthly.recurringUsd) })}
         </p>
       )}
 
@@ -124,7 +181,9 @@ export default function ManageSubscription() {
         </div>
         <h2 className="mt-4 font-serif text-[2rem] font-medium leading-none">{t("yourPlan", { name: planName })}</h2>
         <p className="mt-2 text-sm text-text/70">
-          {t("planLine", { price: formatPrice(plan.price, locale), tokens: plan.tokens })}
+          {offerInfo
+            ? t(offerInfo.interval === "year" ? "stripePlanYear" : "stripePlanMonth", { price: formatUsd(offerInfo.recurringUsd) })
+            : t("planLine", { price: formatPrice(plan.price, locale), tokens: plan.tokens })}
         </p>
         <div className="mt-4 flex items-center gap-3 rounded-2xl bg-surface/70 px-4 py-3">
           <CalendarDays size={18} strokeWidth={1.5} className="shrink-0" />
@@ -148,6 +207,16 @@ export default function ManageSubscription() {
                 <span className="font-medium">{cardSaved ? methodText : t("notLinked")}</span>
               </span>
             </div>
+            {stripe && (
+              <button
+                type="button"
+                onClick={changeCard}
+                disabled={changingCard}
+                className="ml-[30px] mt-1.5 mr-4 text-xs font-medium text-text/70 underline underline-offset-4 transition-colors hover:text-text disabled:opacity-60"
+              >
+                {cardSaved ? t("stripeChangeCard") : t("stripeAddCard")}
+              </button>
+            )}
             {cardSaved && (
               <button
                 type="button"
@@ -177,6 +246,15 @@ export default function ManageSubscription() {
               {resuming && <LoaderCircle size={18} strokeWidth={2} className="animate-spin" />}
               {t("resume")}
             </button>
+          ) : stripe ? (
+            <button
+              type="button"
+              onClick={changeCard}
+              disabled={changingCard}
+              className="mt-4 flex h-12 w-full items-center justify-center rounded-full bg-text text-[15px] font-medium text-background transition-transform active:scale-[0.98] disabled:opacity-60"
+            >
+              {t("stripeAddCard")}
+            </button>
           ) : (
             <Link
               href="/profile/subscription"
@@ -198,7 +276,7 @@ export default function ManageSubscription() {
         <p className="text-[15px]">
           {t.rich("tokensLeft", {
             left,
-            total: plan.tokens,
+            total,
             b: (chunks) => <span className="font-semibold tabular-nums">{chunks}</span>,
           })}
         </p>
@@ -206,7 +284,7 @@ export default function ManageSubscription() {
           className="mt-2.5 h-2 overflow-hidden rounded-full bg-subtle"
           role="progressbar"
           aria-valuemin={0}
-          aria-valuemax={plan.tokens}
+          aria-valuemax={total}
           aria-valuenow={left}
         >
           <div className="h-full rounded-full bg-lime" style={{ width: `${share * 100}%` }} />
@@ -214,7 +292,7 @@ export default function ManageSubscription() {
         <p className="mt-2.5 text-xs text-muted">
           {status === "canceled"
             ? t("noNewTokens")
-            : t("tokensReset", { total: plan.tokens })}
+            : t(real?.is_trial && stripe ? "stripeCreditsResetTrial" : offerInfo?.monthlyGrant ? "stripeCreditsResetYearly" : "tokensReset", { total })}
         </p>
         <button
           type="button"
@@ -226,18 +304,20 @@ export default function ManageSubscription() {
         </button>
       </section>
 
-      <Link
-        href="/profile/subscription"
-        className="flex items-center justify-between rounded-card border border-border bg-surface px-4 py-4 text-[15px] transition-colors hover:bg-subtle"
-      >
-        {t("changePlan")}
-        <ChevronRight size={18} strokeWidth={1.5} className="text-muted" />
-      </Link>
+      {!stripe && (
+        <Link
+          href="/profile/subscription"
+          className="flex items-center justify-between rounded-card border border-border bg-surface px-4 py-4 text-[15px] transition-colors hover:bg-subtle"
+        >
+          {t("changePlan")}
+          <ChevronRight size={18} strokeWidth={1.5} className="text-muted" />
+        </Link>
+      )}
 
       {status !== "canceled" && (
         <button
           type="button"
-          onClick={() => (real ? setConfirming(true) : toast.show(t("manageSoon")))}
+          onClick={() => (real ? (stripe ? cancelStripe() : setConfirming(true)) : toast.show(t("manageSoon")))}
           className="mx-auto mt-2 py-2 text-sm text-muted underline-offset-4 transition-colors hover:text-danger hover:underline"
         >
           {t("cancelSub")}

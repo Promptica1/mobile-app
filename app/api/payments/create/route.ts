@@ -53,6 +53,17 @@ export async function POST(request: NextRequest) {
     return fail("already_subscribed", 409);
   }
 
+  // Действует подписка Stripe (оформлена за границей) — поверх неё ЮKassa не оформляем.
+  // Отдельный запрос: колонки provider может не быть, пока не выполнен SQL Stripe (тогда пропускаем).
+  const { data: other } = await admin
+    .from("subscriptions")
+    .select("provider, status, current_period_end")
+    .eq("user_id", user.id)
+    .maybeSingle<{ provider: string; status: string; current_period_end: string | null }>();
+  if (other?.provider === "stripe" && other.status !== "expired" && other.current_period_end && new Date(other.current_period_end) > new Date()) {
+    return fail("already_subscribed", 409);
+  }
+
   // Наш номер заказа: по нему вернёмся с оплаты и найдём платёж.
   const orderId = randomUUID();
   const amount = planPrice(plan);

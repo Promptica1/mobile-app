@@ -3,6 +3,7 @@ import { Cormorant_Garamond, Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 import LocaleSync from "@/components/LocaleSync";
+import TelegramMark from "@/components/TelegramMark";
 import "./globals.css";
 
 const inter = Inter({
@@ -39,6 +40,7 @@ export default async function RootLayout({
       <body className="bg-background font-sans text-text antialiased">
         <NextIntlClientProvider>
           <LocaleSync />
+          <TelegramMark />
           {children}
         </NextIntlClientProvider>
       </body>
