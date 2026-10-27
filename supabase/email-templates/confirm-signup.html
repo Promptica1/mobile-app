@@ -1,23 +1,11 @@
-<!-- MIRRO — письмо «Подтвердите почту».
-     Supabase → Authentication → Emails → Confirm sign up: вставить subject и body.
-     Язык берётся из user_metadata.locale (его записывает приложение при регистрации);
-     если языка нет — русский. -->
+<!-- Subject: Confirm your email — MIRRO -->
+<!-- MIRRO — confirm signup email. Supabase → Authentication → Emails → Confirm sign up:
+     put the subject above into Subject and the HTML below into Message body. English only. -->
 
-<!-- Subject: -->
-{{ if eq .Data.locale "en" }}Confirm your email — MIRRO{{ else }}Подтвердите почту — MIRRO{{ end }}
-
-<!-- Body: -->
 <div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#2c2c2a">
   <p style="font-size:22px;letter-spacing:.25em;font-weight:600;margin:0 0 24px">MIRRO</p>
-  {{ if eq .Data.locale "en" }}
   <h1 style="font-size:24px;margin:0 0 12px">Confirm your email</h1>
   <p style="font-size:15px;line-height:1.6;margin:0 0 24px">Thanks for signing up! Tap the button to confirm your email and start building your wardrobe.</p>
   <p style="margin:0 0 24px"><a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#d9f26b;color:#2c2c2a;text-decoration:none;font-weight:500;padding:14px 28px;border-radius:999px">Confirm email</a></p>
   <p style="font-size:12px;color:#8a8a85;line-height:1.6">If you didn't sign up for MIRRO, just ignore this email.</p>
-  {{ else }}
-  <h1 style="font-size:24px;margin:0 0 12px">Подтвердите почту</h1>
-  <p style="font-size:15px;line-height:1.6;margin:0 0 24px">Спасибо за регистрацию! Нажмите кнопку, чтобы подтвердить почту и начать собирать гардероб.</p>
-  <p style="margin:0 0 24px"><a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#d9f26b;color:#2c2c2a;text-decoration:none;font-weight:500;padding:14px 28px;border-radius:999px">Подтвердить почту</a></p>
-  <p style="font-size:12px;color:#8a8a85;line-height:1.6">Если вы не регистрировались в MIRRO, просто проигнорируйте это письмо.</p>
-  {{ end }}
 </div>

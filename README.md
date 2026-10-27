@@ -71,11 +71,11 @@ Nano Banana одеть аватар и сохраняет результат в 
 
 - Библиотека — `next-intl` без префиксов в адресах: страницы те же, язык берётся из cookie `NEXT_LOCALE` (явный выбор) → языка телефона (`Accept-Language`) → русского.
 - Все тексты — `messages/<язык>.json` (русский — база: чего нет в другом языке, показывается по-русски).
-- **Добавить язык:** положить `messages/<код>.json` и дописать код и название в `i18n/config.ts` (`LOCALES`, `LOCALE_NAMES`). Для писем — ещё ветку в шаблонах `supabase/email-templates/*`.
-- Переключатель: Профиль → «Язык» (на экранах входа — внизу). Выбор сохраняется в `profiles.locale` (SQL `supabase/migrations/20261014120000_profile_locale.sql`) и в `user_metadata.locale` — по нему выбирается язык писем.
+- **Добавить язык:** положить `messages/<код>.json` и дописать код и название в `i18n/config.ts` (`LOCALES`, `LOCALE_NAMES`).
+- Переключатель: Профиль → «Язык» (на экранах входа — внизу). Выбор сохраняется в `profiles.locale` (SQL `supabase/migrations/20261014120000_profile_locale.sql`) и в `user_metadata.locale`.
 - Категории, цвета и материалы вещей хранятся ключами (`top`, `black`, `leather`…); старые русские значения в базе читаются автоматически.
 - Оферта и политика: `content/legal/*.en.md` (пока пустые → показывается русский текст), см. `content/legal/README.md`.
-- Письма Supabase: `supabase/email-templates/` — вставить в Authentication → Emails.
+- Письма Supabase (`supabase/email-templates/`, вставить в Authentication → Emails): только на английском, язык по пользователю не определяется.
 
 ## Профиль
 
