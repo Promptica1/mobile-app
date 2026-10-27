@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { LoaderCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { MIN_PASSWORD_LENGTH, authErrorMessage, validateNewPassword } from "@/lib/auth/errors";
@@ -35,6 +36,9 @@ function linkParams() {
 
 export default function ResetPasswordForm() {
   const router = useRouter();
+  const t = useTranslations("auth.reset");
+  const tErr = useTranslations("auth.errors");
+  const tLogin = useTranslations("auth.forgot");
   const [stage, setStage] = useState<Stage>("checking");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -90,14 +94,14 @@ export default function ResetPasswordForm() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    const invalid = validateNewPassword(password);
+    const invalid = validateNewPassword(password, tErr);
     if (invalid) return setError(invalid);
-    if (password !== confirm) return setError("Пароли не совпадают.");
+    if (password !== confirm) return setError(tErr("passwordsMismatch"));
     setLoading(true);
     const supabase = createClient();
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
-      setError(authErrorMessage(error));
+      setError(authErrorMessage(error, tErr));
       setLoading(false);
       return;
     }
@@ -109,13 +113,13 @@ export default function ResetPasswordForm() {
 
   const footer = (
     <Link href="/login" className="font-medium underline underline-offset-4">
-      Вернуться ко входу
+      {tLogin("backToLogin")}
     </Link>
   );
 
   if (stage === "checking") {
     return (
-      <AuthShell title="Новый пароль" subtitle="Проверяем ссылку из письма…" footer={footer}>
+      <AuthShell title={t("title")} subtitle={t("checking")} footer={footer}>
         <div className="flex justify-center py-8" aria-busy>
           <LoaderCircle size={28} strokeWidth={1.75} className="animate-spin text-muted" />
         </div>
@@ -125,44 +129,42 @@ export default function ResetPasswordForm() {
 
   if (stage === "invalid") {
     return (
-      <AuthShell title="Ссылка не сработала" subtitle="Запросите новую — это займёт минуту" footer={footer}>
+      <AuthShell title={t("invalidTitle")} subtitle={t("invalidSubtitle")} footer={footer}>
         <FormMessage tone="error">
-          Ссылка для сброса пароля устарела или уже использована. Если вы открыли письмо в другом
-          браузере или на другом устройстве, запросите новую ссылку и откройте её там же, где
-          запрашивали.
+          {t("invalidText")}
         </FormMessage>
         <Link
           href="/forgot-password"
           className="flex h-14 items-center justify-center rounded-full bg-lime text-[15px] font-medium text-text transition-transform active:scale-[0.98]"
         >
-          Получить новую ссылку
+          {t("newLink")}
         </Link>
       </AuthShell>
     );
   }
 
   return (
-    <AuthShell title="Новый пароль" subtitle="Придумайте пароль для входа" footer={footer}>
+    <AuthShell title={t("title")} subtitle={t("subtitle")} footer={footer}>
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <TextField
-          label="Новый пароль"
+          label={t("newPassword")}
           password
           autoComplete="new-password"
-          placeholder="Придумайте пароль"
-          helper={`Минимум ${MIN_PASSWORD_LENGTH} символов`}
+          placeholder={t("passwordPlaceholder")}
+          helper={t("passwordHelper", { min: MIN_PASSWORD_LENGTH })}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
         <TextField
-          label="Повторите пароль"
+          label={t("repeat")}
           password
           autoComplete="new-password"
-          placeholder="Ещё раз"
+          placeholder={t("repeatPlaceholder")}
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
         />
         {error && <FormMessage tone="error">{error}</FormMessage>}
-        <SubmitButton loading={loading}>{loading ? "Сохраняем…" : "Сохранить пароль"}</SubmitButton>
+        <SubmitButton loading={loading}>{loading ? t("saving") : t("submit")}</SubmitButton>
       </form>
     </AuthShell>
   );

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { LoaderCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import FormMessage from "@/components/ui/FormMessage";
 import { SHOW_APPLE_LOGIN, SHOW_GOOGLE_LOGIN } from "@/lib/features";
 import { LEGAL_DOCS } from "@/lib/legal";
@@ -45,6 +46,8 @@ type Props = {
 };
 
 export default function SocialButtons({ next = "/wardrobe", privacyVersion, consent }: Props) {
+  const t = useTranslations("auth.social");
+  const tCommon = useTranslations("common");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "info" | "error"; text: string } | null>(null);
   const [telegram, setTelegram] = useState(false);
@@ -64,7 +67,7 @@ export default function SocialButtons({ next = "/wardrobe", privacyVersion, cons
     });
     // При успехе браузер уже уходит на страницу Google.
     if (error) {
-      setMessage({ tone: "error", text: "Не получилось открыть вход через Google. Попробуйте ещё раз." });
+      setMessage({ tone: "error", text: t("googleError") });
       setBusy(false);
     }
   }
@@ -73,7 +76,7 @@ export default function SocialButtons({ next = "/wardrobe", privacyVersion, cons
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-3 text-xs text-muted">
         <span className="h-px flex-1 bg-border" />
-        или
+        {tCommon("or")}
         <span className="h-px flex-1 bg-border" />
       </div>
       {SHOW_GOOGLE_LOGIN && (
@@ -84,34 +87,33 @@ export default function SocialButtons({ next = "/wardrobe", privacyVersion, cons
           className="flex h-12 items-center justify-center gap-2 rounded-full border border-border bg-surface text-sm font-medium transition-colors hover:border-text/30 disabled:opacity-60"
         >
           {busy ? <LoaderCircle size={18} strokeWidth={2} className="animate-spin" /> : <GoogleIcon />}
-          Продолжить с Google
+          {t("continueGoogle")}
         </button>
       )}
       {SHOW_APPLE_LOGIN && (
         <button
           type="button"
-          onClick={() => setMessage({ tone: "info", text: "Вход через Apple скоро появится" })}
+          onClick={() => setMessage({ tone: "info", text: t("appleSoon") })}
           className="flex h-12 items-center justify-center gap-2 rounded-full border border-border bg-surface text-sm font-medium transition-colors hover:border-text/30"
         >
           <AppleIcon />
-          Продолжить с Apple
+          {t("continueApple")}
         </button>
       )}
       {!consent && (
         <p className="px-2 text-center text-xs leading-relaxed text-muted">
-          Продолжая с Google, я принимаю{" "}
+          {t("agreeGoogle")}{" "}
           <Link href={LEGAL_DOCS.privacy.href} target="_blank" className="text-text underline underline-offset-2">
-            Политику конфиденциальности
+            {t("privacy")}
           </Link>
         </p>
       )}
       {telegram && (
         <FormMessage tone="info">
-          Google не разрешает вход внутри Telegram. Войдите по почте или{" "}
+          {t("telegramBefore")}
           <a href={`${window.location.origin}/login`} target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-2">
-            откройте MIRRO в браузере
+            {t("telegramLink")}
           </a>
-          .
         </FormMessage>
       )}
       {message && <FormMessage tone={message.tone}>{message.text}</FormMessage>}

@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import AddItemFlow from "@/components/add-item/AddItemFlow";
 
-export const metadata: Metadata = { title: "Добавить вещь — MIRRO" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("pages");
+  return { title: `${t("addItem")} — MIRRO` };
+}
 
 // Отдельный маршрут вне группы (tabs) — поэтому здесь нет нижней навигации.
 export default function AddItemPage() {

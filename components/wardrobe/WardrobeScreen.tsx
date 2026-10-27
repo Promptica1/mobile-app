@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import TokenPill from "@/components/TokenPill";
 import { fetchItems, setItemFavorite } from "@/lib/items";
-import { formatItemCount, type Filter, type WardrobeItem } from "@/lib/wardrobe";
+import type { Filter, WardrobeItem } from "@/lib/wardrobe";
 import CategoryFilters from "./CategoryFilters";
 import EmptyWardrobe from "./EmptyWardrobe";
 import ItemCard, { ItemCardSkeleton } from "./ItemCard";
@@ -14,9 +15,10 @@ import SearchField from "./SearchField";
 type LoadState = "loading" | "ready" | "error";
 
 export default function WardrobeScreen() {
+  const t = useTranslations("wardrobe");
   const [items, setItems] = useState<WardrobeItem[]>([]);
   const [status, setStatus] = useState<LoadState>("loading");
-  const [filter, setFilter] = useState<Filter>("Все");
+  const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [toast, setToast] = useState<string | null>(null);
 
@@ -59,7 +61,7 @@ export default function WardrobeScreen() {
       await setItemFavorite(item.id, next);
     } catch {
       apply(!next);
-      setToast("Не получилось сохранить. Попробуйте ещё раз.");
+      setToast(t("favoriteError"));
     }
   };
 
@@ -70,8 +72,8 @@ export default function WardrobeScreen() {
   const normalizedQuery = query.trim().toLowerCase();
   const visibleItems = items.filter((item) => {
     const matchesFilter =
-      filter === "Все" ||
-      (filter === "Избранное" ? item.is_favorite : item.category === filter);
+      filter === "all" ||
+      (filter === "favorites" ? item.is_favorite : item.category === filter);
     return matchesFilter && item.name.toLowerCase().includes(normalizedQuery);
   });
 
@@ -82,10 +84,10 @@ export default function WardrobeScreen() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-serif text-4xl font-medium leading-none tracking-tight">
-              Гардероб
+              {t("title")}
             </h1>
             <p className="mt-1.5 h-5 text-sm text-muted">
-              {status === "ready" && formatItemCount(items.length)}
+              {status === "ready" && t("count", { count: items.length })}
               {isLoading && <span className="inline-block h-3 w-16 animate-pulse rounded-full bg-border/70 align-middle" />}
             </p>
           </div>
@@ -93,7 +95,7 @@ export default function WardrobeScreen() {
             <TokenPill />
             <Link
               href="/add-item"
-              aria-label="Добавить вещь"
+              aria-label={t("add")}
               className="flex h-12 w-12 items-center justify-center rounded-2xl bg-lavender text-text transition-transform active:scale-95"
             >
               <Plus size={22} strokeWidth={1.75} />
@@ -110,7 +112,7 @@ export default function WardrobeScreen() {
       </header>
 
       {isLoading && (
-        <div className="grid grid-cols-2 gap-x-4 gap-y-6 pt-2" aria-busy="true" aria-label="Загружаем гардероб">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-6 pt-2" aria-busy="true" aria-label={t("loading")}>
           {Array.from({ length: 4 }, (_, i) => (
             <ItemCardSkeleton key={i} />
           ))}
@@ -120,14 +122,14 @@ export default function WardrobeScreen() {
       {status === "error" && (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 py-16 text-center">
           <p className="max-w-[260px] text-sm leading-relaxed text-muted">
-            Не получилось загрузить гардероб. Проверьте интернет и попробуйте ещё раз.
+            {t("loadError")}
           </p>
           <button
             type="button"
             onClick={retry}
             className="rounded-full border border-border bg-surface px-6 py-2.5 text-sm font-medium transition-colors hover:border-text/30"
           >
-            Попробовать снова
+            {t("retry")}
           </button>
         </div>
       )}
@@ -136,7 +138,7 @@ export default function WardrobeScreen() {
 
       {status === "ready" && !isEmpty &&
         (visibleItems.length === 0 ? (
-          <p className="py-16 text-center text-sm text-muted">Ничего не найдено</p>
+          <p className="py-16 text-center text-sm text-muted">{t("noResults")}</p>
         ) : (
           <div className="grid grid-cols-2 gap-x-4 gap-y-6 pt-2">
             {visibleItems.map((item) => (

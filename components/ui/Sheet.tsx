@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 
 type Props = {
   title: string;
@@ -17,6 +18,7 @@ const stack: symbol[] = [];
 // Модальная нижняя панель поверх всего приложения (в т.ч. нижней навигации).
 export default function Sheet({ title, onClose, children, locked = false }: Props) {
   const titleId = useId();
+  const t = useTranslations("common");
 
   // Актуальные onClose/locked без перерегистрации: иначе панель «перепрыгнет» наверх стека.
   const latest = useRef({ onClose, locked });
@@ -41,7 +43,7 @@ export default function Sheet({ title, onClose, children, locked = false }: Prop
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <button
         type="button"
-        aria-label="Закрыть"
+        aria-label={t("close")}
         tabIndex={-1}
         onClick={() => !locked && onClose()}
         className="absolute inset-0 animate-fade-in cursor-default bg-text/30"

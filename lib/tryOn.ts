@@ -1,32 +1,20 @@
 import { createLucideIcon, Footprints, Gem, Layers, PersonStanding, Shirt, type LucideIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import type { Category, WardrobeItem } from "./wardrobe";
+import type { WardrobeItem } from "./wardrobe";
 
 export const TRY_ON_FILTERS = [
-  "Все",
-  "Избранное",
-  "Верх",
-  "Низ",
-  "Платья",
-  "Комбинезоны",
-  "Верхняя",
-  "Обувь",
-  "Головной убор",
-  "Аксессуары",
+  "all",
+  "favorites",
+  "top",
+  "bottom",
+  "dress",
+  "jumpsuit",
+  "outerwear",
+  "shoes",
+  "headwear",
+  "accessories",
 ] as const;
 export type TryOnFilter = (typeof TRY_ON_FILTERS)[number];
-
-// Короткая подпись фильтра → категория вещи в базе.
-export const FILTER_CATEGORY: Record<Exclude<TryOnFilter, "Все" | "Избранное">, Category> = {
-  Верх: "Верх",
-  Низ: "Низ",
-  Платья: "Платья",
-  Комбинезоны: "Комбинезоны",
-  Верхняя: "Верхняя одежда",
-  Обувь: "Обувь",
-  "Головной убор": "Головной убор",
-  Аксессуары: "Аксессуары",
-};
 
 // В lucide нет платья и шляпы — рисуем в том же стиле (24×24, линия).
 const Dress = createLucideIcon("dress", [
@@ -40,14 +28,14 @@ const Hat = createLucideIcon("hat", [
 
 // Иконка-заглушка, если у вещи нет фото.
 export const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  Верх: Shirt,
-  Низ: Layers,
-  Платья: Dress,
-  Комбинезоны: PersonStanding,
-  "Верхняя одежда": Shirt,
-  Обувь: Footprints,
-  "Головной убор": Hat,
-  Аксессуары: Gem,
+  top: Shirt,
+  bottom: Layers,
+  dress: Dress,
+  jumpsuit: PersonStanding,
+  outerwear: Shirt,
+  shoes: Footprints,
+  headwear: Hat,
+  accessories: Gem,
 };
 
 // Выбранные для примерки вещи: не больше одной в каждой категории.
@@ -55,14 +43,14 @@ export type Selection = Partial<Record<string, WardrobeItem>>;
 
 // Порядок слоёв в списке «Надето на вас».
 const LAYER_ORDER = [
-  "Головной убор",
-  "Верхняя одежда",
-  "Платья",
-  "Комбинезоны",
-  "Верх",
-  "Низ",
-  "Обувь",
-  "Аксессуары",
+  "headwear",
+  "outerwear",
+  "dress",
+  "jumpsuit",
+  "top",
+  "bottom",
+  "shoes",
+  "accessories",
 ];
 export const selectedItems = (s: Selection) =>
   Object.values(s)

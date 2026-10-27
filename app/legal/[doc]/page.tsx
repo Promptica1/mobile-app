@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
 import BackButton from "@/components/legal/BackButton";
-import { LEGAL_DOCS, type LegalDoc } from "@/lib/legal";
+import type { LegalDoc } from "@/lib/legal";
 import { legalBlocks } from "@/lib/legal.server";
 
 // Публичная оферта и Политика конфиденциальности. Доступны без входа (ссылка из регистрации).
@@ -29,19 +30,25 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<{ doc: string }> }): Promise<Metadata> {
   const { doc } = await params;
-  return { title: isDoc(doc) ? `${LEGAL_DOCS[doc].title} — MIRRO` : "MIRRO" };
+  const t = await getTranslations("legal");
+  return { title: isDoc(doc) ? `${t(doc)} — MIRRO` : "MIRRO" };
 }
 
 export default async function LegalPage({ params }: { params: Promise<{ doc: string }> }) {
   const { doc } = await params;
   if (!isDoc(doc)) notFound();
-  const blocks = legalBlocks(doc);
+  const t = await getTranslations("legal");
+  const { blocks, translated } = legalBlocks(doc, await getLocale());
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-background px-6 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)]">
       <header className="flex items-center gap-1 py-4">
         <BackButton />
-        <h1 className="font-serif text-[1.75rem] font-medium leading-tight tracking-tight">{LEGAL_DOCS[doc].title}</h1>
+        <h1 className="font-serif text-[1.75rem] font-medium leading-tight tracking-tight">{t(doc)}</h1>
       </header>
+      {/* Перевода документа ещё нет — показан русский оригинал, предупреждаем об этом. */}
+      {!translated && (await getLocale()) !== "ru" && (
+        <p className="mb-4 rounded-2xl bg-lavender/20 px-4 py-3 text-xs leading-relaxed">{t("onlyRussian")}</p>
+      )}
       <article className="flex flex-col gap-3 pb-4 text-sm leading-relaxed">
         {blocks.map((b, i) =>
           b.kind === "p" ? (

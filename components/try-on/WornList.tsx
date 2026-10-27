@@ -1,4 +1,5 @@
 import { ChevronDown, Shirt, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import Photo from "@/components/ui/Photo";
 import { CATEGORY_ICONS } from "@/lib/tryOn";
 import type { WardrobeItem } from "@/lib/wardrobe";
@@ -10,6 +11,8 @@ type Props = {
 };
 
 export default function WornList({ items, onRemove, onClose }: Props) {
+  const t = useTranslations("tryOn.worn");
+  const tCategories = useTranslations("categories");
   return (
     <div className="flex flex-col">
       <button
@@ -17,12 +20,12 @@ export default function WornList({ items, onRemove, onClose }: Props) {
         onClick={onClose}
         className="flex items-center justify-between pb-3"
       >
-        <span className="font-serif text-xl font-medium">Надето на вас</span>
+        <span className="font-serif text-xl font-medium">{t("title")}</span>
         <ChevronDown size={20} strokeWidth={1.5} className="text-muted" />
       </button>
 
       {items.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted">Пока ничего не выбрано</p>
+        <p className="py-6 text-center text-sm text-muted">{t("empty")}</p>
       ) : (
         <ul className="flex flex-col divide-y divide-border">
           {items.map((item) => {
@@ -35,12 +38,12 @@ export default function WornList({ items, onRemove, onClose }: Props) {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{item.name}</span>
-                  <span className="block text-xs text-muted">{item.category}</span>
+                  <span className="block text-xs text-muted">{tCategories(item.category)}</span>
                 </span>
                 <button
                   type="button"
                   onClick={() => onRemove(item)}
-                  aria-label={`Снять: ${item.name}`}
+                  aria-label={t("remove", { name: item.name })}
                   className="flex h-7 w-7 items-center justify-center rounded-full bg-pink/15 text-pink transition-colors hover:bg-pink/25"
                 >
                   <X size={14} strokeWidth={2} />

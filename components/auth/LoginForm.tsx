@@ -4,6 +4,7 @@ import { CircleCheck } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { authErrorMessage, safeNextPath, validateEmail } from "@/lib/auth/errors";
 import AuthShell from "./AuthShell";
@@ -29,20 +30,18 @@ export default function LoginForm({
   privacyVersion: string;
 }) {
   const router = useRouter();
+  const t = useTranslations("auth.login");
+  const tErr = useTranslations("auth.errors");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(
-    linkError
-      ? "Ссылка из письма устарела или уже использована. Войдите или запросите новую."
-      : oauthError
-        ? "Не удалось войти через Google. Попробуйте ещё раз или войдите по почте."
-        : "",
+    linkError ? tErr("linkExpired") : oauthError ? tErr("googleFailed") : "",
   );
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const invalid = validateEmail(email) || (password ? "" : "Введите пароль.");
+    const invalid = validateEmail(email, tErr) || (password ? "" : tErr("passwordRequired"));
     if (invalid) {
       setError(invalid);
       return;
@@ -56,7 +55,7 @@ export default function LoginForm({
     });
 
     if (error) {
-      setError(authErrorMessage(error));
+      setError(authErrorMessage(error, tErr));
       setLoading(false);
       return;
     }
@@ -66,13 +65,13 @@ export default function LoginForm({
 
   return (
     <AuthShell
-      title="Соберём новый образ вместе?"
-      subtitle="Войдите в свой гардероб"
+      title={t("title")}
+      subtitle={t("subtitle")}
       footer={
         <>
-          <span className="text-muted">Нет аккаунта? </span>
+          <span className="text-muted">{t("noAccount")}</span>
           <Link href="/signup" className="font-medium underline underline-offset-4">
-            Зарегистрироваться
+            {t("signUp")}
           </Link>
         </>
       }
@@ -89,27 +88,27 @@ export default function LoginForm({
         />
         <div>
           <TextField
-            label="Пароль"
+            label={t("password")}
             password
             autoComplete="current-password"
-            placeholder="Ваш пароль"
+            placeholder={t("passwordPlaceholder")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
           <div className="mt-2 flex justify-end px-1">
             <Link href="/forgot-password" className="text-sm text-muted underline-offset-4 hover:underline">
-              Забыли пароль?
+              {t("forgot")}
             </Link>
           </div>
         </div>
         {passwordChanged && !error && (
-          <FormMessage tone="info" icon={CircleCheck}>Пароль изменён, войдите с новым паролем.</FormMessage>
+          <FormMessage tone="info" icon={CircleCheck}>{t("passwordChanged")}</FormMessage>
         )}
         {accountDeleted && !error && (
-          <FormMessage tone="info" icon={CircleCheck}>Аккаунт и все данные удалены. Будем рады видеть вас снова.</FormMessage>
+          <FormMessage tone="info" icon={CircleCheck}>{t("accountDeleted")}</FormMessage>
         )}
         {error && <FormMessage tone="error">{error}</FormMessage>}
-        <SubmitButton loading={loading}>{loading ? "Входим…" : "Войти"}</SubmitButton>
+        <SubmitButton loading={loading}>{loading ? t("signingIn") : t("submit")}</SubmitButton>
       </form>
       {SHOW_SOCIAL_LOGIN && <SocialButtons next={safeNextPath(next)} privacyVersion={privacyVersion} />}
     </AuthShell>

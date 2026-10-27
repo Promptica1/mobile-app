@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { CircleAlert, CircleCheck, Clock, LoaderCircle } from "lucide-react";
 import { cancelReasonText, checkPayment, formatDate, type PaymentResult as Result } from "@/lib/billing";
 
@@ -10,6 +11,10 @@ const POLL_MS = 2000;
 const MAX_POLLS = 10;
 
 export default function PaymentResult({ order }: { order: string | null }) {
+  const t = useTranslations("subscription.result");
+  const tCancel = useTranslations("billing.cancel");
+  const tPlans = useTranslations("plans");
+  const locale = useLocale();
   const [result, setResult] = useState<Result | null>(null);
   const [polls, setPolls] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -36,37 +41,38 @@ export default function PaymentResult({ order }: { order: string | null }) {
   if (!order || result?.status === "error") {
     const notFound = !order || (result?.status === "error" && (result.error === "not_found" || result.error === "bad_order"));
     return (
-      <Screen icon={<CircleAlert size={36} strokeWidth={1.25} className="text-danger" />} title="Не удалось проверить оплату">
+      <Screen icon={<CircleAlert size={36} strokeWidth={1.25} className="text-danger" />} title={t("checkFailedTitle")}>
         <p>
           {notFound
-            ? "Мы не нашли этот платёж. Если деньги списались — напишите нам в «Помощь и поддержка»."
-            : "Проверьте интернет и попробуйте ещё раз. Если оплата прошла, подписка появится автоматически."}
+            ? t("notFound")
+            : t("tryAgainNote")}
         </p>
-        <Actions primary={{ label: "Проверить ещё раз", onClick: check }} secondary={{ label: "К тарифам", href: "/profile/subscription" }} />
+        <Actions primary={{ label: t("checkAgain"), onClick: check }} secondary={{ label: t("toPlans"), href: "/profile/subscription" }} />
       </Screen>
     );
   }
 
   if (loading) {
     return (
-      <Screen icon={<LoaderCircle size={36} strokeWidth={1.5} className="animate-spin text-lavender" />} title="Проверяем оплату…">
-        <p>Обычно это занимает несколько секунд.</p>
+      <Screen icon={<LoaderCircle size={36} strokeWidth={1.5} className="animate-spin text-lavender" />} title={t("checking")}>
+        <p>{t("checkingText")}</p>
       </Screen>
     );
   }
 
   if (result?.status === "succeeded") {
     return (
-      <Screen icon={<CircleCheck size={40} strokeWidth={1.25} className="text-green" />} title="Оплата прошла">
+      <Screen icon={<CircleCheck size={40} strokeWidth={1.25} className="text-green" />} title={t("paidTitle")}>
         <p>
-          Подписка <b className="font-semibold text-text">MIRRO {result.planName}</b> оформлена
-          {result.periodEnd ? ` и действует до ${formatDate(result.periodEnd)}` : ""}.
+          {t("paidBefore")}
+          <b className="font-semibold text-text">{t("brandPlan", { name: tPlans(`${result.plan}.name`) })}</b>
+          {t("paidAfter")}
+          {result.periodEnd ? t("paidUntil", { date: formatDate(result.periodEnd, locale) }) : ""}.
         </p>
-        <Actions primary={{ label: "Закрыть", href: "/wardrobe" }} />
+        <Actions primary={{ label: t("close"), href: "/wardrobe" }} />
         {/* Условие автопродления — обязательно показываем после оформления */}
         <p className="mt-6 max-w-[290px] text-xs leading-relaxed text-muted">
-          Подписка продлевается автоматически каждый месяц. Отменить можно в любой момент в разделе
-          «Моя подписка».
+          {t("autoRenewNote")}
         </p>
       </Screen>
     );
@@ -74,18 +80,18 @@ export default function PaymentResult({ order }: { order: string | null }) {
 
   if (result?.status === "pending") {
     return (
-      <Screen icon={<Clock size={36} strokeWidth={1.25} className="text-muted" />} title="Оплата ещё обрабатывается">
-        <p>Банк пока не подтвердил платёж. Проверьте через минуту — если оплата пройдёт, подписка включится.</p>
-        <Actions primary={{ label: "Проверить ещё раз", onClick: () => { setPolls(0); check(); } }} secondary={{ label: "К тарифам", href: "/profile/subscription" }} />
+      <Screen icon={<Clock size={36} strokeWidth={1.25} className="text-muted" />} title={t("pendingTitle")}>
+        <p>{t("pendingText")}</p>
+        <Actions primary={{ label: t("checkAgain"), onClick: () => { setPolls(0); check(); } }} secondary={{ label: t("toPlans"), href: "/profile/subscription" }} />
       </Screen>
     );
   }
 
   // canceled
   return (
-    <Screen icon={<CircleAlert size={36} strokeWidth={1.25} className="text-danger" />} title="Оплата не завершена">
-      <p>{result?.status === "canceled" ? cancelReasonText(result.reason) : ""} Деньги не списаны.</p>
-      <Actions primary={{ label: "Попробовать снова", href: "/profile/subscription" }} secondary={{ label: "В профиль", href: "/profile" }} />
+    <Screen icon={<CircleAlert size={36} strokeWidth={1.25} className="text-danger" />} title={t("failedTitle")}>
+      <p>{result?.status === "canceled" ? cancelReasonText(result.reason, tCancel) : ""} {t("noCharge")}</p>
+      <Actions primary={{ label: t("tryAgain"), href: "/profile/subscription" }} secondary={{ label: t("toProfile"), href: "/profile" }} />
     </Screen>
   );
 }

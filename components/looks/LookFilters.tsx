@@ -1,4 +1,5 @@
 import { Folder, Heart, Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { Folder as FolderRow } from "@/lib/looks";
 
 // "all", "favorite" или id папки.
@@ -15,9 +16,10 @@ const pill =
   "flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-sm transition-colors";
 
 export default function LookFilters({ folders, selected, onSelect, onNewFolder }: Props) {
+  const t = useTranslations("looks");
   const options = [
-    { id: "all", label: "Все", kind: "all" },
-    { id: "favorite", label: "Избранное", kind: "favorite" },
+    { id: "all", label: t("filterAll"), kind: "all" },
+    { id: "favorite", label: t("filterFavorites"), kind: "favorite" },
     ...folders.map((f) => ({ id: f.id, label: f.name, kind: "folder" })),
   ];
   return (
@@ -50,7 +52,7 @@ export default function LookFilters({ folders, selected, onSelect, onNewFolder }
         className={`${pill} border-dashed border-text/25 text-muted hover:border-text/40 hover:text-text`}
       >
         <Plus size={14} strokeWidth={1.75} />
-        Папка
+        {t("filterFolder")}
       </button>
     </div>
   );

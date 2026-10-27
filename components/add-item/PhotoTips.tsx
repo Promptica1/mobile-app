@@ -2,18 +2,20 @@
 
 import { useEffect } from "react";
 import { Check, ImageIcon, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import Photo from "@/components/ui/Photo";
 
 // Примеры фото лежат в public/onboarding/ (квадратные, 1:1).
+// alt — ключ подписи в messages (addItem.tips.<ключ>).
 const GOOD = [
-  { src: "/onboarding/good-single.jpg", alt: "Одна вещь лежит отдельно" },
-  { src: "/onboarding/good-worn.jpg", alt: "Вещь надета на человека, простой фон" },
-];
+  { src: "/onboarding/good-single.jpg", alt: "goodSingle" },
+  { src: "/onboarding/good-worn.jpg", alt: "goodWorn" },
+] as const;
 const BAD = [
-  { src: "/onboarding/bad-many.jpg", alt: "Вещь среди других вещей" },
-  { src: "/onboarding/bad-cluttered.jpg", alt: "Вещь перекрыта ремнём сумки, беспорядок вокруг" },
-];
+  { src: "/onboarding/bad-many.jpg", alt: "badMany" },
+  { src: "/onboarding/bad-cluttered.jpg", alt: "badCluttered" },
+] as const;
 
 function Example({ src, alt }: { src: string; alt: string }) {
   // Пока файла нет — мягкая заглушка, экран не ломается.
@@ -38,8 +40,9 @@ function Section({
   tone: "good" | "bad";
   title: string;
   caption: string;
-  images: { src: string; alt: string }[];
+  images: readonly { src: string; alt: string }[];
 }) {
+  const t = useTranslations("addItem.tips");
   const good = tone === "good";
   return (
     <section>
@@ -55,7 +58,7 @@ function Section({
       </div>
       <div className="grid grid-cols-2 gap-3">
         {images.map((img) => (
-          <Example key={img.src} {...img} />
+          <Example key={img.src} src={img.src} alt={t(img.alt)} />
         ))}
       </div>
       <p className="mt-2.5 px-1 text-sm text-muted">{caption}</p>
@@ -64,6 +67,8 @@ function Section({
 }
 
 export default function PhotoTips({ onClose }: { onClose: () => void }) {
+  const t = useTranslations("addItem.tips");
+  const tCommon = useTranslations("common");
   // Закрытие по Escape на компьютере.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -83,30 +88,30 @@ export default function PhotoTips({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             onClick={onClose}
-            aria-label="Закрыть"
+            aria-label={tCommon("close")}
             className="-mr-2 flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-border/50"
           >
             <X size={22} strokeWidth={1.5} />
           </button>
         </div>
         <h2 id="photo-tips-title" className="font-serif text-4xl font-medium leading-tight tracking-tight">
-          Как сфотографировать вещь
+          {t("title")}
         </h2>
-        <p className="mt-2 text-sm text-muted">Пара секунд — и AI вырежет вещь точнее</p>
+        <p className="mt-2 text-sm text-muted">{t("subtitle")}</p>
 
         <div className="mt-8 flex flex-col gap-8">
-          <Section tone="good" title="Хорошо" caption="Одна вещь, хорошо видна, простой фон" images={GOOD} />
+          <Section tone="good" title={t("good")} caption={t("goodCaption")} images={GOOD} />
           <Section
             tone="bad"
-            title="Лучше не так"
-            caption="Много вещей, беспорядок, вещь перекрыта"
+            title={t("bad")}
+            caption={t("badCaption")}
             images={BAD}
           />
         </div>
 
         <div className="mt-auto pt-8">
           <Button variant="lime" onClick={onClose}>
-            Понятно, добавить вещь
+            {t("gotIt")}
           </Button>
         </div>
       </div>

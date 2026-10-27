@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Heart, Shirt } from "lucide-react";
+import { useTranslations } from "next-intl";
 import Photo from "@/components/ui/Photo";
 import { CATEGORY_ICONS } from "@/lib/tryOn";
 import type { WardrobeItem } from "@/lib/wardrobe";
@@ -10,6 +11,7 @@ type Props = {
 };
 
 export default function ItemCard({ item, onToggleFavorite }: Props) {
+  const t = useTranslations();
   const Icon = CATEGORY_ICONS[item.category] ?? Shirt;
   const placeholder = (
     <div className="absolute inset-3 flex items-center justify-center rounded-2xl bg-subtle">
@@ -22,7 +24,7 @@ export default function ItemCard({ item, onToggleFavorite }: Props) {
       {/* Вся карточка открывает вещь; сердечко лежит поверх ссылки */}
       <Link
         href={`/wardrobe/${item.id}`}
-        aria-label={`Открыть вещь «${item.name}»`}
+        aria-label={t("wardrobe.openItem", { name: item.name })}
         className="absolute inset-0 z-[1] rounded-card"
       />
       <div className="relative aspect-square overflow-hidden rounded-card border border-border bg-surface">
@@ -37,7 +39,7 @@ export default function ItemCard({ item, onToggleFavorite }: Props) {
         <button
           type="button"
           onClick={() => onToggleFavorite(item)}
-          aria-label={item.is_favorite ? "Убрать из избранного" : "В избранное"}
+          aria-label={item.is_favorite ? t("wardrobe.favoriteRemove") : t("wardrobe.favoriteAdd")}
           aria-pressed={item.is_favorite}
           className="absolute right-2.5 top-2.5 z-[2] flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface/90 backdrop-blur-sm"
         >
@@ -49,7 +51,7 @@ export default function ItemCard({ item, onToggleFavorite }: Props) {
         </button>
       </div>
       <h3 className="mt-2.5 truncate text-sm font-medium">{item.name}</h3>
-      <p className="text-xs text-muted">{item.category}</p>
+      <p className="text-xs text-muted">{t(`categories.${item.category}`)}</p>
     </article>
   );
 }

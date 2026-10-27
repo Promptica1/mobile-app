@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import ItemDetail from "@/components/item-detail/ItemDetail";
 
 type Props = { params: Promise<{ id: string }> };
 
-export const metadata: Metadata = { title: "Вещь — MIRRO" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("pages");
+  return { title: `${t("item")} — MIRRO` };
+}
 
 // Отдельный маршрут вне группы (tabs) — поэтому здесь нет нижней навигации.
 // Вещь загружается в браузере от имени пользователя (RLS — только свои).

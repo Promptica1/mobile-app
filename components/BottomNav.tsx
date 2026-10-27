@@ -4,14 +4,15 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Shirt, Sparkles, User } from "lucide-react";
+import { useTranslations } from "next-intl";
 import HangerIcon from "./HangerIcon";
 
 const tabs = [
-  { href: "/wardrobe", label: "Гардероб", Icon: HangerIcon },
-  { href: "/try-on", label: "Примерка", Icon: Shirt },
-  { href: "/looks", label: "Образы", Icon: Sparkles },
-  { href: "/profile", label: "Профиль", Icon: User },
-];
+  { href: "/wardrobe", label: "wardrobe", Icon: HangerIcon },
+  { href: "/try-on", label: "tryOn", Icon: Shirt },
+  { href: "/looks", label: "looks", Icon: Sparkles },
+  { href: "/profile", label: "profile", Icon: User },
+] as const;
 
 // «Примерка» — полноэкранный режим, навигации там нет (выход — стрелкой «←»).
 const HIDDEN_ON = ["/try-on"];
@@ -22,6 +23,7 @@ const LAST_PATH_KEY = "dw:last-path";
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const t = useTranslations("nav");
 
   useEffect(() => {
     try {
@@ -64,7 +66,7 @@ export default function BottomNav() {
                   <Icon size={22} strokeWidth={1.5} />
                 </span>
                 <span className="text-[11px] font-medium tracking-wide">
-                  {label}
+                  {t(label)}
                 </span>
               </Link>
             </li>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type ChangeEvent } from "react";
+import { useTranslations } from "next-intl";
 import { Camera, LoaderCircle, UserRound } from "lucide-react";
 import Photo from "@/components/ui/Photo";
 import { uploadProfilePhoto } from "@/lib/account";
@@ -15,6 +16,7 @@ type Props = {
 
 // Круглое фото профиля (отдельно от аватара) с кнопкой-камерой.
 export default function ProfilePhoto({ path: initialPath, url: initialUrl, enabled, onMessage }: Props) {
+  const t = useTranslations("profile.photo");
   const input = useRef<HTMLInputElement>(null);
   const [photo, setPhoto] = useState({ path: initialPath, url: initialUrl });
   const [uploading, setUploading] = useState(false);
@@ -29,13 +31,13 @@ export default function ProfilePhoto({ path: initialPath, url: initialUrl, enabl
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (!file.type.startsWith("image/")) return onMessage("Это не похоже на фото. Выберите картинку.");
+    if (!file.type.startsWith("image/")) return onMessage(t("notAnImage"));
     setUploading(true);
     try {
       setPhoto(await uploadProfilePhoto(file, photo.path));
-      onMessage("Фото профиля обновлено");
+      onMessage(t("updated"));
     } catch {
-      onMessage("Не получилось загрузить фото. Попробуйте ещё раз.");
+      onMessage(t("uploadError"));
     } finally {
       setUploading(false);
     }
@@ -45,7 +47,7 @@ export default function ProfilePhoto({ path: initialPath, url: initialUrl, enabl
     <div className="relative shrink-0">
       <span className="relative block h-16 w-16 overflow-hidden rounded-full border border-border bg-beige">
         {photo.url ? (
-          <Photo src={photo.url} alt="Фото профиля" fit="cover" fallback={placeholder} />
+          <Photo src={photo.url} alt={t("alt")} fit="cover" fallback={placeholder} />
         ) : (
           placeholder
         )}
@@ -55,12 +57,12 @@ export default function ProfilePhoto({ path: initialPath, url: initialUrl, enabl
           </span>
         )}
       </span>
-      <input ref={input} type="file" accept="image/*" hidden onChange={handleChange} aria-label="Фото профиля" />
+      <input ref={input} type="file" accept="image/*" hidden onChange={handleChange} aria-label={t("alt")} />
       <button
         type="button"
-        onClick={() => (enabled ? input.current?.click() : onMessage("Фото недоступно в тестовом режиме"))}
+        onClick={() => (enabled ? input.current?.click() : onMessage(t("demo")))}
         disabled={uploading}
-        aria-label={photo.url ? "Сменить фото" : "Добавить фото"}
+        aria-label={photo.url ? t("change") : t("add")}
         className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-lime disabled:opacity-60"
       >
         <Camera size={12} strokeWidth={2} />

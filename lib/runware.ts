@@ -40,17 +40,17 @@ export function isRunwareConfigured() {
 // noun — как назвать вещь в задании; examples — что к ней относится, чтобы модель
 // не перепутала её с соседней одеждой.
 const GARMENT_HINTS: Record<string, { noun: string; examples: string; where: string; note?: string }> = {
-  Верх: {
+  top: {
     noun: "top",
     examples: "t-shirt, shirt, blouse, sweatshirt, hoodie, sweater or top",
     where: "on the upper body; not the jacket or coat worn over it",
   },
-  Низ: {
+  bottom: {
     noun: "bottoms",
     examples: "pants, jeans, trousers, shorts or skirt",
     where: "on the lower body",
   },
-  Платья: {
+  dress: {
     noun: "dress",
     examples: "dress, sundress, maxi or midi or mini dress, slip dress, shirt dress, evening gown",
     where: "on the body as one single garment from the shoulders down",
@@ -59,7 +59,7 @@ const GARMENT_HINTS: Record<string, { noun: string; examples: string; where: str
       "down to the hem, keeping its full real length (mini, midi, maxi or floor-length), skirt volume and silhouette. " +
       "Do not cut it at the waist and do not turn it into a top or a skirt.",
   },
-  Комбинезоны: {
+  jumpsuit: {
     noun: "jumpsuit",
     examples: "jumpsuit, romper, playsuit, overalls, dungarees or boiler suit",
     where: "on the body as one single one-piece garment covering both the upper and the lower body",
@@ -68,23 +68,23 @@ const GARMENT_HINTS: Record<string, { noun: string; examples: string; where: str
       "from the neckline or straps down to the leg hems, keeping its full length and silhouette. " +
       "Do not split it into a separate top and bottoms and do not turn it into a top.",
   },
-  "Верхняя одежда": {
+  outerwear: {
     noun: "outerwear piece",
     examples: "coat, jacket, trench, blazer, puffer or parka",
     where: "as the outermost layer",
   },
-  Обувь: {
+  shoes: {
     noun: "pair of shoes",
     examples: "sneakers, boots, loafers, heels or sandals",
     where: "on the feet",
   },
-  "Головной убор": {
+  headwear: {
     noun: "headwear item",
     examples: "hat, cap, baseball cap, beanie, beret, bucket hat, panama, fedora, headband or headscarf",
     where: "on the head",
     note: "Extract only the item worn on the head — not the hair, face or any clothing below the head.",
   },
-  Аксессуары: {
+  accessories: {
     noun: "accessory",
     examples: "bag, belt, scarf, sunglasses, gloves or jewelry",
     where: "worn or carried",
@@ -327,15 +327,15 @@ export function createAvatar(
 
 // Как называть вещь в задании по категории гардероба.
 const TRY_ON_ROLES: Record<string, string> = {
-  Верх: "top (worn on the upper body)",
-  Низ: "bottoms (worn on the lower body)",
-  Платья: "dress (ONE single full-body garment worn instead of a separate top and bottoms)",
-  Комбинезоны:
+  top: "top (worn on the upper body)",
+  bottom: "bottoms (worn on the lower body)",
+  dress: "dress (ONE single full-body garment worn instead of a separate top and bottoms)",
+  jumpsuit:
     "jumpsuit (ONE single one-piece full-body garment, top and trousers joined, worn instead of a separate top and bottoms)",
-  "Верхняя одежда": "outerwear (worn as the outermost layer)",
-  Обувь: "shoes (worn on the feet)",
-  "Головной убор": "headwear (worn on the head)",
-  Аксессуары: "accessory",
+  outerwear: "outerwear (worn as the outermost layer)",
+  shoes: "shoes (worn on the feet)",
+  headwear: "headwear (worn on the head)",
+  accessories: "accessory",
 };
 
 export type TryOnGarment = { data: Buffer; mimeType: string; category: string; name: string };
@@ -345,12 +345,12 @@ export function tryOnPrompt(garments: Pick<TryOnGarment, "category" | "name">[])
     .map((g, i) => `reference image ${i + 2} — ${TRY_ON_ROLES[g.category] ?? "clothing item"} ("${g.name}")`)
     .join("; ");
   const has = (c: string) => garments.some((g) => g.category === c);
-  const hasOuter = has("Верхняя одежда");
-  const hasShoes = has("Обувь");
-  const hasHeadwear = has("Головной убор");
+  const hasOuter = has("outerwear");
+  const hasShoes = has("shoes");
+  const hasHeadwear = has("headwear");
   // Платье или комбинезон — основа образа вместо отдельных верха и низа.
   const fullBody = garments.find((g) => isFullBody(g.category));
-  const fullBodyNoun = fullBody?.category === "Комбинезоны" ? "jumpsuit" : "dress";
+  const fullBodyNoun = fullBody?.category === "jumpsuit" ? "jumpsuit" : "dress";
   const layering = [
     fullBody
       ? `the ${fullBodyNoun} is ONE single garment covering the torso and the legs — dress the person in the whole ` +

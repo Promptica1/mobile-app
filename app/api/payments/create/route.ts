@@ -4,6 +4,7 @@ import { isPaidPlan, planDescription, planPrice } from "@/lib/billing.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
+import { resolveLocale } from "@/i18n/request";
 import { legalVersion } from "@/lib/legal.server";
 import { buildReceipt, createPayment, yookassaIsTest, YooKassaError } from "@/lib/yookassa";
 
@@ -64,13 +65,14 @@ export async function POST(request: NextRequest) {
   }
 
   // Доказательство согласия: какие редакции документов, когда, с какого IP и браузера, к какому заказу.
+  const locale = await resolveLocale();
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
   const userAgent = request.headers.get("user-agent")?.slice(0, 500) || null;
   const { error: consentError } = await admin.from("legal_consents").insert(
     (["offer", "privacy"] as const).map((document) => ({
       user_id: user.id,
       document,
-      version: legalVersion(document),
+      version: legalVersion(document, locale),
       context: "payment",
       payment_id: orderId,
       ip,

@@ -1,66 +1,60 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { ChevronRight, EyeOff, Lock, Sparkles } from "lucide-react";
 import DeleteAccount from "@/components/profile/DeleteAccount";
 import ExportData from "@/components/profile/ExportData";
 import SubScreen from "@/components/profile/SubScreen";
 
-export const metadata: Metadata = { title: "Приватность и данные — MIRRO" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("pages");
+  return { title: `${t("privacy")} — MIRRO` };
+}
 
 const POINTS = [
-  {
-    Icon: Sparkles,
-    title: "Фото — только для аватара и образов",
-    text: "Селфи и фото вещей нужны, чтобы AI создал ваш аватар, вырезал вещи и примерил на вас образы.",
-  },
-  {
-    Icon: Lock,
-    title: "Хранятся закрыто",
-    text: "Вещи, аватар, образы и фото профиля лежат в закрытом хранилище и открываются только по временной ссылке.",
-  },
-  {
-    Icon: EyeOff,
-    title: "Видите только вы",
-    text: "Ваши данные не видят другие пользователи. Исходные селфи для аватара не сохраняются.",
-  },
-];
+  { Icon: Sparkles, key: "p1" },
+  { Icon: Lock, key: "p2" },
+  { Icon: EyeOff, key: "p3" },
+] as const;
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  const t = await getTranslations("profile.privacyPage");
+  const tLegal = await getTranslations("legal");
   return (
-    <SubScreen title="Приватность">
+    <SubScreen title={t("title")}>
       <ul className="flex flex-col gap-3">
-        {POINTS.map(({ Icon, title, text }) => (
-          <li key={title} className="flex gap-3.5 rounded-card border border-border bg-surface p-4">
+        {POINTS.map(({ Icon, key }) => (
+          <li key={key} className="flex gap-3.5 rounded-card border border-border bg-surface p-4">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-lavender/20">
               <Icon size={18} strokeWidth={1.5} />
             </span>
             <span>
-              <span className="block text-[15px] font-medium">{title}</span>
-              <span className="mt-1 block text-sm leading-relaxed text-muted">{text}</span>
+              <span className="block text-[15px] font-medium">{t(`${key}Title`)}</span>
+              <span className="mt-1 block text-sm leading-relaxed text-muted">{t(`${key}Text`)}</span>
             </span>
           </li>
         ))}
       </ul>
 
       <section className="mt-8">
-        <h2 className="px-1 text-sm font-medium">Ваши данные</h2>
+        <h2 className="px-1 text-sm font-medium">{t("yourData")}</h2>
         <p className="mb-3 mt-1 px-1 text-sm leading-relaxed text-muted">
-          Скачайте всё, что приложение хранит о вас: профиль, вещи, образы и папки — одним файлом.
+          {t("yourDataText")}
         </p>
         <ExportData />
         <Link
           href="/legal/privacy"
           className="mt-3 flex items-center justify-between rounded-card border border-border bg-surface px-4 py-4 text-[15px] transition-colors hover:bg-subtle"
         >
-          Политика конфиденциальности
+          {tLegal("privacy")}
           <ChevronRight size={18} strokeWidth={1.5} className="text-muted" />
         </Link>
       </section>
 
       <section className="mt-auto pt-10">
-        <h2 className="px-1 text-sm font-medium">Удаление аккаунта</h2>
+        <h2 className="px-1 text-sm font-medium">{t("deleteTitle")}</h2>
         <p className="mb-4 mt-1 px-1 text-sm leading-relaxed text-muted">
-          Удалит аккаунт и все ваши данные и файлы без возможности восстановления.
+          {t("deleteText")}
         </p>
         <DeleteAccount />
       </section>

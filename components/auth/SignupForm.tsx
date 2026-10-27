@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import {
   MIN_PASSWORD_LENGTH,
@@ -21,6 +22,9 @@ import TextField from "./TextField";
 // privacyVersion — редакция политики, с которой соглашается пользователь (записывается в базу).
 export default function SignupForm({ privacyVersion }: { privacyVersion: string }) {
   const router = useRouter();
+  const t = useTranslations("auth.signup");
+  const tErr = useTranslations("auth.errors");
+  const locale = useLocale();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -32,13 +36,13 @@ export default function SignupForm({ privacyVersion }: { privacyVersion: string 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    const invalid = validateEmail(email) || validateNewPassword(password);
+    const invalid = validateEmail(email, tErr) || validateNewPassword(password, tErr);
     if (invalid) {
       setError(invalid);
       return;
     }
     if (!agreed) {
-      setError("Подтвердите согласие с Политикой конфиденциальности.");
+      setError(tErr("consentRequired"));
       return;
     }
     setLoading(true);
@@ -50,12 +54,12 @@ export default function SignupForm({ privacyVersion }: { privacyVersion: string 
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
         // Согласие с политикой: база запишет его (с временем сервера) при создании аккаунта.
-        data: { privacy_accepted: true, privacy_version: privacyVersion },
+        data: { privacy_accepted: true, privacy_version: privacyVersion, locale },
       },
     });
 
     if (error) {
-      setError(authErrorMessage(error));
+      setError(authErrorMessage(error, tErr));
       setLoading(false);
       return;
     }
@@ -67,7 +71,7 @@ export default function SignupForm({ privacyVersion }: { privacyVersion: string 
     }
     // Supabase не сообщает явно, что адрес занят: у такого пользователя нет identities.
     if (data.user && data.user.identities?.length === 0) {
-      setError("Этот email уже зарегистрирован. Попробуйте войти.");
+      setError(tErr("emailTaken"));
     } else {
       setSentTo(cleanEmail);
     }
@@ -76,21 +80,22 @@ export default function SignupForm({ privacyVersion }: { privacyVersion: string 
 
   return (
     <AuthShell
-      title="Соберите свои образы, не открывая шкаф"
-      subtitle="Создайте аккаунт за минуту"
+      title={t("title")}
+      subtitle={t("subtitle")}
       footer={
         <>
-          <span className="text-muted">Уже есть аккаунт? </span>
+          <span className="text-muted">{t("haveAccount")}</span>
           <Link href="/login" className="font-medium underline underline-offset-4">
-            Войти
+            {t("signIn")}
           </Link>
         </>
       }
     >
       {sentTo ? (
         <FormMessage tone="info">
-          Мы отправили письмо на <span className="font-medium">{sentTo}</span>. Перейдите по
-          ссылке в письме, чтобы подтвердить почту, — и продолжим.
+          {t("sentBefore")}
+          <span className="font-medium">{sentTo}</span>
+          {t("sentAfter")}
         </FormMessage>
       ) : (
         <>
@@ -105,11 +110,11 @@ export default function SignupForm({ privacyVersion }: { privacyVersion: string 
               onChange={(e) => setEmail(e.target.value)}
             />
             <TextField
-              label="Пароль"
+              label={t("password")}
               password
               autoComplete="new-password"
-              placeholder="Придумайте пароль"
-              helper={`Минимум ${MIN_PASSWORD_LENGTH} символов`}
+              placeholder={t("passwordPlaceholder")}
+              helper={t("passwordHelper", { min: MIN_PASSWORD_LENGTH })}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
@@ -124,19 +129,19 @@ export default function SignupForm({ privacyVersion }: { privacyVersion: string 
                 className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-text"
               />
               <span>
-                Регистрируясь, я принимаю{" "}
+                {t("agree")}{" "}
                 <Link
                   href={LEGAL_DOCS.privacy.href}
                   target="_blank"
                   className="text-text underline underline-offset-2"
                 >
-                  Политику конфиденциальности
+                  {t("privacy")}
                 </Link>
               </span>
             </label>
             {error && <FormMessage tone="error">{error}</FormMessage>}
             <SubmitButton loading={loading}>
-              {loading ? "Создаём аккаунт…" : "Создать аккаунт"}
+              {loading ? t("creating") : t("submit")}
             </SubmitButton>
           </form>
           {SHOW_SOCIAL_LOGIN && (
@@ -145,7 +150,7 @@ export default function SignupForm({ privacyVersion }: { privacyVersion: string 
               privacyVersion={privacyVersion}
               consent={{
                 agreed,
-                onMissing: () => setError("Подтвердите согласие с Политикой конфиденциальности."),
+                onMissing: () => setError(tErr("consentRequired")),
               }}
             />
           )}

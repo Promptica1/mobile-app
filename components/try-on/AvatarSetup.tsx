@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { Camera, LoaderCircle, PersonStanding, RefreshCw, X } from "lucide-react";
 import Silhouette from "@/components/Silhouette";
 import FormMessage from "@/components/ui/FormMessage";
@@ -9,7 +10,6 @@ import Photo from "@/components/ui/Photo";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { AvatarError, createAvatar, type Avatar } from "@/lib/avatar";
 import { compressImage } from "@/lib/image";
-import { NO_TOKENS_MESSAGE } from "@/lib/tokens";
 
 type Picked = { blob: Blob; url: string };
 
@@ -19,13 +19,6 @@ type Props = {
   current: Avatar;
   onDone: (avatar: Avatar) => void;
   onClose: () => void;
-};
-
-const ERRORS: Record<AvatarError["stage"], string> = {
-  no_tokens: NO_TOKENS_MESSAGE,
-  generate: "Не получилось создать аватар. Попробуйте ещё раз чуть позже или с другим селфи.",
-  upload: "Аватар создан, но не сохранился. Проверьте интернет и попробуйте ещё раз.",
-  save: "Аватар создан, но не сохранился. Проверьте интернет и попробуйте ещё раз.",
 };
 
 function PhotoSlot({
@@ -41,6 +34,7 @@ function PhotoSlot({
   photo: Picked | null;
   onPick: (file: File) => void;
 }) {
+  const t = useTranslations("tryOn.avatar");
   const input = useRef<HTMLInputElement>(null);
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -53,7 +47,7 @@ function PhotoSlot({
       <button
         type="button"
         onClick={() => input.current?.click()}
-        aria-label={photo ? `${label}: заменить фото` : `${label}: добавить фото`}
+        aria-label={photo ? t("replacePhoto", { label }) : t("addPhoto", { label })}
         className={`relative flex aspect-[3/4] w-full flex-col items-center justify-center overflow-hidden rounded-card px-3 text-center transition-colors ${
           photo
             ? "border border-border bg-surface"
@@ -111,6 +105,11 @@ function NumberField({
 }
 
 export default function AvatarSetup({ mode, current, onDone, onClose }: Props) {
+  const t = useTranslations("tryOn.avatar");
+  const tCommon = useTranslations("common");
+  const tErrors = useTranslations("errors");
+  const errorFor = (stage: AvatarError["stage"]) =>
+    stage === "no_tokens" ? tErrors("noTokens") : stage === "generate" ? t("errGenerate") : t("errSave");
   const [selfie, setSelfie] = useState<Picked | null>(null);
   const [fullBody, setFullBody] = useState<Picked | null>(null);
   const [height, setHeight] = useState(current.heightCm ? String(current.heightCm) : "");
@@ -125,30 +124,30 @@ export default function AvatarSetup({ mode, current, onDone, onClose }: Props) {
   const pick = (set: (p: Picked) => void) => async (file: File) => {
     setError("");
     if (!file.type.startsWith("image/")) {
-      setError("Это не похоже на фото. Выберите картинку.");
+      setError(t("notAnImage"));
       return;
     }
     try {
       const blob = await compressImage(file);
       set({ blob, url: URL.createObjectURL(blob) });
     } catch {
-      setError("Не получилось открыть это фото. Попробуйте другое.");
+      setError(t("cantOpen"));
     }
   };
 
   const handleCreate = async () => {
     if (!selfie) {
-      setError("Добавьте селфи — без него AI не сможет создать аватар.");
+      setError(t("selfieRequired"));
       return;
     }
     const h = height ? Number(height) : null;
     const w = weight ? Number(weight) : null;
     if (h !== null && (h < 100 || h > 230)) {
-      setError("Рост — от 100 до 230 см. Или оставьте поле пустым.");
+      setError(t("heightRange"));
       return;
     }
     if (w !== null && (w < 30 || w > 250)) {
-      setError("Вес — от 30 до 250 кг. Или оставьте поле пустым.");
+      setError(t("weightRange"));
       return;
     }
     setError("");
@@ -163,7 +162,7 @@ export default function AvatarSetup({ mode, current, onDone, onClose }: Props) {
       });
       onDone(avatar);
     } catch (err) {
-      setError(err instanceof AvatarError ? ERRORS[err.stage] : ERRORS.generate);
+      setError(err instanceof AvatarError ? errorFor(err.stage) : t("errGenerate"));
       setCreating(false);
     }
   };
@@ -182,7 +181,7 @@ export default function AvatarSetup({ mode, current, onDone, onClose }: Props) {
             <button
               type="button"
               onClick={onClose}
-              aria-label="Закрыть"
+              aria-label={tCommon("close")}
               className="-mr-2 flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-border/50"
             >
               <X size={22} strokeWidth={1.5} />
@@ -190,10 +189,10 @@ export default function AvatarSetup({ mode, current, onDone, onClose }: Props) {
           )}
         </div>
         <h2 id="avatar-setup-title" className="font-serif text-4xl font-medium leading-tight tracking-tight">
-          {mode === "update" ? "Обновите аватар" : "Создайте аватар"}
+          {mode === "update" ? t("titleUpdate") : t("titleCreate")}
         </h2>
         <p className="mt-2 text-sm text-muted">
-          AI соберёт вашу цифровую копию, чтобы примерять на неё одежду
+          {t("subtitle")}
         </p>
 
         {creating ? (
@@ -204,23 +203,23 @@ export default function AvatarSetup({ mode, current, onDone, onClose }: Props) {
             </div>
             <p className="mt-6 flex items-center gap-2 text-[15px] font-medium">
               <LoaderCircle size={18} strokeWidth={2} className="animate-spin text-lavender" />
-              AI создаёт ваш аватар…
+              {t("creating")}
             </p>
-            <p className="mt-2 text-center text-xs text-muted">Обычно это занимает 10–40 секунд</p>
+            <p className="mt-2 text-center text-xs text-muted">{t("usually")}</p>
           </div>
         ) : (
           <div className="mt-8 flex flex-col gap-6">
             <div className="grid grid-cols-2 gap-3">
               <PhotoSlot
-                label="Селфи"
-                hint="Обязательно · лицо крупно, при дневном свете"
+                label={t("selfie")}
+                hint={t("selfieHint")}
                 icon={Camera}
                 photo={selfie}
                 onPick={pick(setSelfie)}
               />
               <PhotoSlot
-                label="В полный рост"
-                hint="Необязательно · так аватар будет точнее"
+                label={t("fullBody")}
+                hint={t("fullBodyHint")}
                 icon={PersonStanding}
                 photo={fullBody}
                 onPick={pick(setFullBody)}
@@ -229,11 +228,11 @@ export default function AvatarSetup({ mode, current, onDone, onClose }: Props) {
 
             <fieldset>
               <legend className="mb-2 flex items-baseline gap-2 px-1 text-sm font-medium">
-                Параметры <span className="text-xs font-normal text-muted">необязательно</span>
+                {t("params")} <span className="text-xs font-normal text-muted">{t("optional")}</span>
               </legend>
               <div className="grid grid-cols-2 gap-3">
-                <NumberField label="Рост" unit="см" value={height} onChange={setHeight} />
-                <NumberField label="Вес" unit="кг" value={weight} onChange={setWeight} />
+                <NumberField label={t("height")} unit={t("cm")} value={height} onChange={setHeight} />
+                <NumberField label={t("weight")} unit={t("kg")} value={weight} onChange={setWeight} />
               </div>
             </fieldset>
 
@@ -247,7 +246,7 @@ export default function AvatarSetup({ mode, current, onDone, onClose }: Props) {
                 }}
               >
                 <SubmitButton loading={creating}>
-                  {mode === "update" ? "Обновить аватар" : "Создать аватар"}
+                  {mode === "update" ? t("submitUpdate") : t("submitCreate")}
                 </SubmitButton>
               </form>
               {mode === "create" && (
@@ -256,12 +255,11 @@ export default function AvatarSetup({ mode, current, onDone, onClose }: Props) {
                   onClick={onClose}
                   className="mx-auto py-1 text-sm text-muted underline-offset-4 hover:text-text hover:underline"
                 >
-                  Пропустить пока
+                  {t("skip")}
                 </button>
               )}
               <p className="px-2 text-center text-xs leading-relaxed text-muted">
-                Фото отправляются AI-сервису только для создания аватара и не сохраняются в
-                приложении — хранится лишь готовый аватар.
+                {t("privacy")}
               </p>
             </div>
           </div>

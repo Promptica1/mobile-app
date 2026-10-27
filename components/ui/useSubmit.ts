@@ -1,9 +1,9 @@
 import { useState } from "react";
-
-const SAVE_ERROR = "Не получилось сохранить. Проверьте интернет и попробуйте ещё раз.";
+import { useTranslations } from "next-intl";
 
 // Кнопка панели ждёт действия; при ошибке показываем сообщение и не закрываем панель.
-export function useSubmit(action: () => Promise<void>, errorText = SAVE_ERROR) {
+export function useSubmit(action: () => Promise<void>, errorText?: string) {
+  const t = useTranslations("common");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const run = async () => {
@@ -12,7 +12,7 @@ export function useSubmit(action: () => Promise<void>, errorText = SAVE_ERROR) {
     try {
       await action();
     } catch {
-      setError(errorText);
+      setError(errorText ?? t("saveError"));
       setBusy(false);
     }
   };

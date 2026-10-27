@@ -4,9 +4,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 // Фото на весь экран: закрывается по нажатию, крестику или Escape.
 export function PhotoZoom({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  const t = useTranslations("common");
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -24,7 +26,7 @@ export function PhotoZoom({ src, alt, onClose }: { src: string; alt: string; onC
       <button
         type="button"
         onClick={onClose}
-        aria-label="Закрыть фото"
+        aria-label={t("closePhoto")}
         className="absolute right-4 top-[calc(0.75rem+env(safe-area-inset-top))] flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface/90 backdrop-blur-sm"
       >
         <X size={20} strokeWidth={1.75} />
@@ -48,13 +50,14 @@ export default function ZoomablePhoto({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const t = useTranslations("common");
   if (!src) return <div className={className}>{children}</div>;
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="Открыть фото крупно"
+        aria-label={t("openPhoto")}
         className={`cursor-zoom-in ${className}`}
       >
         {children}

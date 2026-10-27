@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseEnv } from "@/lib/supabase/env";
-import { plural } from "./plural";
 import { TRYONS_BUCKET } from "./tryOn";
 
 // Образы и папки пользователя. RLS в базе сама ограничивает доступ своими строками.
@@ -25,10 +24,6 @@ export type Look = {
 export type Folder = { id: string; name: string };
 
 export const hasLooksSupport = () => getSupabaseEnv() !== null;
-
-export function formatLookCount(n: number): string {
-  return plural(n, ["образ", "образа", "образов"]);
-}
 
 export const NAME_MAX = 40;
 
@@ -89,17 +84,20 @@ export async function createFolder(name: string, existing: Folder[]): Promise<Fo
   return { id, name: clean };
 }
 
-// «Образ 001», «Образ 002»…: следующий номер после самого большого и не меньше числа образов.
-export async function nextLookName(): Promise<string> {
-  const fallback = "Образ 001";
+// «Образ 001», «Образ 002» / «Look 001»…: следующий номер после самого большого и не меньше
+// числа образов. prefix — слово на языке интерфейса; уже сохранённые образы с названием
+// на любом из языков тоже учитываются в нумерации.
+const LOOK_PREFIXES = ["Образ", "Look"];
+export async function nextLookName(prefix: string): Promise<string> {
+  const fallback = `${prefix} 001`;
   if (!hasLooksSupport()) return fallback;
   const { data, error } = await createClient().from("looks").select("name");
   if (error || !data) return fallback;
   const max = data.reduce((m, { name }) => {
-    const n = /^Образ (\d+)$/.exec(name)?.[1];
+    const n = new RegExp(`^(?:${LOOK_PREFIXES.join("|")}) (\\d+)$`).exec(name)?.[1];
     return n ? Math.max(m, Number(n)) : m;
   }, data.length);
-  return `Образ ${String(max + 1).padStart(3, "0")}`;
+  return `${prefix} ${String(max + 1).padStart(3, "0")}`;
 }
 
 export async function saveLook(input: {

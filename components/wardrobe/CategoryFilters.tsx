@@ -1,4 +1,5 @@
 import { Heart } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { FILTERS, type Filter } from "@/lib/wardrobe";
 
 type Props = {
@@ -7,6 +8,7 @@ type Props = {
 };
 
 export default function CategoryFilters({ selected, onSelect }: Props) {
+  const t = useTranslations();
   return (
     <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {FILTERS.map((filter) => {
@@ -23,10 +25,10 @@ export default function CategoryFilters({ selected, onSelect }: Props) {
                 : "border-border bg-surface text-text hover:border-text/30"
             }`}
           >
-            {filter === "Избранное" && (
+            {filter === "favorites" && (
               <Heart size={14} strokeWidth={1.75} className="fill-pink text-pink" />
             )}
-            {filter}
+            {filter === "all" || filter === "favorites" ? t(`wardrobe.filters.${filter}`) : t(`categories.${filter}`)}
           </button>
         );
       })}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useSubmit } from "@/components/ui/useSubmit";
 import FolderPicker from "@/components/looks/FolderPicker";
 import NewFolderSheet from "@/components/looks/NewFolderSheet";
@@ -19,22 +20,23 @@ export function RenameSheet({
   onSave: (name: string) => Promise<void>;
   onClose: () => void;
 }) {
+  const t = useTranslations("lookDetail");
   const [value, setValue] = useState(name);
   const { busy, error, setError, run } = useSubmit(() => onSave(value.trim()));
   return (
-    <Sheet title="Название образа" onClose={onClose} locked={busy}>
+    <Sheet title={t("renameTitle")} onClose={onClose} locked={busy}>
       <form
         noValidate
         onSubmit={(e) => {
           e.preventDefault();
-          if (!value.trim()) return setError("Введите название образа.");
+          if (!value.trim()) return setError(t("nameRequired"));
           run();
         }}
         className="flex flex-col gap-4"
       >
-        <TextField label="Название" value={value} onChange={setValue} autoFocus />
+        <TextField label={t("name")} value={value} onChange={setValue} autoFocus />
         {error && <FormMessage tone="error">{error}</FormMessage>}
-        <SubmitButton loading={busy}>Сохранить</SubmitButton>
+        <SubmitButton loading={busy}>{t("save")}</SubmitButton>
       </form>
     </Sheet>
   );
@@ -53,13 +55,14 @@ export function MoveSheet({
   onFolderCreated: (folder: Folder) => void;
   onClose: () => void;
 }) {
+  const t = useTranslations("lookDetail");
   const [folders, setFolders] = useState(initialFolders);
   const [value, setValue] = useState(current);
   const [newFolder, setNewFolder] = useState(false);
   const { busy, error, run } = useSubmit(() => onMove(value));
   return (
     <>
-      <Sheet title="В папку" onClose={onClose} locked={busy}>
+      <Sheet title={t("moveTitle")} onClose={onClose} locked={busy}>
         <form
           noValidate
           onSubmit={(e) => {
@@ -75,7 +78,7 @@ export function MoveSheet({
             onNewFolder={() => setNewFolder(true)}
           />
           {error && <FormMessage tone="error">{error}</FormMessage>}
-          <SubmitButton loading={busy}>Переместить</SubmitButton>
+          <SubmitButton loading={busy}>{t("move")}</SubmitButton>
         </form>
       </Sheet>
       {newFolder && (

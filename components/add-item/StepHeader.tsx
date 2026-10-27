@@ -1,4 +1,5 @@
 import { ArrowLeft, CircleHelp } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 type Props = {
   title: string;
@@ -9,13 +10,14 @@ type Props = {
 };
 
 export default function StepHeader({ title, subtitle, onBack, onHelp }: Props) {
+  const t = useTranslations();
   return (
     <header className="pb-6 pt-4">
       <div className="flex items-center justify-between">
         <button
           type="button"
           onClick={onBack}
-          aria-label="Назад"
+          aria-label={t("common.back")}
           className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-border/50"
         >
           <ArrowLeft size={22} strokeWidth={1.5} />
@@ -24,7 +26,7 @@ export default function StepHeader({ title, subtitle, onBack, onHelp }: Props) {
           <button
             type="button"
             onClick={onHelp}
-            aria-label="Как сфотографировать вещь"
+            aria-label={t("addItem.help")}
             className="-mr-2 flex h-10 w-10 items-center justify-center rounded-full text-muted transition-colors hover:bg-border/50 hover:text-text"
           >
             <CircleHelp size={22} strokeWidth={1.5} />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import TextField from "@/components/looks/TextField";
 import FormMessage from "@/components/ui/FormMessage";
 import Pills from "@/components/ui/Pills";
@@ -16,34 +17,38 @@ type Props = {
 };
 
 export default function EditProfileSheet({ profile, onSave, onClose }: Props) {
+  const t = useTranslations("profile.edit_");
+  const tCommon = useTranslations("common");
+  const tGender = useTranslations("gender");
+  const genderOptions = GENDERS.map((g) => ({ value: g.value, label: tGender(g.value) }));
   const [name, setName] = useState(profile.name ?? "");
   const [gender, setGender] = useState<Gender | null>(profile.gender);
   const { busy, error, setError, run } = useSubmit(() => onSave({ name: name.trim(), gender }));
 
   return (
-    <Sheet title="Профиль" onClose={onClose} locked={busy}>
+    <Sheet title={t("title")} onClose={onClose} locked={busy}>
       <form
         noValidate
         onSubmit={(e) => {
           e.preventDefault();
-          if (!name.trim()) return setError("Введите имя.");
-          if (!gender) return setError("Выберите пол — так образы подберутся точнее.");
+          if (!name.trim()) return setError(t("nameRequired"));
+          if (!gender) return setError(t("genderRequired"));
           run();
         }}
         className="flex flex-col gap-5"
       >
         <TextField
-          label="Имя"
+          label={t("name")}
           value={name}
           onChange={(v) => {
             setError("");
             setName(v);
           }}
-          placeholder="Как к вам обращаться"
+          placeholder={t("namePlaceholder")}
         />
         <Pills
-          label="Пол"
-          options={GENDERS}
+          label={t("gender")}
+          options={genderOptions}
           value={gender}
           onChange={(v) => {
             setError("");
@@ -52,14 +57,14 @@ export default function EditProfileSheet({ profile, onSave, onClose }: Props) {
         />
         {error && <FormMessage tone="error">{error}</FormMessage>}
         <div className="flex flex-col gap-2">
-          <SubmitButton loading={busy}>Сохранить</SubmitButton>
+          <SubmitButton loading={busy}>{tCommon("save")}</SubmitButton>
           <button
             type="button"
             onClick={onClose}
             disabled={busy}
             className="h-12 rounded-full text-[15px] text-muted transition-colors hover:text-text disabled:opacity-50"
           >
-            Отмена
+            {tCommon("cancel")}
           </button>
         </div>
       </form>

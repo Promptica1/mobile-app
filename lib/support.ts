@@ -4,11 +4,12 @@ import pkg from "@/package.json";
 
 // Обращения в поддержку: строка в таблице support_requests (RLS — только свои).
 
+// Подписи тем — в переводах (help.topics.<значение>).
 export const SUPPORT_TOPICS = [
-  { value: "question", label: "Вопрос" },
-  { value: "bug", label: "Ошибка" },
-  { value: "idea", label: "Идея" },
-  { value: "payment", label: "Оплата" },
+  { value: "question" },
+  { value: "bug" },
+  { value: "idea" },
+  { value: "payment" },
 ] as const;
 
 export type SupportTopic = (typeof SUPPORT_TOPICS)[number]["value"];

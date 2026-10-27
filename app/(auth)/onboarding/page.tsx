@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import OnboardingForm from "@/components/auth/OnboardingForm";
 import SupabaseMissing from "@/components/auth/SupabaseMissing";
@@ -6,7 +7,10 @@ import type { Profile } from "@/lib/profile";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Создайте профиль — MIRRO" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("pages");
+  return { title: `${t("onboarding")} — MIRRO` };
+}
 
 export default async function OnboardingPage() {
   if (!getSupabaseEnv()) return <SupabaseMissing />;

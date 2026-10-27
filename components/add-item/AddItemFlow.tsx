@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { MAX_EXTRACTION_ATTEMPTS, processPhoto } from "@/lib/garmentExtraction";
-import { NO_TOKENS_MESSAGE } from "@/lib/tokens";
 import { compressImage } from "@/lib/image";
 import { createItem } from "@/lib/items";
 import { markPhotoTipsSeen, usePhotoTipsSeen } from "@/lib/photoTips";
-import type { NewWardrobeItem } from "@/lib/wardrobe";
+import type { Category, NewWardrobeItem } from "@/lib/wardrobe";
 import PhotoTips from "./PhotoTips";
 import StepHeader from "./StepHeader";
 import StepPhoto from "./StepPhoto";
@@ -18,26 +18,26 @@ import { usePhotoPicker } from "./usePhotoPicker";
 type Step = 1 | 2 | 3;
 type PickedPhoto = { blob: Blob; url: string };
 
-const headers: Record<Step, { title: string; subtitle: string }> = {
-  1: { title: "Добавить вещь", subtitle: "Шаг 1 из 3 — фото" },
-  2: { title: "Обработка", subtitle: "Шаг 2 из 3 — AI работает" },
-  3: { title: "Проверьте вещь", subtitle: "Шаг 3 из 3 — можно всё поправить" },
-};
-
 // Короткая пауза, чтобы пользователь успел увидеть результат на шаге «Обработка».
 const SHOW_RESULT_MS = 900;
-const FALLBACK_NOTICE = "Не получилось вырезать вещь — сохраним исходное фото. Его можно заменить.";
 
 const toPhoto = (blob: Blob): PickedPhoto => ({ blob, url: URL.createObjectURL(blob) });
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export default function AddItemFlow() {
   const router = useRouter();
+  const t = useTranslations("addItem");
+  const tErrors = useTranslations("errors");
+  const headers: Record<Step, { title: string; subtitle: string }> = {
+    1: { title: t("step1"), subtitle: t("step1Sub") },
+    2: { title: t("step2"), subtitle: t("step2Sub") },
+    3: { title: t("step3"), subtitle: t("step3Sub") },
+  };
   const [step, setStep] = useState<Step>(1);
   // Исходное (сжатое) фото — запасной вариант, если удалить фон не получится.
   const [original, setOriginal] = useState<PickedPhoto | null>(null);
   // Тип вещи: подсказка для AI и категория в карточке.
-  const [category, setCategory] = useState<string | null>(null);
+  const [category, setCategory] = useState<Category | null>(null);
   // Фото, которое сохранится в гардероб: вырезанная вещь или исходное.
   const [result, setResult] = useState<PickedPhoto | null>(null);
   const [phase, setPhase] = useState<ProcessingPhase>("removing");
@@ -71,7 +71,7 @@ export default function AddItemFlow() {
   }, [result, original]);
 
   // Вырезаем вещь; при неудаче оставляем исходное фото и показываем мягкое сообщение.
-  const extractFor = async (photo: PickedPhoto, type: string) => {
+  const extractFor = async (photo: PickedPhoto, type: Category) => {
     const id = ++runId.current;
     setAttempts((n) => n + 1);
     const processed = await processPhoto(photo.blob, type, hint);
@@ -81,8 +81,8 @@ export default function AddItemFlow() {
       processed.extracted
         ? ""
         : processed.noTokens
-          ? `${NO_TOKENS_MESSAGE} Сохраним исходное фото.`
-          : FALLBACK_NOTICE,
+          ? t("noTokensKeepOriginal", { message: tErrors("noTokens") })
+          : t("fallbackNotice"),
     );
     return processed.extracted;
   };
@@ -90,13 +90,13 @@ export default function AddItemFlow() {
   const preparePicked = async (file: File): Promise<PickedPhoto | null> => {
     setPhotoError("");
     if (!file.type.startsWith("image/")) {
-      setPhotoError("Это не похоже на фото. Выберите картинку.");
+      setPhotoError(t("notAnImage"));
       return null;
     }
     try {
       return toPhoto(await compressImage(file));
     } catch {
-      setPhotoError("Не получилось открыть это фото. Попробуйте другое.");
+      setPhotoError(t("cantOpenPhoto"));
       return null;
     }
   };
@@ -190,7 +190,7 @@ export default function AddItemFlow() {
           preparing={preparing}
           photoError={photoError}
           notice={notice}
-          category={category ?? ""}
+          category={category ?? "top"}
           onCategoryChange={setCategory}
           retriesLeft={attemptsLeft}
           onRetake={picker.openGallery}

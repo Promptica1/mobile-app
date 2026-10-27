@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Heart, Shirt, Trash2 } from "lucide-react";
-import { COLORS, Field, MATERIALS, SelectRow, rowClass } from "@/components/wardrobe/ItemFields";
+import { useTranslations } from "next-intl";
+import { COLORS, Field, SelectRow, rowClass } from "@/components/wardrobe/ItemFields";
 import { Button } from "@/components/ui/Button";
 import ConfirmDeleteSheet from "@/components/ui/ConfirmDeleteSheet";
 import FormMessage from "@/components/ui/FormMessage";
@@ -13,7 +14,7 @@ import ZoomablePhoto from "@/components/ui/PhotoZoom";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { deleteItem, fetchItem, setItemFavorite, updateItem } from "@/lib/items";
 import { CATEGORY_ICONS } from "@/lib/tryOn";
-import { CATEGORIES, type NewWardrobeItem, type WardrobeItem } from "@/lib/wardrobe";
+import { CATEGORIES, COLOR_KEYS, MATERIAL_KEYS, toCategory, type NewWardrobeItem, type WardrobeItem } from "@/lib/wardrobe";
 
 type State =
   | { status: "loading" }
@@ -35,6 +36,10 @@ const orNull = (v: string) => v.trim() || null;
 
 export default function ItemDetail({ id }: { id: string }) {
   const router = useRouter();
+  const t = useTranslations("itemDetail");
+  const tCategories = useTranslations("categories");
+  const tColors = useTranslations("colors");
+  const tMaterials = useTranslations("materials");
   const [state, setState] = useState<State>({ status: "loading" });
   const [form, setForm] = useState<Form | null>(null);
   const [saving, setSaving] = useState(false);
@@ -71,7 +76,7 @@ export default function ItemDetail({ id }: { id: string }) {
   const back = (
     <Link
       href="/wardrobe"
-      aria-label="Назад в гардероб"
+      aria-label={t("backToWardrobe")}
       className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-border/50"
     >
       <ArrowLeft size={22} strokeWidth={1.5} />
@@ -98,14 +103,14 @@ export default function ItemDetail({ id }: { id: string }) {
         <header className="py-4">{back}</header>
         <div className="flex flex-1 flex-col items-center justify-center pb-20 text-center">
           <p className="font-serif text-3xl font-medium">
-            {missing ? "Вещь не найдена" : "Не удалось загрузить вещь"}
+            {missing ? t("missingTitle") : t("loadErrorTitle")}
           </p>
           <p className="mt-2 text-sm text-muted">
-            {missing ? "Возможно, её уже удалили" : "Проверьте интернет и попробуйте ещё раз"}
+            {missing ? t("missingText") : t("loadErrorText")}
           </p>
           {missing ? (
             <Link href="/wardrobe" className="mt-6 rounded-full bg-lime px-6 py-3 text-sm font-medium">
-              В гардероб
+              {t("toWardrobe")}
             </Link>
           ) : (
             <button
@@ -113,7 +118,7 @@ export default function ItemDetail({ id }: { id: string }) {
               onClick={retry}
               className="mt-6 rounded-full border border-border bg-surface px-6 py-3 text-sm font-medium transition-colors hover:border-text/30"
             >
-              Повторить
+              {t("retry")}
             </button>
           )}
         </div>
@@ -139,16 +144,16 @@ export default function ItemDetail({ id }: { id: string }) {
       await setItemFavorite(item.id, next);
     } catch {
       setItem({ is_favorite: !next });
-      setToast("Не получилось сохранить. Попробуйте ещё раз.");
+      setToast(t("favoriteError"));
     }
   };
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) return setError("Добавьте название вещи — так её будет проще найти.");
+    if (!form.name.trim()) return setError(t("nameRequired"));
     const fields: NewWardrobeItem = {
       name: form.name.trim(),
-      category: form.category,
+      category: toCategory(form.category) ?? item.category,
       color: orNull(form.color),
       material: orNull(form.material),
       brand: orNull(form.brand),
@@ -160,9 +165,9 @@ export default function ItemDetail({ id }: { id: string }) {
       await updateItem(item.id, fields);
       setItem(fields);
       setForm(toForm({ ...item, ...fields }));
-      setToast("Изменения сохранены");
+      setToast(t("saved"));
     } catch {
-      setError("Не получилось сохранить изменения. Проверьте интернет и попробуйте ещё раз.");
+      setError(t("saveError"));
     } finally {
       setSaving(false);
     }
@@ -179,7 +184,7 @@ export default function ItemDetail({ id }: { id: string }) {
         <button
           type="button"
           onClick={toggleFavorite}
-          aria-label={item.is_favorite ? "Убрать из избранного" : "В избранное"}
+          aria-label={item.is_favorite ? t("favoriteRemove") : t("favoriteAdd")}
           aria-pressed={item.is_favorite}
           className="flex h-11 w-11 items-center justify-center rounded-2xl bg-pink/15 transition-colors hover:bg-pink/25"
         >
@@ -198,24 +203,25 @@ export default function ItemDetail({ id }: { id: string }) {
         </ZoomablePhoto>
 
         <div className="flex flex-col gap-4">
-          <Field label="Название">
+          <Field label={t("name")}>
             <input
               value={form.name}
               onChange={(e) => set("name")(e.target.value)}
               maxLength={60}
-              placeholder="Например, тренч"
+              placeholder={t("namePlaceholder")}
               className={`${rowClass} outline-none placeholder:text-muted`}
             />
           </Field>
-          <Field label="Категория">
-            <SelectRow value={form.category} onChange={set("category")} options={[...CATEGORIES]} />
+          <Field label={t("category")}>
+            <SelectRow value={form.category} onChange={set("category")} options={CATEGORIES} labelFor={(v) => (tCategories.has(v) ? tCategories(v) : v)} />
           </Field>
-          <Field label="Цвет" optional>
+          <Field label={t("color")} optional>
             <SelectRow
               value={form.color}
               onChange={set("color")}
-              options={Object.keys(COLORS)}
-              placeholder="Не выбран"
+              options={COLOR_KEYS}
+              labelFor={(v) => (tColors.has(v) ? tColors(v) : v)}
+              placeholder={t("notChosen")}
               prefix={
                 COLORS[form.color] && (
                   <span
@@ -226,24 +232,24 @@ export default function ItemDetail({ id }: { id: string }) {
               }
             />
           </Field>
-          <Field label="Материал" optional>
-            <SelectRow value={form.material} onChange={set("material")} options={MATERIALS} placeholder="Не выбран" />
+          <Field label={t("material")} optional>
+            <SelectRow value={form.material} onChange={set("material")} options={MATERIAL_KEYS} labelFor={(v) => (tMaterials.has(v) ? tMaterials(v) : v)} placeholder={t("notChosen")} />
           </Field>
-          <Field label="Бренд" optional>
+          <Field label={t("brand")} optional>
             <input
               value={form.brand}
               onChange={(e) => set("brand")(e.target.value)}
               maxLength={60}
-              placeholder="Например, Zara"
+              placeholder={t("brandPlaceholder")}
               className={`${rowClass} outline-none placeholder:text-muted`}
             />
           </Field>
-          <Field label="Комментарий" optional>
+          <Field label={t("comment")} optional>
             <textarea
               value={form.comment}
               onChange={(e) => set("comment")(e.target.value)}
               maxLength={500}
-              placeholder="Заметка к вещи…"
+              placeholder={t("commentPlaceholder")}
               rows={3}
               className="w-full resize-none rounded-2xl border border-border bg-surface px-4 py-4 text-[15px] outline-none transition-colors placeholder:text-muted focus:border-lavender"
             />
@@ -254,23 +260,23 @@ export default function ItemDetail({ id }: { id: string }) {
 
         <div className="mt-1 flex flex-col gap-3">
           {dirty ? (
-            <SubmitButton loading={saving}>{saving ? "Сохраняем…" : "Сохранить изменения"}</SubmitButton>
+            <SubmitButton loading={saving}>{saving ? t("saving") : t("saveChanges")}</SubmitButton>
           ) : (
             <Button variant="lime" type="submit" disabled>
-              Изменений нет
+              {t("noChanges")}
             </Button>
           )}
           <Button variant="secondary" className="text-danger!" onClick={() => setConfirmDelete(true)} disabled={saving}>
             <Trash2 size={18} strokeWidth={1.75} />
-            Удалить
+            {t("delete")}
           </Button>
         </div>
       </form>
 
       {confirmDelete && (
         <ConfirmDeleteSheet
-          title="Удалить вещь?"
-          text={`«${item.name}» удалится из гардероба вместе с фото. В сохранённых образах её больше не будет в списке вещей.`}
+          title={t("deleteTitle")}
+          text={t("deleteText", { name: item.name })}
           onClose={() => setConfirmDelete(false)}
           onDelete={async () => {
             await deleteItem(item);

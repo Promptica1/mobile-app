@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   ArrowLeft,
   Folder,
@@ -32,14 +33,14 @@ import { MoveSheet, RenameSheet } from "./LookSheets";
 
 // Вещи в ленте — в порядке слоёв образа.
 const ORDER = [
-  "Головной убор",
-  "Верхняя одежда",
-  "Платья",
-  "Комбинезоны",
-  "Верх",
-  "Низ",
-  "Обувь",
-  "Аксессуары",
+  "headwear",
+  "outerwear",
+  "dress",
+  "jumpsuit",
+  "top",
+  "bottom",
+  "shoes",
+  "accessories",
 ];
 
 type State =
@@ -50,6 +51,7 @@ type State =
 
 export default function LookDetail({ id }: { id: string }) {
   const router = useRouter();
+  const t = useTranslations("lookDetail");
   const [state, setState] = useState<State>({ status: "loading" });
   const [sheet, setSheet] = useState<"rename" | "move" | "delete" | null>(null);
   const [comment, setComment] = useState("");
@@ -89,7 +91,7 @@ export default function LookDetail({ id }: { id: string }) {
   const back = (
     <Link
       href="/looks"
-      aria-label="Назад к образам"
+      aria-label={t("backToLooks")}
       className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-border/50"
     >
       <ArrowLeft size={22} strokeWidth={1.5} />
@@ -114,12 +116,12 @@ export default function LookDetail({ id }: { id: string }) {
         <header className="py-4">{back}</header>
         <div className="flex flex-1 flex-col items-center justify-center pb-20 text-center">
           <p className="font-serif text-3xl font-medium">
-            {state.status === "missing" ? "Образ не найден" : "Не удалось загрузить образ"}
+            {state.status === "missing" ? t("missingTitle") : t("loadErrorTitle")}
           </p>
           <p className="mt-2 text-sm text-muted">
             {state.status === "missing"
-              ? "Возможно, его уже удалили"
-              : "Проверьте интернет и попробуйте ещё раз"}
+              ? t("missingText")
+              : t("loadErrorText")}
           </p>
           {state.status === "error" ? (
             <button
@@ -127,11 +129,11 @@ export default function LookDetail({ id }: { id: string }) {
               onClick={retry}
               className="mt-6 rounded-full border border-border bg-surface px-6 py-3 text-sm font-medium transition-colors hover:border-text/30"
             >
-              Повторить
+              {t("retry")}
             </button>
           ) : (
             <Link href="/looks" className="mt-6 rounded-full bg-lime px-6 py-3 text-sm font-medium">
-              Ко всем образам
+              {t("toAllLooks")}
             </Link>
           )}
         </div>
@@ -150,7 +152,7 @@ export default function LookDetail({ id }: { id: string }) {
       await updateLook(look.id, { is_favorite: !look.is_favorite });
     } catch {
       patch({ is_favorite: look.is_favorite });
-      setToast("Не получилось сохранить. Попробуйте ещё раз.");
+      setToast(t("favoriteError"));
     }
   };
 
@@ -178,7 +180,7 @@ export default function LookDetail({ id }: { id: string }) {
           type="button"
           onClick={() => setSheet("rename")}
           className="flex min-w-0 items-center justify-center gap-2"
-          aria-label={`Переименовать образ «${look.name}»`}
+          aria-label={t("rename", { name: look.name })}
         >
           <h1 className="truncate font-serif text-3xl font-medium leading-none">{look.name}</h1>
           <Pencil size={15} strokeWidth={1.5} className="shrink-0 text-muted" />
@@ -186,7 +188,7 @@ export default function LookDetail({ id }: { id: string }) {
         <button
           type="button"
           onClick={toggleFavorite}
-          aria-label={look.is_favorite ? "Убрать из избранного" : "В избранное"}
+          aria-label={look.is_favorite ? t("favoriteRemove") : t("favoriteAdd")}
           aria-pressed={look.is_favorite}
           className="flex h-11 w-11 items-center justify-center rounded-2xl bg-pink/15 transition-colors hover:bg-pink/25"
         >
@@ -201,7 +203,7 @@ export default function LookDetail({ id }: { id: string }) {
       <div className="flex flex-col gap-6">
         <div className="relative flex aspect-[3/4] items-center justify-center overflow-hidden rounded-card border border-border bg-gradient-to-b from-beige to-[#e9dfd2]">
           {look.photo_url ? (
-            <Photo src={look.photo_url} alt={`Образ «${look.name}»`} fallback={placeholder} />
+            <Photo src={look.photo_url} alt={t("photoAlt", { name: look.name })} fallback={placeholder} />
           ) : (
             placeholder
           )}
@@ -214,9 +216,9 @@ export default function LookDetail({ id }: { id: string }) {
         </div>
 
         <section>
-          <h2 className="mb-2.5 px-1 text-sm font-medium">В образе</h2>
+          <h2 className="mb-2.5 px-1 text-sm font-medium">{t("inLook")}</h2>
           {items.length === 0 ? (
-            <p className="px-1 text-sm text-muted">Вещи этого образа удалены из гардероба</p>
+            <p className="px-1 text-sm text-muted">{t("itemsDeleted")}</p>
           ) : (
             <div className="-mx-6 flex gap-2.5 overflow-x-auto px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {items.map((item) => {
@@ -239,9 +241,9 @@ export default function LookDetail({ id }: { id: string }) {
 
         <section>
           <div className="mb-2.5 flex items-baseline justify-between px-1">
-            <h2 className="text-sm font-medium">Комментарий</h2>
+            <h2 className="text-sm font-medium">{t("comment")}</h2>
             <span className={`text-xs ${commentStatus === "error" ? "text-danger" : "text-muted"}`} aria-live="polite">
-              {{ "": "", saving: "Сохраняем…", saved: "Сохранено", error: "Не сохранилось" }[commentStatus]}
+              {{ "": "", saving: t("commentSaving"), saved: t("commentSaved"), error: t("commentError") }[commentStatus]}
             </span>
           </div>
           <textarea
@@ -253,8 +255,8 @@ export default function LookDetail({ id }: { id: string }) {
               setCommentStatus("");
             }}
             onBlur={saveComment}
-            placeholder="Добавить комментарий"
-            aria-label="Комментарий к образу"
+            placeholder={t("commentPlaceholder")}
+            aria-label={t("commentLabel")}
             className="w-full resize-none rounded-2xl border border-border bg-surface px-4 py-3.5 text-[15px] outline-none transition-colors placeholder:text-muted focus:border-lavender"
           />
         </section>
@@ -267,19 +269,19 @@ export default function LookDetail({ id }: { id: string }) {
             onClick={() => router.push(`/try-on?items=${items.map((i) => i.id).join(",")}`)}
           >
             <WandSparkles size={19} strokeWidth={1.75} />
-            Изменить образ
+            {t("edit")}
           </Button>
           <div className="grid grid-cols-2 gap-3">
             <Button variant="secondary" onClick={() => setSheet("move")}>
-              <FolderPlus size={18} strokeWidth={1.75} />В папку
+              <FolderPlus size={18} strokeWidth={1.75} />{t("toFolder")}
             </Button>
             <Button variant="secondary" className="text-danger!" onClick={() => setSheet("delete")}>
               <Trash2 size={18} strokeWidth={1.75} />
-              Удалить
+              {t("delete")}
             </Button>
           </div>
           {items.length < itemIds.length && items.length > 0 && (
-            <p className="text-center text-xs text-muted">Часть вещей этого образа удалена из гардероба</p>
+            <p className="text-center text-xs text-muted">{t("someItemsDeleted")}</p>
           )}
         </div>
       </div>
@@ -309,14 +311,14 @@ export default function LookDetail({ id }: { id: string }) {
             await updateLook(look.id, { folder_id: folderId });
             patch({ folder_id: folderId });
             setSheet(null);
-            setToast(folderId ? "Образ перемещён в папку" : "Образ перемещён во «Все образы»");
+            setToast(folderId ? t("movedToFolder") : t("movedToAll"));
           }}
         />
       )}
       {sheet === "delete" && (
         <ConfirmDeleteSheet
-          title="Удалить образ?"
-          text={`Образ «${look.name}» удалится насовсем. Вещи останутся в гардеробе.`}
+          title={t("deleteTitle")}
+          text={t("deleteText", { name: look.name })}
           onClose={() => setSheet(null)}
           onDelete={async () => {
             await deleteLook(look.id);

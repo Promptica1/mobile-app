@@ -1,10 +1,12 @@
 // Юридические документы: оферта и политика конфиденциальности.
-// Тексты — в content/legal/offer.md и content/legal/privacy.md (правьте только там).
+// Тексты — в content/legal/<документ>.md (русский) и content/legal/<документ>.<язык>.md (перевод,
+// например offer.en.md). Если перевода нет или файл пуст, показывается русская версия.
+// Названия документов — в переводах (messages/*.json → legal.offer, legal.privacy).
 // Страницы открываются без входа: /legal/offer и /legal/privacy.
 
 export type LegalDoc = "offer" | "privacy";
 
-export const LEGAL_DOCS: Record<LegalDoc, { title: string; href: string }> = {
-  offer: { title: "Публичная оферта", href: "/legal/offer" },
-  privacy: { title: "Политика конфиденциальности", href: "/legal/privacy" },
+export const LEGAL_DOCS: Record<LegalDoc, { href: string }> = {
+  offer: { href: "/legal/offer" },
+  privacy: { href: "/legal/privacy" },
 };

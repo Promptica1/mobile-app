@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseEnv } from "@/lib/supabase/env";
-import { MOCK_ITEMS, type NewWardrobeItem, type WardrobeItem } from "./wardrobe";
+import { MOCK_ITEMS, toCategory, toColor, toMaterial, type NewWardrobeItem, type WardrobeItem } from "./wardrobe";
 
 // Работа с таблицей items и фото в Storage из браузера. RLS в базе и в Storage
 // сам ограничивает доступ данными текущего пользователя.
@@ -18,15 +18,22 @@ const hasSupabase = () => getSupabaseEnv() !== null;
 // Ошибка с указанием этапа — чтобы показать пользователю понятное сообщение.
 export class SaveItemError extends Error {
   constructor(public stage: "upload" | "save") {
-    super(stage === "upload" ? "Не удалось загрузить фото" : "Не удалось сохранить вещь");
+    super(stage === "upload" ? "item photo upload failed" : "item save failed");
   }
 }
 
 // Добавляет к строкам временные ссылки на фото (одним запросом).
 async function withPhotos(
   supabase: ReturnType<typeof createClient>,
-  rows: Omit<WardrobeItem, "photo_url">[],
+  rawRows: (Omit<WardrobeItem, "photo_url" | "category"> & { category: string })[],
 ): Promise<WardrobeItem[]> {
+  // Категория в коде — ключ; старые вещи хранят русское название, приводим к ключу.
+  const rows = rawRows.map((r) => ({
+    ...r,
+    category: toCategory(r.category) ?? "accessories",
+    color: toColor(r.color),
+    material: toMaterial(r.material),
+  }));
   const paths = rows.map((item) => item.image_url).filter((p): p is string => Boolean(p));
   const signed = new Map<string, string>();
   if (paths.length > 0) {

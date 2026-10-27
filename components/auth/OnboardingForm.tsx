@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { AGE_RANGES, GENDERS, type AgeRange, type Gender, type Profile } from "@/lib/profile";
 import AuthShell from "./AuthShell";
@@ -14,6 +15,9 @@ type Props = { userId: string; initial: Profile };
 
 export default function OnboardingForm({ userId, initial }: Props) {
   const router = useRouter();
+  const t = useTranslations("auth.onboarding");
+  const tGender = useTranslations("gender");
+  const genderOptions = GENDERS.map((g) => ({ value: g.value, label: tGender(g.value) }));
   const [name, setName] = useState(initial.name ?? "");
   const [gender, setGender] = useState<Gender | null>(initial.gender);
   const [age, setAge] = useState<AgeRange | null>(initial.age_range);
@@ -32,7 +36,7 @@ export default function OnboardingForm({ userId, initial }: Props) {
     e.preventDefault();
     setError("");
     if (!name.trim() || !gender || !age) {
-      setError("Заполните имя, пол и возраст — это нужно, чтобы подобрать образы под вас.");
+      setError(t("required"));
       return;
     }
     setLoading(true);
@@ -42,7 +46,7 @@ export default function OnboardingForm({ userId, initial }: Props) {
       .upsert({ id: userId, name: name.trim(), gender, age_range: age });
 
     if (error) {
-      setError("Не получилось сохранить профиль. Попробуйте ещё раз.");
+      setError(t("saveError"));
       setLoading(false);
       return;
     }
@@ -51,19 +55,19 @@ export default function OnboardingForm({ userId, initial }: Props) {
   }
 
   return (
-    <AuthShell title="Создайте профиль" subtitle="Расскажите немного о себе">
+    <AuthShell title={t("title")} subtitle={t("subtitle")}>
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
         <TextField
-          label="Имя"
+          label={t("name")}
           autoComplete="given-name"
-          placeholder="Как вас зовут?"
+          placeholder={t("namePlaceholder")}
           value={name}
           onChange={(e) => withClearError(setName)(e.target.value)}
         />
-        <Pills label="Пол" options={GENDERS} value={gender} onChange={withClearError(setGender)} />
-        <Pills label="Возраст" options={AGE_RANGES} value={age} onChange={withClearError(setAge)} />
+        <Pills label={t("gender")} options={genderOptions} value={gender} onChange={withClearError(setGender)} />
+        <Pills label={t("age")} options={AGE_RANGES} value={age} onChange={withClearError(setAge)} />
         {error && <FormMessage tone="error">{error}</FormMessage>}
-        <SubmitButton loading={loading}>{loading ? "Сохраняем…" : "Продолжить"}</SubmitButton>
+        <SubmitButton loading={loading}>{loading ? t("saving") : t("submit")}</SubmitButton>
       </form>
     </AuthShell>
   );

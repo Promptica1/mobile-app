@@ -1,4 +1,5 @@
 import { Eraser, RefreshCw } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 type Props = {
   hasAvatar: boolean;
@@ -8,9 +9,10 @@ type Props = {
 };
 
 export default function ActionsMenu({ hasAvatar, onClose, onClearAll, onAvatar }: Props) {
+  const t = useTranslations("tryOn.menu");
   const actions = [
-    { label: "Очистить всё", Icon: Eraser, onClick: onClearAll },
-    { label: hasAvatar ? "Обновить аватар" : "Создать аватар", Icon: RefreshCw, onClick: onAvatar },
+    { label: t("clearAll"), Icon: Eraser, onClick: onClearAll },
+    { label: hasAvatar ? t("updateAvatar") : t("createAvatar"), Icon: RefreshCw, onClick: onAvatar },
   ];
 
   return (
@@ -18,7 +20,7 @@ export default function ActionsMenu({ hasAvatar, onClose, onClearAll, onAvatar }
       {/* Прозрачная подложка: нажатие вне меню закрывает его */}
       <button
         type="button"
-        aria-label="Закрыть меню"
+        aria-label={t("close")}
         onClick={onClose}
         className="fixed inset-0 z-30 cursor-default"
       />

@@ -1,4 +1,5 @@
 import { Check, LoaderCircle, Minus, Shirt } from "lucide-react";
+import { useTranslations } from "next-intl";
 import Photo from "@/components/ui/Photo";
 
 export type ProcessingPhase = "removing" | "done" | "fallback";
@@ -29,15 +30,16 @@ function StatusIcon({ status }: { status: Status }) {
 }
 
 export default function StepProcessing({ photoUrl, phase }: Props) {
+  const t = useTranslations("addItem.processing");
   const removing = phase === "removing";
   const steps: { label: string; status: Status }[] = [
-    { label: "Фото загружено", status: "done" },
+    { label: t("uploaded"), status: "done" },
     removing
-      ? { label: "Вырезаем вещь…", status: "active" }
+      ? { label: t("cutting"), status: "active" }
       : phase === "done"
-        ? { label: "Вещь вырезана", status: "done" }
-        : { label: "Оставили исходное фото", status: "skipped" },
-    { label: "Готовим карточку вещи", status: removing ? "pending" : "done" },
+        ? { label: t("cut"), status: "done" }
+        : { label: t("keptOriginal"), status: "skipped" },
+    { label: t("preparingCard"), status: removing ? "pending" : "done" },
   ];
 
   return (
@@ -45,7 +47,7 @@ export default function StepProcessing({ photoUrl, phase }: Props) {
       <div className="relative mt-4 flex aspect-square w-56 items-center justify-center overflow-hidden rounded-card border border-border bg-surface">
         {photoUrl ? (
           <div className="absolute inset-3">
-            <Photo src={photoUrl} alt="Фото вещи" />
+            <Photo src={photoUrl} alt={t("photoAlt")} />
           </div>
         ) : (
           <Shirt size={72} strokeWidth={0.9} className="text-muted" />
@@ -55,7 +57,7 @@ export default function StepProcessing({ photoUrl, phase }: Props) {
         )}
       </div>
       <p className="mt-4 text-sm text-muted" aria-live="polite">
-        {removing ? "AI вырезает вещь…" : phase === "done" ? "готово" : "сохраним исходное фото"}
+        {removing ? t("aiCutting") : phase === "done" ? t("done") : t("keepOriginal")}
       </p>
 
       <ul className="mt-10 flex w-full flex-col gap-4 rounded-card border border-border bg-surface p-5">
@@ -69,7 +71,7 @@ export default function StepProcessing({ photoUrl, phase }: Props) {
         ))}
       </ul>
 
-      <p className="mt-6 text-center text-xs text-muted">Обычно это занимает 10–30 секунд</p>
+      <p className="mt-6 text-center text-xs text-muted">{t("usually")}</p>
     </div>
   );
 }

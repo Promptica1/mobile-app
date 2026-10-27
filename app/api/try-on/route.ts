@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { RunwareError, tryOnOutfit, type TryOnGarment } from "@/lib/runware";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
-import { outfitRank } from "@/lib/wardrobe";
+import { outfitRank, toCategory } from "@/lib/wardrobe";
 import { spendToken, tokenBalance } from "@/lib/tokens.server";
 
 // Примерка: браузер присылает только id выбранных вещей. Сервер сам берёт аватар
@@ -96,7 +96,10 @@ export async function POST(request: NextRequest) {
   try {
     const avatar = await download("avatars", avatarPath);
     // Порядок как в образе: основа (платье, комбинезон или верх и низ) → слои поверх → обувь и детали.
-    const sorted = [...items].sort((a, b) => outfitRank(a.category) - outfitRank(b.category));
+    // Категория в базе — ключ (у старых вещей — русское название): приводим к ключу.
+    const sorted = items
+      .map((i) => ({ ...i, category: toCategory(i.category) ?? "accessories" }))
+      .sort((a, b) => outfitRank(a.category) - outfitRank(b.category));
     const garments: TryOnGarment[] = await Promise.all(
       sorted.map(async (i) => ({ ...(await download("items", i.image_url as string)), category: i.category, name: i.name })),
     );

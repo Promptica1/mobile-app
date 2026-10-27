@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import TokenPill from "@/components/TokenPill";
 import {
   fetchFolders,
   fetchLooks,
-  formatLookCount,
   updateLook,
   type Folder,
   type Look,
@@ -18,6 +18,7 @@ import LookFilters, { type LookFilter } from "./LookFilters";
 import NewFolderSheet from "./NewFolderSheet";
 
 export default function LooksScreen() {
+  const t = useTranslations("looks");
   // undefined — загружаются, null — ошибка загрузки.
   const [looks, setLooks] = useState<Look[] | null | undefined>(undefined);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -55,7 +56,7 @@ export default function LooksScreen() {
       await updateLook(look.id, { is_favorite: !look.is_favorite });
     } catch {
       flip(look.is_favorite);
-      setToast("Не получилось сохранить. Попробуйте ещё раз.");
+      setToast(t("favoriteError"));
     }
   };
 
@@ -71,10 +72,10 @@ export default function LooksScreen() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-serif text-4xl font-medium leading-none tracking-tight">
-              Образы
+              {t("title")}
             </h1>
             <p className="mt-1.5 h-5 text-sm text-muted">
-              {looks ? formatLookCount(looks.length) : looks === undefined ? "Загружаем…" : ""}
+              {looks ? t("count", { count: looks.length }) : looks === undefined ? t("loading") : ""}
             </p>
           </div>
           {/* Новый образ собирается в Примерке */}
@@ -82,7 +83,7 @@ export default function LooksScreen() {
             <TokenPill />
             <Link
               href="/try-on"
-              aria-label="Создать образ"
+              aria-label={t("create")}
               className="flex h-12 w-12 items-center justify-center rounded-2xl bg-lime text-text transition-transform active:scale-95"
             >
               <Plus size={22} strokeWidth={1.75} />
@@ -113,14 +114,14 @@ export default function LooksScreen() {
         </div>
       ) : looks === null ? (
         <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
-          <p className="text-[15px] font-medium">Не удалось загрузить образы</p>
-          <p className="mt-1.5 text-sm text-muted">Проверьте интернет и попробуйте ещё раз</p>
+          <p className="text-[15px] font-medium">{t("loadErrorTitle")}</p>
+          <p className="mt-1.5 text-sm text-muted">{t("loadErrorText")}</p>
           <button
             type="button"
             onClick={retry}
             className="mt-6 rounded-full border border-border bg-surface px-6 py-3 text-sm font-medium transition-colors hover:border-text/30"
           >
-            Повторить
+            {t("retry")}
           </button>
         </div>
       ) : isEmpty ? (
@@ -128,8 +129,8 @@ export default function LooksScreen() {
       ) : visible.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">
           {filter === "favorite"
-            ? "Отметьте сердечком образы, которые нравятся больше всего"
-            : "В этой папке пока нет образов"}
+            ? t("favoritesHint")
+            : t("emptyFolder")}
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-x-4 gap-y-6 pt-2">
@@ -147,7 +148,7 @@ export default function LooksScreen() {
             setFolders((prev) => [...prev, folder]);
             setFilter(folder.id);
             setNewFolder(false);
-            setToast(`Папка «${folder.name}» создана`);
+            setToast(t("folderCreated", { name: folder.name }));
           }}
         />
       )}

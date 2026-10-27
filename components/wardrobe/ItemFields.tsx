@@ -1,17 +1,20 @@
+"use client";
+
 import { ChevronDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 // Поля формы вещи — общие для «Добавить вещь» и карточки вещи.
 
+// Цвет по ключу (см. COLOR_KEYS в lib/wardrobe.ts) — для кружка рядом с названием.
 export const COLORS: Record<string, string> = {
-  Чёрный: "#2c2c2a",
-  Белый: "#ffffff",
-  Бежевый: "#d9c7ae",
-  Серый: "#a3a09b",
-  Синий: "#4a5f8c",
-  Коричневый: "#7a5a43",
+  black: "#2c2c2a",
+  white: "#ffffff",
+  beige: "#d9c7ae",
+  gray: "#a3a09b",
+  blue: "#4a5f8c",
+  brown: "#7a5a43",
 };
-export const MATERIALS = ["Кожа", "Хлопок", "Лён", "Шерсть", "Кашемир", "Деним", "Синтетика"];
 
 export function Field({
   label,
@@ -22,11 +25,12 @@ export function Field({
   optional?: boolean;
   children: ReactNode;
 }) {
+  const t = useTranslations("fields");
   return (
     <label className="block">
       <span className="mb-1.5 flex items-baseline gap-2 px-1 text-sm font-medium">
         {label}
-        {optional && <span className="text-xs font-normal text-muted">необязательно</span>}
+        {optional && <span className="text-xs font-normal text-muted">{t("optional")}</span>}
       </span>
       {children}
     </label>
@@ -40,15 +44,19 @@ export function SelectRow({
   value,
   onChange,
   options,
+  labelFor,
   placeholder,
   prefix,
 }: {
   value: string;
   onChange: (value: string) => void;
-  options: string[];
+  options: readonly string[];
+  // Как показать значение: по умолчанию как есть, для ключей — перевод.
+  labelFor?: (value: string) => string;
   placeholder?: string;
   prefix?: ReactNode;
 }) {
+  const label = labelFor ?? ((v: string) => v);
   return (
     <div className={`relative ${rowClass}`}>
       {prefix}
@@ -59,10 +67,10 @@ export function SelectRow({
       >
         {placeholder && <option value="">{placeholder}</option>}
         {/* Значение не из списка (сохранено раньше) тоже показываем. */}
-        {value && !options.includes(value) && <option value={value}>{value}</option>}
+        {value && !options.includes(value) && <option value={value}>{label(value)}</option>}
         {options.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {label(option)}
           </option>
         ))}
       </select>

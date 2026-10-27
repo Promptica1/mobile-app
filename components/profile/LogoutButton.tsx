@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
 export default function LogoutButton() {
+  const t = useTranslations("profile");
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -25,7 +27,7 @@ export default function LogoutButton() {
       disabled={loading}
       className="mx-auto py-2 text-[15px] font-medium text-danger transition-opacity hover:opacity-70 disabled:opacity-50"
     >
-      {loading ? "Выходим…" : "Выйти"}
+      {loading ? t("loggingOut") : t("logout")}
     </button>
   );
 }

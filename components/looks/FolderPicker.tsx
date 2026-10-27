@@ -1,4 +1,5 @@
 import { Check, Folder, FolderPlus, LayoutGrid } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { Folder as FolderRow } from "@/lib/looks";
 
 type Props = {
@@ -14,9 +15,10 @@ const pill =
 
 // Выбор папки для образа: «Все образы», папки пользователя и «Новая папка».
 export default function FolderPicker({ folders, value, onChange, onNewFolder }: Props) {
-  const options = [{ id: null, name: "Все образы" }, ...folders];
+  const t = useTranslations("looks");
+  const options = [{ id: null, name: t("allLooks") }, ...folders];
   return (
-    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Папка">
+    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t("folderLabel")}>
       {options.map(({ id, name }) => {
         const active = id === value;
         const Icon = active ? Check : id === null ? LayoutGrid : Folder;
@@ -44,7 +46,7 @@ export default function FolderPicker({ folders, value, onChange, onNewFolder }: 
         className={`${pill} border-dashed border-text/25 text-muted hover:border-text/40 hover:text-text`}
       >
         <FolderPlus size={14} strokeWidth={1.75} />
-        Новая папка
+        {t("newFolder")}
       </button>
     </div>
   );

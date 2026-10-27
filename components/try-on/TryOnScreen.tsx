@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Check, Ellipsis, Layers, LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import Silhouette from "@/components/Silhouette";
 import Photo from "@/components/ui/Photo";
 import { fetchAvatar, hasAvatarSupport, type Avatar } from "@/lib/avatar";
 import { fetchItems } from "@/lib/items";
-import { announceTokens, NO_TOKENS_MESSAGE } from "@/lib/tokens";
+import { announceTokens } from "@/lib/tokens";
 import {
   findCachedTryOn,
   selectedItems,
@@ -92,6 +93,9 @@ const markSkipped = () => {
 };
 
 export default function TryOnScreen() {
+  const t = useTranslations("tryOn");
+  const tCommon = useTranslations("common");
+  const tErrors = useTranslations("errors");
   // Нижняя панель: выбор одежды (picker) или список надетого (layers).
   const [panel, setPanel] = useState<"picker" | "layers">("picker");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -132,11 +136,11 @@ export default function TryOnScreen() {
         list.filter((i) => ids.includes(i.id)).forEach((i) => (preset[i.category] = i));
         setSelection(preset);
         window.history.replaceState(null, "", "/try-on");
-        if (Object.keys(preset).length < ids.length) setToast("Часть вещей образа удалена из гардероба");
+        if (Object.keys(preset).length < ids.length) setToast(t("toast.partlyDeleted"));
       },
       () => setItems(null),
     );
-  }, []);
+  }, [t]);
 
   const picked = useMemo(() => selectedItems(selection), [selection]);
   const avatarPath = avatar?.path ?? null;
@@ -160,7 +164,7 @@ export default function TryOnScreen() {
   // Новая вещь в категории заменяет прежнюю, повторное нажатие — снимает.
   const toggleItem = (item: WardrobeItem) => {
     if (!item.image_url && hasAvatarSupport()) {
-      setToast("Без фото вещь не примерить");
+      setToast(t("toast.noPhoto"));
       return;
     }
     // Повторное нажатие — снять.
@@ -182,8 +186,8 @@ export default function TryOnScreen() {
     if (replaced.length > 0) {
       setToast(
         isFullBody(item.category)
-          ? `${item.category === "Платья" ? "Платье" : "Комбинезон"} надевается вместо верха и низа`
-          : "Цельная вещь снята — теперь отдельно верх и низ",
+          ? t(item.category === "dress" ? "toast.dressInstead" : "toast.jumpsuitInstead")
+          : t("toast.onepiecesRemoved"),
       );
     }
   };
@@ -191,7 +195,7 @@ export default function TryOnScreen() {
     setSelection((prev) => ({ ...prev, [item.category]: undefined }));
 
   const runTryOn = async () => {
-    if (!hasAvatarSupport()) return setToast("Примерка недоступна в тестовом режиме");
+    if (!hasAvatarSupport()) return setToast(t("toast.demoTryOn"));
     if (!avatarPath) return setSetup("create");
     if (!comboKey || generating) return;
     setGenerating(true);
@@ -202,10 +206,10 @@ export default function TryOnScreen() {
     } catch (err) {
       const reason = err instanceof TryOnError ? err.reason : "failed";
       if (reason === "no_avatar") setSetup("create");
-      else if (reason === "no_tokens") setToast(NO_TOKENS_MESSAGE);
+      else if (reason === "no_tokens") setToast(tErrors("noTokens"));
       else if (reason === "items_not_found" || reason === "item_without_photo")
-        setToast("Одна из вещей недоступна. Обновите страницу и попробуйте снова.");
-      else setToast("Не получилось примерить. Попробуйте ещё раз чуть позже.");
+        setToast(t("toast.itemUnavailable"));
+      else setToast(t("toast.failed"));
     } finally {
       setGenerating(false);
     }
@@ -276,18 +280,18 @@ export default function TryOnScreen() {
           <Photo
             key={resultUrl}
             src={resultUrl}
-            alt="Аватар в образе"
+            alt={t("avatarInLook")}
             crossOrigin="anonymous"
             onLoad={(img) => setEdgeColor(sampleEdgeColor(img))}
             fit="natural"
             style={FEATHER}
             className="animate-fade-in"
-            fallback={avatar?.url ? <Photo src={avatar.url} alt="Ваш аватар" fit="natural" style={FEATHER} /> : null}
+            fallback={avatar?.url ? <Photo src={avatar.url} alt={t("yourAvatar")} fit="natural" style={FEATHER} /> : null}
           />
         ) : avatar?.url ? (
           <Photo
             src={avatar.url}
-            alt="Ваш аватар"
+            alt={t("yourAvatar")}
             crossOrigin="anonymous"
             onLoad={(img) => setEdgeColor(sampleEdgeColor(img))}
             fit="natural"
@@ -306,9 +310,9 @@ export default function TryOnScreen() {
             <div className="flex flex-col items-center rounded-2xl bg-surface/90 px-5 py-3 shadow-sm backdrop-blur-md">
               <p className="flex items-center gap-2 text-[15px] font-medium">
                 <LoaderCircle size={18} strokeWidth={2} className="animate-spin text-lavender" />
-                Примеряем образ…
+                {t("tryingLook")}
               </p>
-              <p className="mt-0.5 text-xs text-muted">Обычно это занимает 10–40 секунд</p>
+              <p className="mt-0.5 text-xs text-muted">{t("usually")}</p>
             </div>
           </div>
         )}
@@ -318,7 +322,7 @@ export default function TryOnScreen() {
             onClick={() => setSetup("create")}
             className="absolute bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-surface/90 px-4 py-2 text-sm font-medium shadow-sm backdrop-blur-sm transition-colors hover:bg-surface"
           >
-            Создать аватар
+            {t("createAvatar")}
           </button>
         )}
       </div>
@@ -329,13 +333,13 @@ export default function TryOnScreen() {
           <button
             type="button"
             onClick={goBack}
-            aria-label="Назад"
+            aria-label={tCommon("back")}
             className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-surface/60"
           >
             <ArrowLeft size={22} strokeWidth={1.5} />
           </button>
           <h1 className="font-serif text-3xl font-medium leading-none tracking-tight drop-shadow-[0_1px_8px_rgba(255,255,255,0.9)]">
-            Примерка
+            {t("title")}
           </h1>
         </div>
         <div className="flex items-center gap-2">
@@ -343,7 +347,7 @@ export default function TryOnScreen() {
           <div className="relative">
             <button
               type="button"
-              aria-label="Действия"
+              aria-label={t("actions")}
               aria-expanded={menuOpen}
               disabled={generating}
               onClick={() => setMenuOpen((open) => !open)}
@@ -361,7 +365,7 @@ export default function TryOnScreen() {
                 onClose={() => setMenuOpen(false)}
                 onClearAll={() => setSelection({})}
                 onAvatar={() => {
-                  if (!hasAvatarSupport()) return setToast("Аватар недоступен в тестовом режиме");
+                  if (!hasAvatarSupport()) return setToast(t("toast.demoAvatar"));
                   setSetup(avatar?.path ? "update" : "create");
                 }}
               />
@@ -388,7 +392,7 @@ export default function TryOnScreen() {
           onSaved={(lookId) => {
             setSaved((prev) => ({ ...prev, [comboKey]: lookId }));
             setSaving(false);
-            setToast("Образ сохранён в «Образы»");
+            setToast(t("toast.lookSaved"));
           }}
         />
       )}
@@ -400,7 +404,7 @@ export default function TryOnScreen() {
           onDone={(a) => {
             setAvatar(a);
             setSetup(null);
-            setToast(setup === "update" ? "Аватар обновлён" : "Аватар готов");
+            setToast(setup === "update" ? t("toast.avatarUpdated") : t("toast.avatarReady"));
           }}
           onClose={closeSetup}
         />
@@ -414,7 +418,7 @@ export default function TryOnScreen() {
           <div className="flex gap-3">
             <button
               type="button"
-              aria-label="Надетые вещи"
+              aria-label={t("wornItems")}
               aria-pressed={layersOpen && sheetOpen}
               onClick={toggleLayers}
               className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-colors ${
@@ -430,7 +434,7 @@ export default function TryOnScreen() {
                 className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full border border-border bg-surface text-[15px] font-medium text-text transition-transform active:scale-[0.98]"
               >
                 <Check size={18} strokeWidth={2} />
-                Сохранён · открыть
+                {t("savedOpen")}
               </Link>
             ) : resultUrl ? (
               <button
@@ -438,7 +442,7 @@ export default function TryOnScreen() {
                 onClick={() => setSaving(true)}
                 className="h-12 flex-1 rounded-full bg-lime text-[15px] font-medium text-text transition-transform active:scale-[0.98]"
               >
-                Сохранить образ
+                {t("saveLook")}
               </button>
             ) : (
               <button
@@ -448,7 +452,7 @@ export default function TryOnScreen() {
                 className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-lime text-[15px] font-medium text-text transition-transform active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
               >
                 {generating && <LoaderCircle size={18} strokeWidth={2} className="animate-spin" />}
-                {generating ? "Примеряем…" : picked.length === 0 ? "Выберите вещи" : "Примерить"}
+                {generating ? t("tryingOn") : picked.length === 0 ? t("chooseItems") : t("tryOnButton")}
               </button>
             )}
           </div>

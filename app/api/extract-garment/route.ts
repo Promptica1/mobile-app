@@ -3,7 +3,7 @@ import { RunwareError, cleanHint, extractGarment } from "@/lib/runware";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { spendToken, tokenBalance, tokensHeaders } from "@/lib/tokens.server";
-import { CATEGORIES } from "@/lib/wardrobe";
+import { toCategory } from "@/lib/wardrobe";
 
 // Серверный маршрут: браузер присылает фото и тип вещи, сервер с ключом
 // RUNWARE_API_KEY просит генеративную модель Runware вырезать одну вещь
@@ -41,12 +41,13 @@ export async function POST(request: NextRequest) {
 
   const form = await request.formData().catch(() => null);
   const file = form?.get("image");
-  const category = String(form?.get("category") ?? "");
+  // Ключ категории (старые клиенты могут прислать русское название — toCategory понимает оба).
+  const category = toCategory(form?.get("category") ?? "");
   // Необязательное уточнение для AI от пользователя (очищается и обрезается в промпте).
   const hint = cleanHint(String(form?.get("hint") ?? ""));
   if (!(file instanceof Blob) || !ALLOWED_TYPES.includes(file.type)) return fail("bad_image", 400);
   if (file.size > MAX_BYTES) return fail("too_large", 413);
-  if (!(CATEGORIES as readonly string[]).includes(category)) return fail("bad_category", 400);
+  if (!category) return fail("bad_category", 400);
   // Токены бета-доступа: при нуле Runware не вызываем.
   const balance = await tokenBalance(supabase, user.id);
   if (balance !== null && balance <= 0) return fail("no_tokens", 402);

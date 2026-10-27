@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseEnv } from "@/lib/supabase/env";
+import type { Translate } from "./auth/errors";
 import { SBP } from "./payment-method";
 import { RENEWAL_GRACE_DAYS, type PlanId } from "./plans";
 
@@ -46,12 +47,12 @@ export function isActive(s: Subscription | null) {
 export const isSbp = (s: Subscription | null) => s?.card_type === SBP;
 export const hasSavedMethod = (s: Subscription | null) => Boolean(s?.card_last4) || isSbp(s);
 
-// Короткая строка о состоянии подписки для профиля и экрана тарифов.
-export function subscriptionNote(s: Subscription) {
-  const date = s.current_period_end ? formatDate(s.current_period_end) : "";
-  if (s.status === "canceled") return `Подписка отменена, доступ до ${date}`;
-  if (s.status === "past_due") return "Не удалось списать оплату — попробуем ещё раз";
-  return `Подписка активна до ${date}`;
+// Короткая строка о состоянии подписки для профиля и экрана тарифов (t — useTranslations("billing")).
+export function subscriptionNote(s: Subscription, t: Translate, locale = "ru") {
+  const date = s.current_period_end ? formatDate(s.current_period_end, locale) : "";
+  if (s.status === "canceled") return t("noteCanceled", { date });
+  if (s.status === "past_due") return t("notePastDue");
+  return t("noteActive", { date });
 }
 
 // Отмена автопродления (доступ сохраняется до конца оплаченного периода) и возобновление.
@@ -112,33 +113,34 @@ export async function startCheckout(plan: Exclude<PlanId, "free">): Promise<void
   window.location.assign(data.confirmationUrl);
 }
 
-export const CHECKOUT_ERRORS: Record<string, string> = {
-  not_configured: "Оплата временно недоступна. Попробуйте чуть позже.",
-  bad_key: "Оплата временно недоступна. Попробуйте чуть позже.",
-  already_subscribed: "Этот тариф у вас уже оформлен.",
-  unauthorized: "Войдите в аккаунт, чтобы оформить подписку.",
-  no_email: "Для оплаты нужна почта в аккаунте — на неё придёт чек.",
-  consent_required: "Подтвердите согласие с офертой и политикой конфиденциальности.",
-  no_card: "Способ оплаты не привязан. Оформите подписку заново — он сохранится для продления.",
-};
-// Коды ошибок ЮKassa → понятный текст. Код в скобках помогает быстро найти причину.
-const YOOKASSA_ERRORS: Record<string, string> = {
-  invalid_credentials: "Платёжный сервис не принял ключи магазина.",
-  forbidden: "Платёжный сервис не разрешил эту операцию для магазина.",
-  invalid_request: "Платёжный сервис отклонил запрос.",
-  not_supported: "Этот способ оплаты недоступен для магазина.",
-  too_many_requests: "Слишком много попыток. Попробуйте через минуту.",
-  internal_server_error: "Платёжный сервис временно недоступен. Попробуйте позже.",
-};
+// Коды ошибок ЮKassa, для которых есть перевод (billing.errors.yk_<код>).
+const YOOKASSA_CODES = new Set([
+  "invalid_credentials",
+  "forbidden",
+  "invalid_request",
+  "not_supported",
+  "too_many_requests",
+  "internal_server_error",
+]);
+const CHECKOUT_CODES = new Set([
+  "not_configured",
+  "bad_key",
+  "already_subscribed",
+  "unauthorized",
+  "no_email",
+  "consent_required",
+  "no_card",
+  "network",
+]);
 
-export function checkoutErrorText(reason: string, code?: string | null, parameter?: string | null) {
+// t — useTranslations("billing.errors"). Код ошибки ЮKassa в скобках помогает быстро найти причину.
+export function checkoutErrorText(reason: string, code: string | null | undefined, parameter: string | null | undefined, t: Translate) {
   if (reason === "yookassa") {
-    const text = (code && YOOKASSA_ERRORS[code]) || "Платёжный сервис отклонил запрос.";
+    const text = t(code && YOOKASSA_CODES.has(code) ? `yk_${code}` : "yk_default");
     const ref = [code, parameter].filter(Boolean).join(", ");
-    return `${text} Попробуйте позже или напишите в поддержку${ref ? ` (код: ${ref})` : ""}.`;
+    return ref ? t("yk_withRef", { text, ref }) : t("yk_noRef", { text });
   }
-  if (reason === "network") return "Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.";
-  return CHECKOUT_ERRORS[reason] ?? "Не получилось перейти к оплате. Попробуйте ещё раз чуть позже.";
+  return t(CHECKOUT_CODES.has(reason) ? reason : "generic");
 }
 
 export type PaymentResult =
@@ -158,27 +160,29 @@ export async function checkPayment(order: string): Promise<PaymentResult> {
   }
 }
 
-// Причины отмены платежа ЮKassa → понятный текст.
-const CANCEL_REASONS: Record<string, string> = {
-  expired_on_confirmation: "Время на оплату истекло.",
-  insufficient_funds: "На карте недостаточно средств.",
-  card_expired: "Срок действия карты истёк.",
-  invalid_card_number: "Неверный номер карты.",
-  invalid_csc: "Неверный CVC-код.",
-  "3d_secure_failed": "Не пройдено подтверждение 3-D Secure.",
-  call_issuer: "Банк отклонил оплату. Обратитесь в банк, выпустивший карту.",
-  issuer_unavailable: "Банк временно недоступен. Попробуйте позже.",
-  payment_method_limit_exceeded: "Превышен лимит по карте.",
-  payment_method_restricted: "Операции по этой карте ограничены.",
-  fraud_suspected: "Платёж отклонён системой безопасности.",
-  country_forbidden: "Оплата картой этой страны недоступна.",
-  general_decline: "Банк отклонил оплату.",
-  canceled_by_merchant: "Платёж отменён.",
-  internal_timeout: "Технический сбой. Попробуйте ещё раз.",
-  create_failed: "Не получилось создать платёж.",
-};
-export const cancelReasonText = (reason: string) =>
-  CANCEL_REASONS[reason] ?? "Оплата была отменена или не прошла.";
+// Причины отмены платежа ЮKassa → понятный текст (billing.cancel.<причина>; t — useTranslations("billing.cancel")).
+const CANCEL_CODES = new Set([
+  "expired_on_confirmation",
+  "insufficient_funds",
+  "card_expired",
+  "invalid_card_number",
+  "invalid_csc",
+  "3d_secure_failed",
+  "call_issuer",
+  "issuer_unavailable",
+  "payment_method_limit_exceeded",
+  "payment_method_restricted",
+  "fraud_suspected",
+  "country_forbidden",
+  "general_decline",
+  "canceled_by_merchant",
+  "internal_timeout",
+  "create_failed",
+]);
+export const cancelReasonText = (reason: string, t: Translate) => t(CANCEL_CODES.has(reason) ? reason : "default");
 
-export const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" }).replace(/\s*г\.$/, "");
+// «18 ноября 2026» (ru) / «November 18, 2026» (en).
+export const formatDate = (iso: string, locale = "ru") =>
+  new Date(iso)
+    .toLocaleDateString(locale === "ru" ? "ru-RU" : locale, { day: "numeric", month: "long", year: "numeric" })
+    .replace(/\s*г\.$/, "");

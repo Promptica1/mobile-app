@@ -1,28 +1,30 @@
 import type { AuthError } from "@supabase/supabase-js";
 
-// Понятные сообщения вместо технических ошибок Supabase.
-const MESSAGES: Record<string, string> = {
-  invalid_credentials: "Неверный email или пароль. Проверьте и попробуйте ещё раз.",
-  email_not_confirmed: "Почта ещё не подтверждена — откройте письмо от нас и перейдите по ссылке.",
-  user_already_exists: "Этот email уже зарегистрирован. Попробуйте войти.",
-  email_exists: "Этот email уже зарегистрирован. Попробуйте войти.",
-  weak_password: "Пароль слишком простой. Добавьте цифры или буквы разного регистра.",
-  email_address_invalid: "Похоже, в email опечатка. Проверьте адрес.",
-  validation_failed: "Проверьте, правильно ли заполнены поля.",
-  over_email_send_rate_limit: "Слишком много писем за короткое время. Подождите минуту и попробуйте снова.",
-  over_request_rate_limit: "Слишком много попыток. Подождите минуту и попробуйте снова.",
-  same_password: "Новый пароль должен отличаться от старого.",
-  signup_disabled: "Регистрация сейчас недоступна.",
-};
+// Перевод по ключу: сюда передаётся t из useTranslations("auth.errors") (или getTranslations на сервере).
+export type Translate = (key: string, values?: Record<string, string | number>) => string;
 
-export function authErrorMessage(error: AuthError | Error | null | undefined): string {
+// Коды ошибок Supabase, для которых есть понятный текст (messages/*.json → auth.errors.<код>).
+const KNOWN_CODES = new Set([
+  "invalid_credentials",
+  "email_not_confirmed",
+  "user_already_exists",
+  "weak_password",
+  "email_address_invalid",
+  "validation_failed",
+  "over_email_send_rate_limit",
+  "over_request_rate_limit",
+  "same_password",
+  "signup_disabled",
+]);
+
+// Понятные сообщения вместо технических ошибок Supabase.
+export function authErrorMessage(error: AuthError | Error | null | undefined, t: Translate): string {
   if (!error) return "";
   const code = "code" in error ? (error.code as string | undefined) : undefined;
-  if (code && MESSAGES[code]) return MESSAGES[code];
-  if (/fetch|network/i.test(error.message)) {
-    return "Не удалось связаться с сервером. Проверьте интернет и попробуйте снова.";
-  }
-  return "Что-то пошло не так. Попробуйте ещё раз чуть позже.";
+  if (code === "email_exists") return t("user_already_exists");
+  if (code && KNOWN_CODES.has(code)) return t(code);
+  if (/fetch|network/i.test(error.message)) return t("network");
+  return t("generic");
 }
 
 // Разрешаем переход только на внутренние страницы приложения.
@@ -31,19 +33,17 @@ export function safeNextPath(next: string | null | undefined, fallback = "/wardr
   return next;
 }
 
-// Собственная проверка полей — чтобы подсказки всегда были на русском,
+// Собственная проверка полей — чтобы подсказки были на языке приложения,
 // а не во всплывающих окнах браузера на языке системы.
-export function validateEmail(email: string): string {
-  if (!email.trim()) return "Введите email.";
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return "Похоже, в email опечатка. Проверьте адрес.";
+export function validateEmail(email: string, t: Translate): string {
+  if (!email.trim()) return t("emailRequired");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return t("email_address_invalid");
   return "";
 }
 
 export const MIN_PASSWORD_LENGTH = 8;
 
-export function validateNewPassword(password: string): string {
-  if (password.length < MIN_PASSWORD_LENGTH) {
-    return `Пароль должен быть не короче ${MIN_PASSWORD_LENGTH} символов.`;
-  }
+export function validateNewPassword(password: string, t: Translate): string {
+  if (password.length < MIN_PASSWORD_LENGTH) return t("passwordShort", { min: MIN_PASSWORD_LENGTH });
   return "";
 }

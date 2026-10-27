@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useRef, useState, type PointerEvent, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 
 type Props = {
   expanded: boolean;
@@ -21,6 +22,7 @@ const BottomSheet = forwardRef<HTMLElement, Props>(function BottomSheet(
   { expanded, onExpandedChange, children, footer },
   ref,
 ) {
+  const t = useTranslations("tryOn.sheet");
   const start = useRef<number | null>(null);
   const [drag, setDrag] = useState(0);
 
@@ -47,7 +49,7 @@ const BottomSheet = forwardRef<HTMLElement, Props>(function BottomSheet(
   return (
     <section
       ref={ref}
-      aria-label="Выбор вещей"
+      aria-label={t("label")}
       style={{ transform: `translateY(${drag}px)` }}
       className={`absolute inset-x-0 bottom-0 z-20 rounded-t-[2rem] bg-white/85 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_-20px_rgba(44,44,42,0.18)] backdrop-blur-xl ${
         drag === 0 ? "transition-transform duration-300" : ""
@@ -55,7 +57,7 @@ const BottomSheet = forwardRef<HTMLElement, Props>(function BottomSheet(
     >
       <button
         type="button"
-        aria-label={expanded ? "Свернуть панель" : "Развернуть панель"}
+        aria-label={expanded ? t("collapse") : t("expand")}
         aria-expanded={expanded}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -78,7 +80,7 @@ const BottomSheet = forwardRef<HTMLElement, Props>(function BottomSheet(
             expanded ? "max-h-0 opacity-0" : "mt-2 max-h-5 opacity-100"
           }`}
         >
-          Потяните вверх, чтобы выбрать вещи
+          {t("pullUp")}
         </span>
       </button>
 

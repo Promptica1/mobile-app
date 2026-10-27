@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import LookDetail from "@/components/look-detail/LookDetail";
 
 type Props = { params: Promise<{ id: string }> };
 
-export const metadata: Metadata = { title: "Образ — MIRRO" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("pages");
+  return { title: `${t("look")} — MIRRO` };
+}
 
 // Отдельный маршрут вне группы (tabs) — поэтому здесь нет нижней навигации.
 // Образ загружается в браузере от имени пользователя (RLS — только свои).

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import FolderPicker from "@/components/looks/FolderPicker";
 import NewFolderSheet from "@/components/looks/NewFolderSheet";
 import TextField from "@/components/looks/TextField";
@@ -18,6 +19,9 @@ type Props = {
 };
 
 export default function SaveLookSheet({ itemIds, imagePath, onSaved, onClose }: Props) {
+  const t = useTranslations("tryOn.save");
+  const tCommon = useTranslations("common");
+  const lookPrefix = useTranslations("looks")("prefix");
   const [name, setName] = useState("");
   const [folders, setFolders] = useState<Folder[] | null>(null);
   const [folderId, setFolderId] = useState<string | null>(null);
@@ -27,25 +31,25 @@ export default function SaveLookSheet({ itemIds, imagePath, onSaved, onClose }: 
 
   useEffect(() => {
     // Название по умолчанию — следующий номер; пользователь может его изменить.
-    nextLookName().then((n) => setName((current) => current || n));
+    nextLookName(lookPrefix).then((n) => setName((current) => current || n));
     fetchFolders().then(setFolders, () => setFolders([]));
-  }, []);
+  }, [lookPrefix]);
 
   const submit = async () => {
-    if (!name.trim()) return setError("Введите название образа.");
+    if (!name.trim()) return setError(t("nameRequired"));
     setError("");
     setSaving(true);
     try {
       onSaved(await saveLook({ name, folderId, imagePath, itemIds }));
     } catch {
-      setError("Не получилось сохранить образ. Проверьте интернет и попробуйте ещё раз.");
+      setError(t("error"));
       setSaving(false);
     }
   };
 
   return (
     <>
-      <Sheet title="Сохранить образ" onClose={onClose} locked={saving}>
+      <Sheet title={t("title")} onClose={onClose} locked={saving}>
         <form
           noValidate
           onSubmit={(e) => {
@@ -54,10 +58,10 @@ export default function SaveLookSheet({ itemIds, imagePath, onSaved, onClose }: 
           }}
           className="flex flex-col gap-5"
         >
-          <TextField label="Название" value={name} onChange={setName} placeholder="Образ 001" />
+          <TextField label={t("name")} value={name} onChange={setName} placeholder={`${lookPrefix} 001`} />
 
           <div>
-            <span className="mb-2 block px-1 text-sm font-medium">Сохранить в</span>
+            <span className="mb-2 block px-1 text-sm font-medium">{t("saveIn")}</span>
             {folders === null ? (
               <div className="flex gap-2" aria-hidden>
                 {[28, 20, 24].map((w) => (
@@ -77,14 +81,14 @@ export default function SaveLookSheet({ itemIds, imagePath, onSaved, onClose }: 
           {error && <FormMessage tone="error">{error}</FormMessage>}
 
           <div className="flex flex-col gap-2">
-            <SubmitButton loading={saving}>Сохранить</SubmitButton>
+            <SubmitButton loading={saving}>{t("submit")}</SubmitButton>
             <button
               type="button"
               onClick={onClose}
               disabled={saving}
               className="h-12 rounded-full text-[15px] text-muted transition-colors hover:text-text disabled:opacity-50"
             >
-              Отмена
+              {tCommon("cancel")}
             </button>
           </div>
         </form>

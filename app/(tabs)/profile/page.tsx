@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import ProfileScreen from "@/components/profile/ProfileScreen";
 import { MOCK_PROFILE, PROFILE_PHOTOS_BUCKET, type Profile } from "@/lib/profile";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import type { Tokens } from "@/lib/tokens";
 
-export const metadata: Metadata = { title: "Профиль — MIRRO" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("pages");
+  return { title: `${t("profile")} — MIRRO` };
+}
 
 type Loaded = {
   profile: Profile;

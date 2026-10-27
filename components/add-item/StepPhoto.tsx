@@ -1,14 +1,15 @@
 import { Camera, ImageIcon, Lightbulb, LoaderCircle, RefreshCw, Upload } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import FormMessage from "@/components/ui/FormMessage";
 import Photo from "@/components/ui/Photo";
-import { CATEGORIES } from "@/lib/wardrobe";
+import { CATEGORIES, type Category } from "@/lib/wardrobe";
 import HintField from "./HintField";
 
 type Props = {
   photoUrl: string | null;
-  category: string | null;
-  onCategory: (category: string) => void;
+  category: Category | null;
+  onCategory: (category: Category) => void;
   hint: string;
   onHintChange: (hint: string) => void;
   preparing: boolean;
@@ -30,13 +31,15 @@ export default function StepPhoto({
   onGallery,
   onNext,
 }: Props) {
+  const t = useTranslations("addItem.photo");
+  const tCategories = useTranslations("categories");
   return (
     <div className="flex flex-1 flex-col gap-6">
       <button
         type="button"
         onClick={onGallery}
         disabled={preparing}
-        aria-label={photoUrl ? "Выбрать другое фото" : "Добавить фото из галереи"}
+        aria-label={photoUrl ? t("chooseAnother") : t("fromGallery")}
         className={`relative flex aspect-[4/3.4] w-full flex-col items-center justify-center overflow-hidden rounded-card px-6 text-center transition-colors ${
           photoUrl
             ? "border border-border bg-surface p-4"
@@ -46,17 +49,17 @@ export default function StepPhoto({
         {preparing ? (
           <>
             <LoaderCircle size={28} strokeWidth={1.5} className="animate-spin text-lavender" />
-            <span className="mt-4 text-sm text-muted">Готовим фото…</span>
+            <span className="mt-4 text-sm text-muted">{t("preparing")}</span>
           </>
         ) : photoUrl ? (
-          <Photo src={photoUrl} alt="Выбранное фото вещи" />
+          <Photo src={photoUrl} alt={t("selectedAlt")} />
         ) : (
           <>
             <span className="flex h-16 w-16 items-center justify-center rounded-full bg-lavender/20">
               <ImageIcon size={26} strokeWidth={1.5} />
             </span>
-            <span className="mt-5 font-medium">Добавьте фото вещи</span>
-            <span className="mt-1.5 text-sm text-muted">Один предмет одежды на светлом фоне</span>
+            <span className="mt-5 font-medium">{t("addTitle")}</span>
+            <span className="mt-1.5 text-sm text-muted">{t("addText")}</span>
           </>
         )}
       </button>
@@ -66,8 +69,8 @@ export default function StepPhoto({
       {/* Тип вещи подсказывает AI, что именно вырезать с фото */}
       {photoUrl && !preparing && (
         <fieldset>
-          <legend className="mb-1 px-1 text-sm font-medium">Что добавляем?</legend>
-          <p className="mb-3 px-1 text-xs text-muted">Вырежем с фото только эту вещь</p>
+          <legend className="mb-1 px-1 text-sm font-medium">{t("whatAdding")}</legend>
+          <p className="mb-3 px-1 text-xs text-muted">{t("cutOnly")}</p>
           <div className="flex flex-wrap gap-2">
             {CATEGORIES.map((c) => {
               const active = c === category;
@@ -83,7 +86,7 @@ export default function StepPhoto({
                       : "border-border bg-surface text-text hover:border-text/30"
                   }`}
                 >
-                  {c}
+                  {tCategories(c)}
                 </button>
               );
             })}
@@ -96,22 +99,22 @@ export default function StepPhoto({
         {photoUrl ? (
           <>
             <Button variant="lime" onClick={onNext} disabled={preparing || !category}>
-              {category ? "Продолжить" : "Выберите, что добавляем"}
+              {category ? t("continue") : t("chooseWhat")}
             </Button>
             <Button variant="secondary" onClick={onGallery} disabled={preparing}>
               <RefreshCw size={18} strokeWidth={1.75} />
-              Выбрать другое фото
+              {t("chooseAnother")}
             </Button>
           </>
         ) : (
           <>
             <Button variant="lavender" onClick={onCamera} disabled={preparing}>
               <Camera size={20} strokeWidth={1.75} />
-              Сделать фото
+              {t("take")}
             </Button>
             <Button variant="secondary" onClick={onGallery} disabled={preparing}>
               <Upload size={20} strokeWidth={1.75} />
-              Загрузить из галереи
+              {t("upload")}
             </Button>
           </>
         )}
@@ -120,9 +123,8 @@ export default function StepPhoto({
       <div className="flex gap-3 rounded-2xl bg-beige p-4">
         <Lightbulb size={20} strokeWidth={1.5} className="mt-0.5 shrink-0" />
         <p className="text-sm leading-relaxed">
-          <span className="font-medium">Совет:</span> снимайте так, чтобы вещь было
-          хорошо видно — желательно одну, без других похожих вещей в кадре. Так AI
-          вырежет её точнее
+          <span className="font-medium">{t("tipLabel")}</span>
+          {t("tipText")}
         </p>
       </div>
     </div>

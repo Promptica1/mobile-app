@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Sheet from "@/components/ui/Sheet";
 import FormMessage from "@/components/ui/FormMessage";
 import SubmitButton from "@/components/ui/SubmitButton";
@@ -14,12 +15,13 @@ type Props = {
 };
 
 export default function NewFolderSheet({ folders, onCreated, onClose }: Props) {
+  const t = useTranslations("looks.folder");
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const submit = async () => {
-    if (!name.trim()) return setError("Введите название папки.");
+    if (!name.trim()) return setError(t("nameRequired"));
     setError("");
     setSaving(true);
     try {
@@ -27,15 +29,15 @@ export default function NewFolderSheet({ folders, onCreated, onClose }: Props) {
     } catch (err) {
       setError(
         err instanceof FolderExistsError
-          ? "Папка с таким названием уже есть."
-          : "Не получилось создать папку. Проверьте интернет и попробуйте ещё раз.",
+          ? t("exists")
+          : t("createError"),
       );
       setSaving(false);
     }
   };
 
   return (
-    <Sheet title="Новая папка" onClose={onClose} locked={saving}>
+    <Sheet title={t("title")} onClose={onClose} locked={saving}>
       <form
         noValidate
         onSubmit={(e) => {
@@ -45,18 +47,17 @@ export default function NewFolderSheet({ folders, onCreated, onClose }: Props) {
         className="flex flex-col gap-4"
       >
         <TextField
-          label="Название папки"
+          label={t("name")}
           value={name}
           onChange={setName}
-          placeholder="Например, Отпуск"
+          placeholder={t("placeholder")}
           autoFocus
         />
         <p className="-mt-2 px-1 text-xs leading-relaxed text-muted">
-          Складывайте образы по поводам: отпуск, работа, праздники. Папку можно выбрать при
-          сохранении образа.
+          {t("hint")}
         </p>
         {error && <FormMessage tone="error">{error}</FormMessage>}
-        <SubmitButton loading={saving}>Создать папку</SubmitButton>
+        <SubmitButton loading={saving}>{t("submit")}</SubmitButton>
       </form>
     </Sheet>
   );

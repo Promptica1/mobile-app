@@ -1,7 +1,5 @@
-export const GENDERS = [
-  { value: "female", label: "Женский" },
-  { value: "male", label: "Мужской" },
-] as const;
+// Подписи полов — в переводах (gender.<значение>).
+export const GENDERS = [{ value: "female" }, { value: "male" }] as const;
 
 export const AGE_RANGES = [
   { value: "18-24", label: "18–24" },
@@ -18,10 +16,6 @@ export type Profile = {
   gender: Gender | null;
   age_range: AgeRange | null;
 };
-
-export function genderLabel(gender: Gender | null): string {
-  return GENDERS.find((g) => g.value === gender)?.label ?? "";
-}
 
 // Тестовые данные — показываются, пока Supabase не настроен.
 export const MOCK_PROFILE: Profile = {

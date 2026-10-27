@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Field, rowClass } from "@/components/wardrobe/ItemFields";
 
 // Сервер обрезает уточнение до того же лимита (lib/runware.ts → GARMENT_HINT_MAX).
@@ -14,19 +15,19 @@ export default function HintField({
   onChange: (value: string) => void;
   disabled?: boolean;
 }) {
+  const t = useTranslations("addItem.hint");
   return (
-    <Field label="Уточнение для AI" optional>
+    <Field label={t("label")} optional>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         maxLength={HINT_MAX}
         disabled={disabled}
-        placeholder="Например: без лишних пуговиц"
+        placeholder={t("placeholder")}
         className={`${rowClass} outline-none placeholder:text-muted disabled:opacity-60`}
       />
       <span className="mt-1.5 block px-1 text-xs leading-relaxed text-muted">
-        Подскажите AI, как точнее вырезать вещь: без лишних пуговиц · широкий крой · заправленная
-        рубашка · оверсайз · приталенный · длинные рукава
+        {t("examples")}
       </span>
     </Field>
   );

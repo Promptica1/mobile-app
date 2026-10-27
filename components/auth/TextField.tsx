@@ -2,6 +2,7 @@
 
 import { useId, useState, type InputHTMLAttributes } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 type Props = InputHTMLAttributes<HTMLInputElement> & {
   label: string;
@@ -12,6 +13,7 @@ type Props = InputHTMLAttributes<HTMLInputElement> & {
 
 export default function TextField({ label, helper, password, className = "", ...props }: Props) {
   const id = useId();
+  const t = useTranslations("common");
   const [visible, setVisible] = useState(false);
   const type = password ? (visible ? "text" : "password") : props.type;
 
@@ -32,7 +34,7 @@ export default function TextField({ label, helper, password, className = "", ...
           <button
             type="button"
             onClick={() => setVisible((v) => !v)}
-            aria-label={visible ? "Скрыть пароль" : "Показать пароль"}
+            aria-label={visible ? t("hidePassword") : t("showPassword")}
             className="-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:text-text"
           >
             {visible ? <EyeOff size={18} strokeWidth={1.5} /> : <Eye size={18} strokeWidth={1.5} />}

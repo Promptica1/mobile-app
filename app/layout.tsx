@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Inter } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getTranslations } from "next-intl/server";
+import LocaleSync from "@/components/LocaleSync";
 import "./globals.css";
 
 const inter = Inter({
@@ -13,10 +16,10 @@ const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
 });
 
-export const metadata: Metadata = {
-  title: "MIRRO",
-  description: "MIRRO — цифровой гардероб и примерка образов на AI-аватаре",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("meta");
+  return { title: "MIRRO", description: t("description") };
+}
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -25,15 +28,19 @@ export const viewport: Viewport = {
   themeColor: "#faf8f6",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
   return (
-    <html lang="ru" className={`${inter.variable} ${cormorant.variable}`}>
+    <html lang={locale} className={`${inter.variable} ${cormorant.variable}`}>
       <body className="bg-background font-sans text-text antialiased">
-        {children}
+        <NextIntlClientProvider>
+          <LocaleSync />
+          {children}
+        </NextIntlClientProvider>
       </body>
     </html>
   );

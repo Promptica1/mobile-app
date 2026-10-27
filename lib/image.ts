@@ -42,7 +42,7 @@ export async function compressImage(
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas недоступен");
+  if (!ctx) throw new Error("canvas unavailable");
   if (!keepTransparency) {
     // Белая подложка: у PNG с прозрачностью фон не станет чёрным.
     ctx.fillStyle = "#ffffff";
@@ -53,7 +53,7 @@ export async function compressImage(
 
   return new Promise((resolve, reject) =>
     canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("Не удалось сжать фото"))),
+      (blob) => (blob ? resolve(blob) : reject(new Error("photo compression failed"))),
       type,
       quality,
     ),

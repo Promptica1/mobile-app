@@ -1,11 +1,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Check, Heart, Plus, Search, Shirt } from "lucide-react";
+import { useTranslations } from "next-intl";
 import Photo from "@/components/ui/Photo";
 import type { WardrobeItem } from "@/lib/wardrobe";
 import {
   CATEGORY_ICONS,
-  FILTER_CATEGORY,
   TRY_ON_FILTERS,
   type Selection,
   type TryOnFilter,
@@ -25,15 +25,17 @@ type Props = {
 const rowMessage = "flex h-[4.25rem] items-center justify-center text-sm text-muted";
 
 export default function ClothesPicker({ items, selection, onToggle }: Props) {
-  const [filter, setFilter] = useState<TryOnFilter>("Все");
+  const t = useTranslations("tryOn.picker");
+  const tFilters = useTranslations("tryOn.filters");
+  const [filter, setFilter] = useState<TryOnFilter>("all");
   const [query, setQuery] = useState("");
 
   // Категория + поиск по названию, как в «Гардеробе».
   const normalizedQuery = query.trim().toLowerCase();
   const visibleItems = (items ?? []).filter(
     (item) =>
-      (filter === "Все" ||
-        (filter === "Избранное" ? item.is_favorite : item.category === FILTER_CATEGORY[filter])) &&
+      (filter === "all" ||
+        (filter === "favorites" ? item.is_favorite : item.category === filter)) &&
       item.name.toLowerCase().includes(normalizedQuery),
   );
 
@@ -47,17 +49,17 @@ export default function ClothesPicker({ items, selection, onToggle }: Props) {
       </div>
     );
   } else if (items === null) {
-    row = <p className={rowMessage}>Не удалось загрузить гардероб</p>;
+    row = <p className={rowMessage}>{t("loadError")}</p>;
   } else if (items.length === 0) {
     row = (
       <div className={`${rowMessage} gap-3`}>
-        В гардеробе пока пусто
+        {t("empty")}
         <Link
           href="/add-item"
           className="flex items-center gap-1 rounded-full bg-lavender/30 px-3 py-1.5 text-sm font-medium text-text"
         >
           <Plus size={14} strokeWidth={2} />
-          Добавить вещь
+          {t("addItem")}
         </Link>
       </div>
     );
@@ -65,10 +67,10 @@ export default function ClothesPicker({ items, selection, onToggle }: Props) {
     row = (
       <p className={rowMessage}>
         {normalizedQuery
-          ? "Ничего не найдено"
-          : filter === "Избранное"
-            ? "Нет избранных вещей"
-            : "В этой категории пока нет вещей"}
+          ? t("noResults")
+          : filter === "favorites"
+            ? t("noFavorites")
+            : t("noInCategory")}
       </p>
     );
   } else {
@@ -109,7 +111,7 @@ export default function ClothesPicker({ items, selection, onToggle }: Props) {
         {TRY_ON_FILTERS.map((f) => {
           const active = f === filter;
           // Точка — в этой категории уже что-то выбрано.
-          const picked = f !== "Все" && f !== "Избранное" && Boolean(selection[FILTER_CATEGORY[f]]);
+          const picked = f !== "all" && f !== "favorites" && Boolean(selection[f]);
           return (
             <button
               key={f}
@@ -122,11 +124,11 @@ export default function ClothesPicker({ items, selection, onToggle }: Props) {
                   : "border-border bg-surface text-text hover:border-text/30"
               }`}
             >
-              {f === "Избранное" && (
+              {f === "favorites" && (
                 <Heart size={14} strokeWidth={1.75} className="fill-pink text-pink" />
               )}
-              {f}
-              {picked && <span className="h-1.5 w-1.5 rounded-full bg-lavender" aria-label="выбрано" />}
+              {tFilters(f)}
+              {picked && <span className="h-1.5 w-1.5 rounded-full bg-lavender" aria-label={t("picked")} />}
             </button>
           );
         })}
@@ -138,8 +140,8 @@ export default function ClothesPicker({ items, selection, onToggle }: Props) {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Поиск вещи"
-          aria-label="Поиск вещи"
+          placeholder={t("search")}
+          aria-label={t("search")}
           className="h-full w-full bg-transparent text-sm outline-none placeholder:text-muted [&::-webkit-search-cancel-button]:hidden"
         />
       </label>
