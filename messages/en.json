@@ -879,5 +879,13 @@
         "cta": "Subscribe for $9.99/month"
       }
     }
+  },
+  "inApp": {
+    "titleSafari": "For one-tap payment, open in Safari",
+    "titleChrome": "For one-tap payment, open in Chrome",
+    "steps": "Tap ••• → Open in browser.",
+    "canPayHere": "You can also pay with a card right here.",
+    "openChrome": "Open in Chrome",
+    "dismiss": "Close the tip"
   }
 }

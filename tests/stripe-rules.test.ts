@@ -80,9 +80,13 @@ test("статусы Stripe → наши", () => {
   assert.equal(mapStatus("incomplete", false), null);
 });
 
-test("провайдер оплаты: Россия и Telegram — ЮKassa, остальные — Stripe", () => {
+test("провайдер оплаты: Россия, Беларусь и Telegram — ЮKassa, остальные — Stripe", () => {
   assert.equal(resolveProvider({ country: "RU" }), "yookassa");
   assert.equal(resolveProvider({ country: "ru" }), "yookassa");
+  assert.equal(resolveProvider({ country: "BY" }), "yookassa"); // Беларусь — вместе с Россией
+  assert.equal(resolveProvider({ country: "by" }), "yookassa");
+  assert.equal(resolveProvider({ country: "KZ" }), "stripe");
+  assert.equal(resolveProvider({ country: "UA" }), "stripe");
   assert.equal(resolveProvider({ country: "US" }), "stripe");
   assert.equal(resolveProvider({ country: "DE" }), "stripe");
   assert.equal(resolveProvider({ country: "US", telegram: true }), "yookassa"); // бот всегда ЮKassa

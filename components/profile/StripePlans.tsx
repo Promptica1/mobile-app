@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { Check, ChevronRight, FlaskConical, Info, LoaderCircle, Lock } from "lucide-react";
+import InAppBrowserHint from "@/components/InAppBrowserHint";
 import { useToast } from "@/components/ui/useToast";
 import {
   checkoutErrorText,
@@ -143,6 +144,7 @@ export default function StripePlans({ trialAvailable, freeTrial }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
+      <InAppBrowserHint />
       <p className="px-1 text-sm leading-relaxed text-muted">{t("intro")}</p>
 
       {mode?.test && mode.available && (

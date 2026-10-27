@@ -5,7 +5,7 @@ import { stripeMode } from "@/lib/stripe/client.server";
 import { yookassaMode } from "@/lib/yookassa";
 
 // Можно ли сейчас оплатить (ключи заданы), тестовый ли режим и какой провайдер у этого пользователя:
-// Россия и Telegram — ЮKassa (RUB), остальные — Stripe (USD). Секретов не раскрывает.
+// Россия, Беларусь и Telegram — ЮKassa (RUB), остальные — Stripe (USD). Секретов не раскрывает.
 // reason — почему оплата недоступна (для проверки настроек): not_configured / bad_key / no_service_key / no_prices.
 export async function GET() {
   const provider = await getPaymentProvider();

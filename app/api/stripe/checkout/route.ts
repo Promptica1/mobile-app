@@ -91,6 +91,10 @@ export async function POST(request: NextRequest) {
       metadata: { user_id: user.id, offer },
       // Карта обязательна и для бесплатного триала (вариант B).
       payment_method_collection: "always",
+      // Без экрана выбора способа: карта и Link. Apple Pay и Google Pay — часть «карты»: на подходящем
+      // устройстве Stripe сам показывает кнопку кошелька сверху (оплата в одно касание), иначе — форма карты.
+      // Кошельки включаются в Stripe Dashboard → Settings → Payment methods.
+      allowed_payment_method_types: ["card", "link"],
       automatic_tax: { enabled: true },
       customer_update: { address: "auto", name: "auto" },
       custom_text: { submit: { message: SUBMIT_NOTE[offer] } },
