@@ -6,6 +6,7 @@ import {
   CircleHelp,
   Globe,
   Info,
+  Smartphone,
   Pencil,
   ShieldCheck,
   UserRound,
@@ -13,6 +14,7 @@ import {
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { LanguageSheet } from "@/components/LanguageSwitcher";
+import { usePwa } from "@/components/pwa/PwaProvider";
 import { LOCALE_NAMES, isLocale } from "@/i18n/config";
 import { fetchSubscription, formatUsd, isActive, subscriptionNote, type Subscription } from "@/lib/billing";
 import { OFFER_INFO } from "@/lib/stripe/rules";
@@ -48,6 +50,7 @@ export default function ProfileScreen({ profile: initial, userId, photo, tokens,
   const [profile, setProfile] = useState(initial);
   const [editing, setEditing] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
+  const { openSheet: openInstall } = usePwa();
   const [toast, setToast] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   useEffect(() => {
@@ -137,6 +140,7 @@ export default function ProfileScreen({ profile: initial, userId, photo, tokens,
             onClick: () => setLanguageOpen(true),
             value: isLocale(locale) ? LOCALE_NAMES[locale] : undefined,
           },
+          { label: t("rows.install"), Icon: Smartphone, onClick: openInstall },
           { label: t("rows.about"), Icon: Info, href: "/profile/about" },
         ]}
       />

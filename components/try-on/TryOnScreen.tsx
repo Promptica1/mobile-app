@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Silhouette from "@/components/Silhouette";
+import { usePwa } from "@/components/pwa/PwaProvider";
 import Photo from "@/components/ui/Photo";
 import { fetchAvatar, hasAvatarSupport, type Avatar } from "@/lib/avatar";
 import { fetchItems } from "@/lib/items";
@@ -94,6 +95,7 @@ const markSkipped = () => {
 
 export default function TryOnScreen() {
   const t = useTranslations("tryOn");
+  const { request: requestInstall } = usePwa();
   const tCommon = useTranslations("common");
   const tErrors = useTranslations("errors");
   // Нижняя панель: выбор одежды (picker) или список надетого (layers).
@@ -393,6 +395,8 @@ export default function TryOnScreen() {
             setSaved((prev) => ({ ...prev, [comboKey]: lookId }));
             setSaving(false);
             setToast(t("toast.lookSaved"));
+            // Первый сохранённый образ — момент предложить добавить MIRRO на главный экран (после тоста).
+            setTimeout(() => requestInstall("look"), 2200);
           }}
         />
       )}

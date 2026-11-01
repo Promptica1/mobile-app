@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { CircleAlert, CircleCheck, Clock, LoaderCircle } from "lucide-react";
 import { cancelReasonText, checkPayment, checkStripeSession, formatDate, formatUsd, type PaymentResult as Result } from "@/lib/billing";
+import { usePwa } from "@/components/pwa/PwaProvider";
 import { OFFER_INFO } from "@/lib/stripe/rules";
 
 // Пока ЮKassa не дала окончательный ответ — переспрашиваем сервер каждые 2 секунды.
@@ -18,6 +19,7 @@ export default function PaymentResult({ order: yookassaOrder, stripeSession = nu
   const tCancel = useTranslations("billing.cancel");
   const tPlans = useTranslations("plans");
   const locale = useLocale();
+  const { request: requestInstall } = usePwa();
   const [result, setResult] = useState<Result | null>(null);
   const [polls, setPolls] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -38,6 +40,14 @@ export default function PaymentResult({ order: yookassaOrder, stripeSession = nu
       if (timer.current) clearTimeout(timer.current);
     };
   }, [result, polls, check]);
+
+  // Первая успешная оплата — подходящий момент предложить добавить MIRRO на главный экран.
+  const succeeded = result?.status === "succeeded";
+  useEffect(() => {
+    if (!succeeded) return;
+    const timer = setTimeout(() => requestInstall("payment"), 1500);
+    return () => clearTimeout(timer);
+  }, [succeeded, requestInstall]);
 
   const loading = order && (!result || (result.status === "pending" && polls < MAX_POLLS));
 

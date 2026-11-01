@@ -18,3 +18,6 @@
 
 Быстрые проверки без стенда: `npm test` (правила, обработчик webhook) и
 `psql -v ON_ERROR_STOP=1 -d <пустая_база> -f supabase/tests/stripe_credits_trial.sql` (SQL-логика).
+
+Установка на главный экран (PWA) в браузере: `npm i --no-save playwright` (или `PLAYWRIGHT_PATH=<путь>`),
+затем `node tests/stand/pwa.mjs` — Chromium с настоящим service worker, должен закончиться «0 не прошло».

@@ -35,6 +35,7 @@ const balance = async (u) => (await q("select tokens_balance b, tokens_total t f
 const subRow = async (u) => (await q("select * from subscriptions where user_id = $1", [u.id]))[0];
 const stState = () => fetch(ST + "/__state").then((r) => r.json());
 const mails = () => fetch(MAIL + "/__mails").then((r) => r.json());
+await fetch(MAIL + "/__reset"); // письма прошлых прогонов не мешают счёту
 const run = Date.now();
 
 // ═══════════════════════════ ЮKassa: оплата работает как раньше ═══════════════════════════
@@ -189,6 +190,7 @@ console.log("\n[Stripe] один триал на человека");
 
   // другая почта, но та же карта
   const other = await newUser(`other-${run}@example.com`);
+  const refundsBefore = (await stState()).refunds.length;
   const chk = await call(other, "POST", "/api/stripe/checkout", { offer: "trial", consent: true }, "US");
   eq(chk.status, 200, "другая почта: Checkout создаётся");
   const sess = (await stState()).sessions.at(-1);
@@ -197,7 +199,7 @@ console.log("\n[Stripe] один триал на человека");
   eq(wh.json?.outcome, "trial_rejected", "та же карта: триал отклонён");
   const st = await stState();
   ok(st.subs.find((s) => s.id === done.subscription)?.status === "canceled", "подписка отклонённого триала отменена в Stripe");
-  eq(st.refunds.length, 1, "деньги за триал возвращены");
+  eq(st.refunds.length - refundsBefore, 1, "деньги за триал возвращены");
   eq(await balance(other), { b: 10, t: 10 }, "credits не начислены");
   eq(await subRow(other), undefined, "подписка в базе не создана");
   const del = await webhook("customer.subscription.deleted", { id: done.subscription });

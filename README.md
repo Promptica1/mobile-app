@@ -87,6 +87,13 @@ Nano Banana одеть аватар и сохраняет результат в 
 - SQL: `supabase/migrations/20261015120000_stripe.sql`. Переменные: см. `.env.local.example`.
 - Проверки: `npm test`, SQL-тест `supabase/tests/stripe_credits_trial.sql`, сквозной стенд `tests/stand/README.md`.
 
+## Установка на главный экран (PWA)
+
+- Иконки: `scripts/generate-icons.mjs` из `scripts/icons/logo.jpg` (запуск: `node scripts/generate-icons.mjs`) → `public/icons/*`, `public/apple-touch-icon.png`, `app/icon.png`, `app/favicon.ico`. Подмена логотипа — заменить `logo.jpg` и запустить скрипт.
+- `app/manifest.ts` (standalone, цвета как у приложения), iOS-метатеги — в `generateMetadata` в `app/layout.tsx`.
+- `public/sw.js`: кэширует только офлайн-страницу, иконки и неизменяемую статику `/_next/static`. Страницы, `/api`, вход, оплата и чужие адреса идут напрямую в сеть. Регистрируется только в проде. Файлы `sw.js`, `manifest.webmanifest`, `offline.html` исключены из проверки входа в `proxy.ts`.
+- `components/pwa/PwaProvider.tsx` ловит `beforeinstallprompt`, выбирает окно (`lib/pwa.ts`): системное окно Chrome, туториал для iPhone, «откройте в Safari / Chrome» во встроенных браузерах и Telegram. Само показывается после первой оплаты, после регистрации (пользователям ЮKassa — при первом открытии) и после первого сохранённого образа: один раз, ещё раз через 3 дня, не в Telegram и не из установленного приложения. Пункт «На главный экран» в профиле — всегда.
+
 ## Профиль
 
 Фото профиля (отдельно от аватара) сжимается в браузере и хранится в закрытом бакете

@@ -534,7 +534,8 @@
       "privacy": "Privacy and data",
       "help": "Help and support",
       "about": "About the app",
-      "language": "Language"
+      "language": "Language",
+      "install": "Add to home screen"
     },
     "logout": "Sign out",
     "loggingOut": "Signing out…",
@@ -887,5 +888,28 @@
     "canPayHere": "You can also pay with a card right here.",
     "openChrome": "Open in Chrome",
     "dismiss": "Close the tip"
+  },
+  "pwa": {
+    "title": "Add MIRRO to your home screen",
+    "subtitle": "Open it like an app: one tap, full screen.",
+    "gotIt": "Got it",
+    "addButton": "Add to Home Screen",
+    "systemWindow": "Your device will ask you to confirm.",
+    "iosShare": "Tap Share",
+    "iosShareHint": "The square with an arrow, at the bottom of Safari (at the top in Chrome).",
+    "iosAdd": "Tap Add to Home Screen",
+    "iosAddHint": "Scroll down in the menu if you don't see it.",
+    "iosConfirm": "Tap Add",
+    "iosConfirmHint": "In the top-right corner. MIRRO appears on your home screen.",
+    "manualMenu": "Tap ⋮ in your browser",
+    "manualAdd": "Tap Install app or Add to Home screen",
+    "manualAddHint": "The name depends on your browser.",
+    "inAppTitle": "Open in {browser} to add MIRRO to your home screen",
+    "inAppWhy": "Adding to the home screen doesn't work inside this app's built-in browser.",
+    "inAppSteps": "Tap ••• → Open in browser",
+    "inAppThen": "In {browser}, open this page again and add MIRRO to your home screen",
+    "openChrome": "Open in Chrome",
+    "installedTitle": "MIRRO is already on your home screen",
+    "installedText": "You're using the app right now."
   }
 }

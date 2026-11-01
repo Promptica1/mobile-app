@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
+import InstallPromptTrigger from "@/components/pwa/InstallPromptTrigger";
+import { getPaymentProvider } from "@/lib/payment-provider.server";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
@@ -26,6 +28,9 @@ export default async function TabsLayout({
   children: React.ReactNode;
 }>) {
   await requireCompletedProfile();
+  // Пользователи ЮKassa (Россия, Беларусь, Telegram) платят не сразу, поэтому первое предложение
+  // установки для них — после регистрации; остальным его покажет первая оплата или первый образ.
+  const signupFirstShow = (await getPaymentProvider()) === "yookassa";
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-background">
@@ -33,6 +38,7 @@ export default async function TabsLayout({
         {children}
       </main>
       <BottomNav />
+      <InstallPromptTrigger signupFirstShow={signupFirstShow} />
     </div>
   );
 }
