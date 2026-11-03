@@ -3,14 +3,20 @@ import { Check } from "lucide-react";
 
 // Общий вид карточек тарифов для рублей (ЮKassa) и долларов (Stripe): цена — главный элемент.
 
-// Крупная цена: semibold, контрастный цвет; пояснение («/мес», «за 7 дней») рядом, мельче, но читаемо.
-export function BigPrice({ amount, unit, className = "mt-5" }: { amount: string; unit?: string; className?: string }) {
+// Цена в отдельной лаймовой плашке: самая крупная строка карточки (semibold) и мелкая подпись рядом, в одну строку.
+// Цвета фиксированные: лайм и тёмный текст одинаковы в светлой и тёмной теме.
+export function PricePill({ amount, unit, className = "mt-4" }: { amount: string; unit?: string; className?: string }) {
   return (
-    <p className={`flex flex-wrap items-baseline gap-x-2 gap-y-0.5 ${className}`}>
-      <span className="font-serif text-[2.75rem] font-semibold leading-none tracking-tight text-text">{amount}</span>
-      {unit && <span className="text-[15px] font-medium text-text/70">{unit}</span>}
-    </p>
+    <div className={`flex items-baseline gap-2 whitespace-nowrap rounded-[18px] bg-[#D8F27F] px-5 py-4 text-[#1F1F1F] ${className}`}>
+      <span className="font-serif text-[2.75rem] font-semibold leading-none tracking-tight">{amount}</span>
+      {unit && <span className="text-[15px] font-medium">{unit}</span>}
+    </div>
   );
+}
+
+// Условия под кнопкой: тихий второстепенный текст (13 px, обычное начертание, тёмно-серый с контрастом не ниже 4.5:1, по центру).
+export function QuietNote({ children }: { children: ReactNode }) {
+  return <p className="mt-3 text-center text-[13px] font-normal leading-snug text-[#5C5A57]">{children}</p>;
 }
 
 export function FeatureList({ items, tone = "bg-subtle" }: { items: string[]; tone?: string }) {
@@ -67,14 +73,10 @@ export function YearlyCard({
           <span className="shrink-0 rounded-full bg-lavender/40 px-2.5 py-1 text-[11px] font-medium">{currentLabel}</span>
         )}
       </div>
-      <p className="mt-5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <span className="font-serif text-[3.25rem] font-semibold leading-none tracking-tight text-text">{weekly}</span>
-        <span className="text-lg font-semibold text-text">{weeklyUnit}</span>
-      </p>
-      <p className="mt-2 text-[15px] font-medium text-text">{billed}</p>
+      <PricePill amount={weekly} unit={weeklyUnit} />
       <FeatureList items={features} tone="bg-surface/80" />
       {action}
-      {note && <p className="mt-3 text-center text-xs leading-relaxed text-text/70">{note}</p>}
+      {note && <QuietNote>{billed}. {note}</QuietNote>}
     </article>
   );
 }

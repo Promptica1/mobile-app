@@ -22,7 +22,7 @@ import {
 import { LEGAL_DOCS } from "@/lib/legal";
 import { yearlyPricing } from "@/lib/plans";
 import { OFFER_INFO } from "@/lib/stripe/rules";
-import { BigPrice, FeatureList, YearlyCard } from "./PlanParts";
+import { FeatureList, PricePill, QuietNote, YearlyCard } from "./PlanParts";
 
 // Экран тарифов для пользователей вне России: Stripe, доллары. Валюту задаёт платёжная система —
 // пересчёта по курсу нет. Количество credits в рекламе не пишем, только строкой «Includes N try-ons and looks».
@@ -105,12 +105,10 @@ function OfferCard({
         )}
       </div>
 
-      <BigPrice
+      <PricePill
         amount={offer === "trial_free" ? tp("free") : trial ? values.setup : values.price}
         unit={t("priceNote", values)}
       />
-      {/* Условия продления — сразу под ценой: «Then $12.99/month. You can cancel at any time.» */}
-      <p className="mt-2 text-[15px] leading-snug text-text">{t("note", values)}</p>
 
       <FeatureList
         items={[tp(trial ? "includes" : "includesMonthly", { n: info.startCredits }), tPlan("f2"), tPlan("f3")]}
@@ -126,6 +124,8 @@ function OfferCard({
         {busy && <LoaderCircle size={18} strokeWidth={2} className="animate-spin" />}
         {busy ? tp("redirecting") : t("cta", values)}
       </button>
+      {/* Условия продления — под кнопкой: «Then $12.99/month. You can cancel at any time.» */}
+      <QuietNote>{t("note", values)}</QuietNote>
     </article>
   );
 }

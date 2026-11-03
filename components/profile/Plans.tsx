@@ -18,7 +18,7 @@ import {
   type Subscription,
 } from "@/lib/billing";
 import { PLANS, RU_ANNUAL, RU_TRIAL, formatPrice, yearlyPricing, type Plan, type PlanId } from "@/lib/plans";
-import { BigPrice, YearlyCard } from "./PlanParts";
+import { PricePill, QuietNote, YearlyCard } from "./PlanParts";
 
 // «Оформить» создаёт платёж на сервере и уводит на страницу оплаты ЮKassa.
 const STYLES: Record<Plan["id"], { card: string; muted: string; check: string }> = {
@@ -75,7 +75,7 @@ function PlanCard({
         ) : null}
       </div>
 
-      <BigPrice amount={formatPrice(plan.price, locale)} unit={paid ? t("perMonth") : undefined} />
+      <PricePill amount={formatPrice(plan.price, locale)} unit={paid ? t("perMonth") : undefined} />
       {paid && <p className={`mt-1.5 text-xs ${s.muted}`}>{t("paidInRub")}</p>}
 
       <ul className="mt-5 flex flex-col gap-2.5">
@@ -92,9 +92,7 @@ function PlanCard({
       {paid && trial && !current && !blocked && (
         <div className="mt-6 rounded-2xl bg-surface/80 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-text/70">{t("trialLabel")}</p>
-          <BigPrice amount={formatPrice(RU_TRIAL.price, locale)} unit={t("forDays", { days: RU_TRIAL.days })} className="mt-2" />
-          {/* Условия продления — до оплаты: «затем 1499 ₽/мес», отмена в любой момент. */}
-          <p className="mt-2 text-[15px] leading-snug text-text">{t("trialNote", { price: formatPrice(plan.price, locale) })}</p>
+          <PricePill amount={formatPrice(RU_TRIAL.price, locale)} unit={t("forDays", { days: RU_TRIAL.days })} className="mt-3" />
           <button
             type="button"
             onClick={trial.onStart}
@@ -104,6 +102,8 @@ function PlanCard({
             {trial.busy && <LoaderCircle size={18} strokeWidth={2} className="animate-spin" />}
             {trial.busy ? t("redirecting") : t("startTrial", { price: formatPrice(RU_TRIAL.price, locale) })}
           </button>
+          {/* Условия продления — под кнопкой: «Затем 1499 ₽/мес. Отменить можно в любой момент.» */}
+          <QuietNote>{t("trialNote", { price: formatPrice(plan.price, locale) })}</QuietNote>
         </div>
       )}
 
