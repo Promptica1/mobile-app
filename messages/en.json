@@ -377,19 +377,20 @@
     "pageTitle": "Subscription",
     "manageTitle": "My subscription",
     "payTitle": "Payment",
-    "trialTitle": "{days}-day trial for {price}",
     "trialNote": "Then {price}/month. You can cancel at any time.",
     "startTrial": "Start trial for {price}",
     "renewNote": "Renews every month at {price}. You can cancel at any time.",
     "annual": {
-      "title": "Premium annual",
-      "tagline": "Best value for the whole year",
-      "priceNote": "/year",
-      "save": "Save {percent}% compared to monthly",
+      "title": "Yearly subscription",
+      "perWeek": "/ week",
+      "billed": "{price} billed yearly",
+      "badge": "Save {percent}%",
       "note": "Renews once a year at {price}. We'll email you 7 days before. You can cancel at any time.",
       "subscribe": "Subscribe for {price}/year",
       "renew": "Renew for {price}/year"
-    }
+    },
+    "trialLabel": "Trial",
+    "forDays": "for {days, plural, one {# day} other {# days}}"
   },
   "common": {
     "back": "Back",
@@ -872,10 +873,10 @@
         "cta": "Start free trial"
       },
       "annual": {
-        "title": "Premium annual",
-        "tagline": "Best value for the whole year",
-        "priceNote": "/year",
-        "save": "Save {percent}% compared to monthly",
+        "title": "Yearly subscription",
+        "perWeek": "/ week",
+        "billed": "{price} billed yearly",
+        "badge": "Save {percent}%",
         "note": "Renews every year at {price}. You can cancel at any time.",
         "cta": "Subscribe for {price}/year"
       },

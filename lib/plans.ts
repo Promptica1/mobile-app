@@ -32,8 +32,17 @@ export type BillingInterval = "month" | "year";
 // Годовой Premium в ЮKassa: платится раз в год, credits начисляются каждый месяц (баланс сбрасывается до tokens).
 export const RU_ANNUAL = { price: 10990 } as const;
 export const priceFor = (id: string, interval: BillingInterval = "month") => (interval === "year" ? RU_ANNUAL.price : getPlan(id).price);
-// На сколько процентов год дешевле двенадцати месяцев по месячной цене (для подписи на экране).
-export const ruAnnualSavingPercent = () => Math.round((1 - RU_ANNUAL.price / (getPlan("premium").price * 12)) * 100);
+
+// Годовая подписка в цифрах для карточки: цена за неделю (год / 52) и выгода против двенадцати месяцев
+// по месячной цене. Числа считаются из тарифов, в текстах их нет. В долларах неделя округляется до цента,
+// в рублях — до рубля. 99 / 12.99 → $1.90 в неделю, выгода 36%; 10 990 / 1 499 → 211 ₽, выгода 39%.
+export function yearlyPricing(yearly: number, monthly: number, currency: "USD" | "RUB"): { perWeek: number; savingPercent: number } {
+  const week = yearly / 52;
+  return {
+    perWeek: currency === "USD" ? Math.round(week * 100) / 100 : Math.round(week),
+    savingPercent: Math.round((1 - yearly / (monthly * 12)) * 100),
+  };
+}
 
 // Триал в ЮKassa: отдельный платёж с сохранением карты, через TRIAL_DAYS дней — автосписание цены Premium.
 // Доступен только тому, у кого никогда не было ни оплаты, ни триала (правило проверяет база).

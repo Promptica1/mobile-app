@@ -17,7 +17,8 @@ import {
   startCheckout,
   type Subscription,
 } from "@/lib/billing";
-import { PLANS, RU_ANNUAL, RU_TRIAL, formatPrice, ruAnnualSavingPercent, type Plan, type PlanId } from "@/lib/plans";
+import { PLANS, RU_ANNUAL, RU_TRIAL, formatPrice, yearlyPricing, type Plan, type PlanId } from "@/lib/plans";
+import { BigPrice, YearlyCard } from "./PlanParts";
 
 // «Оформить» создаёт платёж на сервере и уводит на страницу оплаты ЮKassa.
 const STYLES: Record<Plan["id"], { card: string; muted: string; check: string }> = {
@@ -74,12 +75,7 @@ function PlanCard({
         ) : null}
       </div>
 
-      <p className="mt-5 flex items-baseline gap-1">
-        <span className="font-serif text-[2.5rem] font-medium leading-none tracking-tight">
-          {formatPrice(plan.price, locale)}
-        </span>
-        {paid && <span className={`text-sm ${s.muted}`}>{t("perMonth")}</span>}
-      </p>
+      <BigPrice amount={formatPrice(plan.price, locale)} unit={paid ? t("perMonth") : undefined} />
       {paid && <p className={`mt-1.5 text-xs ${s.muted}`}>{t("paidInRub")}</p>}
 
       <ul className="mt-5 flex flex-col gap-2.5">
@@ -94,10 +90,11 @@ function PlanCard({
       </ul>
 
       {paid && trial && !current && !blocked && (
-        <div className="mt-6 rounded-2xl bg-surface/70 p-4">
-          <p className="text-[15px] font-medium">{t("trialTitle", { days: RU_TRIAL.days, price: formatPrice(RU_TRIAL.price, locale) })}</p>
+        <div className="mt-6 rounded-2xl bg-surface/80 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-text/70">{t("trialLabel")}</p>
+          <BigPrice amount={formatPrice(RU_TRIAL.price, locale)} unit={t("forDays", { days: RU_TRIAL.days })} className="mt-2" />
           {/* Условия продления — до оплаты: «затем 1499 ₽/мес», отмена в любой момент. */}
-          <p className="mt-1 text-xs leading-relaxed text-text/70">{t("trialNote", { price: formatPrice(plan.price, locale) })}</p>
+          <p className="mt-2 text-[15px] leading-snug text-text">{t("trialNote", { price: formatPrice(plan.price, locale) })}</p>
           <button
             type="button"
             onClick={trial.onStart}
@@ -139,6 +136,7 @@ function PlanCard({
 }
 
 // Годовой Premium: платится раз в год, credits (60) начисляются каждый месяц. Триала нет.
+// Вид — общий с долларовой версией (PlanParts.YearlyCard); неделя и выгода считаются из тарифов.
 function AnnualCard({
   current,
   renewByHand,
@@ -158,56 +156,42 @@ function AnnualCard({
   const ta = useTranslations("subscription.annual");
   const tPlan = useTranslations("plans.premium");
   const locale = useLocale();
-  const price = formatPrice(RU_ANNUAL.price, locale);
   const premium = PLANS.find((p) => p.id === "premium") as Plan;
+  const price = formatPrice(RU_ANNUAL.price, locale);
+  const { perWeek, savingPercent } = yearlyPricing(RU_ANNUAL.price, premium.price, "RUB");
+  const features = ["f1", "f2", "f3", "f4"].map((f) => tPlan(f, { n: premium.tokens }));
+  const manage = (current && !renewByHand) || blocked;
   return (
-    <article className="relative rounded-card border border-border bg-surface p-5" aria-label={ta("title")}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="font-serif text-[1.75rem] font-medium leading-none">{ta("title")}</h2>
-          <p className="mt-1.5 text-xs text-muted">{ta("tagline")}</p>
-        </div>
-        {current && (
-          <span className="shrink-0 rounded-full bg-lavender/30 px-2.5 py-1 text-[11px] font-medium">{t("currentBadge")}</span>
-        )}
-      </div>
-      <p className="mt-5 flex items-baseline gap-1">
-        <span className="font-serif text-[2.5rem] font-medium leading-none tracking-tight">{price}</span>
-        <span className="text-sm text-muted">{ta("priceNote")}</span>
-      </p>
-      <p className="mt-1.5 text-xs font-medium text-text/70">{ta("save", { percent: ruAnnualSavingPercent() })}</p>
-      <ul className="mt-5 flex flex-col gap-2.5">
-        {["f1", "f2", "f3", "f4"].map((f) => (
-          <li key={f} className="flex items-center gap-2.5 text-[15px]">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-subtle text-text">
-              <Check size={12} strokeWidth={2.5} />
-            </span>
-            {tPlan(f, { n: premium.tokens })}
-          </li>
-        ))}
-      </ul>
-      {(current && !renewByHand) || blocked ? (
-        <Link
-          href="/profile/subscription/manage"
-          className="mt-6 flex h-12 w-full items-center justify-center rounded-full border border-border bg-surface text-[15px] font-medium text-text"
-        >
-          {t("manageButton")}
-        </Link>
-      ) : (
-        <>
+    <YearlyCard
+      title={ta("title")}
+      weekly={formatPrice(perWeek, locale)}
+      weeklyUnit={ta("perWeek")}
+      billed={ta("billed", { price })}
+      badge={ta("badge", { percent: savingPercent })}
+      features={features}
+      currentLabel={current ? t("currentBadge") : undefined}
+      note={manage ? undefined : ta("note", { price })}
+      action={
+        manage ? (
+          <Link
+            href="/profile/subscription/manage"
+            className="mt-6 flex h-12 w-full items-center justify-center rounded-full border border-border bg-surface text-[15px] font-medium text-text"
+          >
+            {t("manageButton")}
+          </Link>
+        ) : (
           <button
             type="button"
             onClick={onSubscribe}
             disabled={disabled}
-            className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-lime text-[15px] font-medium text-text transition-transform active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100"
+            className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-lime text-[15px] font-semibold text-text transition-transform active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100"
           >
             {busy && <LoaderCircle size={18} strokeWidth={2} className="animate-spin" />}
             {busy ? t("redirecting") : ta(current ? "renew" : "subscribe", { price })}
           </button>
-          <p className="mt-3 text-center text-xs leading-relaxed text-muted">{ta("note", { price })}</p>
-        </>
-      )}
-    </article>
+        )
+      }
+    />
   );
 }
 

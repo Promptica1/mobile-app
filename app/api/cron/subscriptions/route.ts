@@ -8,7 +8,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // Ежедневные задачи подписок (расписание — в vercel.json), для Stripe и годового плана ЮKassa:
 // 1. годовой план: платёж раз в год, а credits начисляем каждый месяц (баланс сбрасывается до 60);
 // 2. письмо «триал скоро закончится» (за ~1,5 суток; только Stripe);
-// 3. письмо «годовой план продлится через 7 дней» (Stripe — в долларах, ЮKassa — в рублях; язык по профилю).
+// 3. письмо «годовой план продлится через 7 дней» (Stripe — в долларах, ЮKassa — в рублях; язык по профилю);
+// 4. хранение: удаляются записи о триале (хэш почты, отпечаток карты) удалённых аккаунтов старше 12 месяцев —
+//    как написано в политике. Записи действующих аккаунтов не трогаются.
 // Вызывать может только Vercel Cron: заголовок Authorization: Bearer <CRON_SECRET>. Логи — "SUBS[cron]:".
 
 export const dynamic = "force-dynamic";
@@ -51,7 +53,7 @@ export async function GET(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: "not_configured" }, { status: 503 });
   const store = createStore(admin);
   const now = new Date();
-  const result = { creditGrants: 0, trialEmails: 0, annualEmails: 0, errors: 0 };
+  const result = { creditGrants: 0, trialEmails: 0, annualEmails: 0, trialClaimsPurged: 0, errors: 0 };
 
   // 1. Месячные credits годового плана.
   const { data: due } = await admin
@@ -142,6 +144,11 @@ export async function GET(request: NextRequest) {
       }
     }
   }
+
+  // 4. Срок хранения записей о триале (SQL purge_trial_claims, см. миграцию 20261105120000).
+  const { data: purged, error: purgeError } = await admin.rpc("purge_trial_claims");
+  if (purgeError) console.log(`SUBS[cron]: purge_trial_claims failed (${purgeError.message})`);
+  else result.trialClaimsPurged = typeof purged === "number" ? purged : 0;
 
   console.log(`SUBS[cron]: ${JSON.stringify({ ...result, emailReady })}`);
   return NextResponse.json({ ...result, emailReady });

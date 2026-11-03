@@ -195,3 +195,59 @@ begin
 
   raise notice 'TARIFF SQL TESTS: all passed';
 end $$;
+
+-- ═════════════ Срок хранения записей о триале: аккаунт + 12 месяцев ═════════════
+truncate public.trial_claims, auth.users cascade;
+insert into auth.users (id, email) values
+  ('00000000-0000-0000-0000-0000000000b1', 'active@example.com'),
+  ('00000000-0000-0000-0000-0000000000b2', 'deleted.old@example.com'),
+  ('00000000-0000-0000-0000-0000000000b3', 'deleted.recent@example.com');
+insert into public.profiles (id) select id from auth.users;
+insert into public.trial_claims (user_id, email_hash, card_fingerprint, subscription_id) values
+  ('00000000-0000-0000-0000-0000000000b1', 'hash_active', 'fp_active', 'sub_b1'),
+  ('00000000-0000-0000-0000-0000000000b2', 'hash_old', 'fp_old', 'sub_b2'),
+  ('00000000-0000-0000-0000-0000000000b3', 'hash_recent', 'fp_recent', 'sub_b3');
+-- Запись действующего аккаунта состарилась на 5 лет — всё равно остаётся, пока аккаунт существует.
+update public.trial_claims set claimed_at = now() - interval '5 years' where subscription_id = 'sub_b1';
+
+\i supabase/migrations/20261105120000_trial_retention.sql
+\i supabase/migrations/20261105120000_trial_retention.sql
+
+do $$
+declare
+  n integer;
+  stamp timestamptz;
+begin
+  assert (select count(*) from public.trial_claims where user_id is null) = 0, 'no deleted accounts yet';
+  assert public.purge_trial_claims() = 0, 'nothing to purge while all accounts exist';
+
+  -- Удаление аккаунтов: user_id обнуляется (триал не вернуть), момент удаления запоминается.
+  delete from auth.users where id in ('00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000b3');
+  assert (select count(*) from public.trial_claims where user_id is null and account_deleted_at is not null) = 2, 'deletion time is recorded';
+  assert (select account_deleted_at from public.trial_claims where subscription_id = 'sub_b2') > now() - interval '1 minute', 'stamped now';
+  assert public.trial_available('00000000-0000-0000-0000-0000000000ff', 'hash_old') = false, 'trial stays blocked after deletion';
+  assert (select account_deleted_at from public.trial_claims where user_id = '00000000-0000-0000-0000-0000000000b1') is null, 'active account has no deletion time';
+  assert public.purge_trial_claims() = 0, 'both deleted records are younger than 12 months';
+
+  -- Время идёт: первый удалён 13 месяцев назад, второй — 11.
+  update public.trial_claims set account_deleted_at = now() - interval '13 months' where subscription_id = 'sub_b2';
+  update public.trial_claims set account_deleted_at = now() - interval '11 months' where subscription_id = 'sub_b3';
+  -- Пересохранение записи не сдвигает срок.
+  stamp := (select account_deleted_at from public.trial_claims where subscription_id = 'sub_b3');
+  update public.trial_claims set card_fingerprint = 'fp_recent' where subscription_id = 'sub_b3';
+  assert (select account_deleted_at from public.trial_claims where subscription_id = 'sub_b3') = stamp, 'update does not move the deletion time';
+
+  raise notice 'ДО очистки: %', (select string_agg(subscription_id || coalesce('/deleted ' || to_char(account_deleted_at, 'YYYY-MM-DD'), '/active'), ', ' order by subscription_id) from public.trial_claims);
+  n := public.purge_trial_claims();
+  raise notice 'УДАЛЕНО записей: % (удалённый аккаунт старше 12 месяцев)', n;
+  raise notice 'ПОСЛЕ очистки: %', (select string_agg(subscription_id || coalesce('/deleted ' || to_char(account_deleted_at, 'YYYY-MM-DD'), '/active'), ', ' order by subscription_id) from public.trial_claims);
+  assert n = 1, 'only the 13-month-old deleted record is purged, got ' || n;
+  assert not exists (select 1 from public.trial_claims where subscription_id = 'sub_b2'), '13 months after deletion: removed';
+  assert exists (select 1 from public.trial_claims where subscription_id = 'sub_b3'), '11 months after deletion: kept';
+  assert exists (select 1 from public.trial_claims where subscription_id = 'sub_b1' and user_id is not null), 'active account record is never touched';
+  assert public.purge_trial_claims() = 0, 'second run purges nothing';
+  assert not has_function_privilege('authenticated', 'public.purge_trial_claims()', 'execute'), 'browser cannot purge';
+  assert has_function_privilege('service_role', 'public.purge_trial_claims()', 'execute'), 'server can purge';
+
+  raise notice 'RETENTION SQL TESTS: all passed';
+end $$;

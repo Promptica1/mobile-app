@@ -60,28 +60,29 @@ await api(intrial, "GET", `/api/payments/status?order=${ci.orderId}`);
 console.log("\n[ЮKassa, русский] триал доступен");
 {
   const t = await text(fresh, "/profile/subscription", { country: "RU", lang: "ru-RU" }, "tariffs_ru_trial");
-  ok(/Пробный период 7 дней за 399\s₽/.test(t), "«Пробный период 7 дней за 399 ₽»", t.slice(0, 400));
+  ok(/399\s₽/.test(t) && /за 7 дней/.test(t), "«399 ₽» и «за 7 дней»", t.slice(0, 400));
   ok(/Затем 1499\s₽\/мес\. Отменить можно в любой момент/.test(t), "до оплаты: «Затем 1499 ₽/мес. Отменить можно в любой момент»");
   ok(/Начать за 399\s₽/.test(t) && /Оформить за 1499\s₽|Оформить за 1499/.test(t.replace(/ /g, " ")) || /1499/.test(t), "есть кнопки триала и обычной подписки");
   ok(/60 примерок и образов/.test(t), "объём: «Включено: 60 примерок и образов»");
   ok(!/Premium\+/.test(t) && !/2499|2\.499/.test(t), "Premium+ и 2499 ₽ нет на экране");
   ok(!/≈/.test(t), "рублёвый тариф без пересчёта в доллары");
-  ok(/Premium на год/.test(t) && /10\s990\s₽\s*\/год/.test(t.replace(/\u00a0/g, " ")), "годовой: «Premium на год», «10 990 ₽ /год»");
-  ok(/Выгоднее месячной оплаты на 39%/.test(t), "подпись экономии: 39%");
+  ok(/Подписка на год/.test(t) && /211\s₽\s*\/\s*неделю/.test(t.replace(/\u00a0/g, " ")), "годовой: «Подписка на год», «211 ₽ / неделю»");
+  ok(/10\s990\s₽ списывается раз в год/.test(t.replace(/\u00a0/g, " ")), "годовая сумма: «10 990 ₽ списывается раз в год»");
+  ok(/Выгода 39%/.test(t), "бейдж: «Выгода 39%»");
   ok(/Продлевается раз в год за 10\s990\s₽/.test(t.replace(/\u00a0/g, " ")) && /Напомним на почту за 7 дней/.test(t) && /Отменить можно в любой момент/.test(t), "условия до оплаты: раз в год, напоминание за 7 дней, отмена в любой момент");
   ok(/Оформить за 10\s990\s₽ в год/.test(t.replace(/\u00a0/g, " ")), "кнопка «Оформить за 10 990 ₽ в год»");
 }
 console.log("\n[ЮKassa, английский] триал доступен");
 {
   const t = await text(fresh, "/profile/subscription", { country: "BY", lang: "en-US" });
-  ok(/7-day trial for ₽399/.test(t) && /Then ₽1,499\/month\. You can cancel at any time/.test(t), "«7-day trial for ₽399», «Then ₽1,499/month. You can cancel at any time»", t.slice(0, 300));
-  ok(/Premium annual/.test(t) && /₽10,990/.test(t) && /Save 39% compared to monthly/.test(t) && /Renews once a year at ₽10,990\. We'll email you 7 days before/.test(t), "английский: «Premium annual», ₽10,990, Save 39%, письмо за 7 дней");
+  ok(/₽399/.test(t) && /for 7 days/.test(t) && /Then ₽1,499\/month\. You can cancel at any time/.test(t), "«₽399», «for 7 days», «Then ₽1,499/month. You can cancel at any time»", t.slice(0, 300));
+  ok(/Yearly subscription/.test(t) && /₽211\s*\/\s*week/.test(t) && /₽10,990 billed yearly/.test(t) && /Save 39%/.test(t) && /Renews once a year at ₽10,990\. We'll email you 7 days before/.test(t), "английский: «Yearly subscription», ₽211 / week, ₽10,990 billed yearly, Save 39%, письмо за 7 дней");
 }
 console.log("\n[ЮKassa] триал недоступен (платил раньше / уже брал)");
 for (const [name, u] of [["платил раньше", payer], ["уже брал триал", trialer]]) {
   const t = await text(u, "/profile/subscription", { country: "RU", lang: "ru-RU" }, name === "платил раньше" ? "tariffs_ru_notrial" : null);
   ok(!/триал|пробн|399/i.test(t) && /Premium/.test(t) && /1499/.test(t), `${name}: только Premium, триала на экране нет`, t.slice(0, 300));
-  ok(/Premium на год/.test(t) && /Оформить за 10\s990/.test(t.replace(/\u00a0/g, " ")), `${name}: годовой Premium на месте`);
+  ok(/Подписка на год/.test(t) && /Оформить за 10\s990/.test(t.replace(/\u00a0/g, " ")), `${name}: годовая подписка на месте`);
 }
 console.log("\n[ЮKassa] экран «Моя подписка» и результат оплаты триала");
 {
@@ -98,7 +99,7 @@ console.log("\n[Stripe, английский] триал доступен");
   ok(/7-day trial/.test(t) && /\$3\.99/.test(t) && /for 7 days/.test(t), "«7-day trial», $3.99, for 7 days", t.slice(0, 300));
   ok(/Then \$12\.99\/month\. You can cancel at any time/.test(t), "до оплаты: «Then $12.99/month. You can cancel at any time»");
   ok(/Start trial for \$3\.99/.test(t), "кнопка «Start trial for $3.99»");
-  ok(/\$99/.test(t) && /\/year/.test(t) && /Save 36%/.test(t), "годовой: $99 /year, Save 36%");
+  ok(/Yearly subscription/.test(t) && /\$1\.90\s*\/\s*week/.test(t) && /\$99 billed yearly/.test(t) && /Save 36%/.test(t), "годовой: «Yearly subscription», $1.90 / week, $99 billed yearly, Save 36%");
   ok(/Includes 15 try-ons and looks/.test(t) && /Includes 60 try-ons and looks every month/.test(t), "«Includes N try-ons and looks»: 15 в триале, 60 в год");
   ok(!/9\.99|49\.99|4\.99|Premium\+/.test(t), "старых цен и Premium+ нет");
 }

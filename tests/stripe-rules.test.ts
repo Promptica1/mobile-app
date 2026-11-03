@@ -3,7 +3,6 @@ import { test } from "node:test";
 import { resolveProvider, currencyOf } from "../lib/payment-provider.ts";
 import {
   addMonths,
-  annualSavingPercent,
   creditsOnCheckout,
   creditsOnCycle,
   mapStatus,
@@ -38,7 +37,6 @@ test("тарифы: цены и сроки", () => {
   assert.equal(OFFER_INFO.annual.recurringUsd, 99);
   assert.equal(OFFER_INFO.trial_free.trialDays, 3); // вариант B не менялся
   assert.equal(OFFER_INFO.trial_free.startCredits, 5);
-  assert.equal(annualSavingPercent(), 36);
   assert.equal(OFFER_INFO.annual.interval, "year");
   assert.equal(trialOffer(false), "trial");
   assert.equal(trialOffer(true), "trial_free");

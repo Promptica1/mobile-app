@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { Check, ChevronRight, FlaskConical, Info, LoaderCircle, Lock } from "lucide-react";
+import { ChevronRight, FlaskConical, Info, LoaderCircle, Lock } from "lucide-react";
 import InAppBrowserHint from "@/components/InAppBrowserHint";
 import { useToast } from "@/components/ui/useToast";
 import {
@@ -20,7 +20,9 @@ import {
   type Subscription,
 } from "@/lib/billing";
 import { LEGAL_DOCS } from "@/lib/legal";
-import { annualSavingPercent, OFFER_INFO } from "@/lib/stripe/rules";
+import { yearlyPricing } from "@/lib/plans";
+import { OFFER_INFO } from "@/lib/stripe/rules";
+import { BigPrice, FeatureList, YearlyCard } from "./PlanParts";
 
 // Экран тарифов для пользователей вне России: Stripe, доллары. Валюту задаёт платёжная система —
 // пересчёта по курсу нет. Количество credits в рекламе не пишем, только строкой «Includes N try-ons and looks».
@@ -54,9 +56,36 @@ function OfferCard({
     setup: formatUsd(info.setupUsd, locale),
     price: formatUsd(info.recurringUsd, locale),
     days: info.trialDays,
-    percent: annualSavingPercent(),
   };
   const trial = offer === "trial" || offer === "trial_free";
+
+  if (offer === "annual") {
+    // «Подписка на год»: главная цена — неделя, ниже — годовая сумма; выгода считается из цен.
+    const { perWeek, savingPercent } = yearlyPricing(info.recurringUsd, OFFER_INFO.monthly.recurringUsd, "USD");
+    return (
+      <YearlyCard
+        title={t("title")}
+        weekly={formatUsd(perWeek, locale)}
+        weeklyUnit={t("perWeek")}
+        billed={t("billed", values)}
+        badge={t("badge", { percent: savingPercent })}
+        features={[tp("includesMonthly", { n: info.startCredits }), tPlan("f2"), tPlan("f3")]}
+        note={t("note", values)}
+        action={
+          <button
+            type="button"
+            onClick={onChoose}
+            disabled={disabled}
+            className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-lime text-[15px] font-semibold text-text transition-transform active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100"
+          >
+            {busy && <LoaderCircle size={18} strokeWidth={2} className="animate-spin" />}
+            {busy ? tp("redirecting") : t("cta", values)}
+          </button>
+        }
+      />
+    );
+  }
+
   return (
     <article
       className={`relative rounded-card p-5 ${
@@ -76,37 +105,23 @@ function OfferCard({
         )}
       </div>
 
-      <p className="mt-5 flex items-baseline gap-1.5">
-        <span className="font-serif text-[2.5rem] font-medium leading-none tracking-tight">
-          {offer === "trial_free" ? tp("free") : trial ? values.setup : values.price}
-        </span>
-        <span className="text-sm text-muted">{t("priceNote", values)}</span>
-      </p>
-      {offer === "annual" && <p className="mt-1.5 text-xs font-medium text-text/70">{t("save", values)}</p>}
+      <BigPrice
+        amount={offer === "trial_free" ? tp("free") : trial ? values.setup : values.price}
+        unit={t("priceNote", values)}
+      />
+      {/* Условия продления — сразу под ценой: «Then $12.99/month. You can cancel at any time.» */}
+      <p className="mt-2 text-[15px] leading-snug text-text">{t("note", values)}</p>
 
-      <ul className="mt-5 flex flex-col gap-2.5">
-        {[
-          tp(trial ? "includes" : "includesMonthly", { n: info.startCredits }),
-          tPlan("f2"),
-          tPlan("f3"),
-        ].map((text) => (
-          <li key={text} className="flex items-center gap-2.5 text-[15px]">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface/80 text-text">
-              <Check size={12} strokeWidth={2.5} />
-            </span>
-            {text}
-          </li>
-        ))}
-      </ul>
-
-      {/* Условия продления — до оплаты, рядом с кнопкой. */}
-      <p className="mt-5 text-xs leading-relaxed text-text/70">{t("note", values)}</p>
+      <FeatureList
+        items={[tp(trial ? "includes" : "includesMonthly", { n: info.startCredits }), tPlan("f2"), tPlan("f3")]}
+        tone="bg-surface/80"
+      />
 
       <button
         type="button"
         onClick={onChoose}
         disabled={disabled}
-        className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-lime text-[15px] font-medium text-text transition-transform active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100"
+        className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-lime text-[15px] font-medium text-text transition-transform active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100"
       >
         {busy && <LoaderCircle size={18} strokeWidth={2} className="animate-spin" />}
         {busy ? tp("redirecting") : t("cta", values)}

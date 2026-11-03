@@ -32,10 +32,6 @@ export const OFFER_INFO: Record<Offer, OfferInfo> = {
 export const trialOffer = (freeTrial: boolean): Offer => (freeTrial ? "trial_free" : "trial");
 export const isTrialOffer = (o: Offer) => o === "trial" || o === "trial_free";
 
-// На сколько процентов годовой план дешевле двенадцати месяцев по месячной цене (для подписи на экране).
-export const annualSavingPercent = () =>
-  Math.round((1 - OFFER_INFO.annual.recurringUsd / (OFFER_INFO.monthly.recurringUsd * 12)) * 100);
-
 // Credits при оформлении (checkout.session.completed).
 export const creditsOnCheckout = (o: Offer) => OFFER_INFO[o].startCredits;
 // Credits при оплате очередного периода (invoice.paid, billing_reason = subscription_cycle).

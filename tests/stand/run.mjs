@@ -312,6 +312,24 @@ console.log("\n[ЮKassa] годовой Premium 10 990 ₽: 60 credits в мес
   eq((await call(u2, "POST", "/api/payments/create", { plan: "premium", trial: true, consent: true }, "RU")).json?.error, "trial_used", "после годовой оплаты триал недоступен");
 }
 
+console.log("\n[Хранение] записи о триале: аккаунт + 12 месяцев, чистит ежедневный cron");
+{
+  const cronSubs = () => fetch(APP + "/api/cron/subscriptions", { headers: { authorization: "Bearer cron-secret" } }).then((r) => r.json());
+  const active = await newUser(`keep-${run}@example.com`);
+  await q("insert into trial_claims (user_id, email_hash, card_fingerprint, subscription_id, claimed_at) values ($1, $2, $3, $4, now() - interval '5 years')", [active.id, `h_keep_${run}`, `fp_keep_${run}`, `keep_${run}`]);
+  // удалённые аккаунты: user_id пуст, срок — по account_deleted_at
+  await q("insert into trial_claims (user_id, email_hash, card_fingerprint, subscription_id, account_deleted_at) values (null, $1, $2, $3, now() - interval '13 months'), (null, $4, $5, $6, now() - interval '11 months')", [`h_old_${run}`, `fp_old_${run}`, `old_${run}`, `h_new_${run}`, `fp_new_${run}`, `new_${run}`]);
+  const before = (await q("select count(*)::int c from trial_claims where subscription_id like $1", [`%_${run}`]))[0].c;
+  const r = await cronSubs();
+  const left = (await q("select subscription_id, user_id is not null as active from trial_claims where subscription_id like $1 order by subscription_id", [`%_${run}`]));
+  ok(r.trialClaimsPurged >= 1, "cron сообщил об очистке", JSON.stringify(r));
+  eq([before, left.length], [3, 2], "из трёх записей удалена одна");
+  ok(!left.some((x) => x.subscription_id === `old_${run}`), "удалена запись аккаунта, удалённого 13 месяцев назад");
+  ok(left.some((x) => x.subscription_id === `new_${run}`), "запись аккаунта, удалённого 11 месяцев назад, осталась");
+  ok(left.some((x) => x.subscription_id === `keep_${run}` && x.active), "запись действующего аккаунта (даже 5-летней давности) не тронута");
+  eq((await cronSubs()).trialClaimsPurged, 0, "повторный запуск ничего не удаляет");
+}
+
 console.log("\n[Провайдер] страна → ЮKassa / Stripe");
 {
   const u = await newUser(`prov-${run}@example.com`);
