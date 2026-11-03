@@ -115,7 +115,7 @@ export default function PaymentResult({ order: yookassaOrder, stripeSession = nu
         <Actions primary={{ label: t("close"), href: "/wardrobe" }} />
         {/* Условие автопродления — обязательно показываем после оформления */}
         <p className="mt-6 max-w-[290px] text-xs leading-relaxed text-muted">
-          {t("autoRenewNote")}
+          {result.annual ? t("autoRenewNoteYear") : t("autoRenewNote")}
         </p>
       </Screen>
     );

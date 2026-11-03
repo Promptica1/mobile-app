@@ -36,4 +36,5 @@ export const mailer: Mailer = {
 };
 
 export const sendTrialEnding = (to: string, trialEnd: Date) => sendMail(to, trialEndingMail({ trialEnd }, manageUrl()));
-export const sendAnnualReminder = (to: string, renewsOn: Date) => sendMail(to, annualReminderMail({ renewsOn }, manageUrl()));
+export const sendAnnualReminder = (to: string, renewsOn: Date, opts?: { price?: string; locale?: "ru" | "en" }) =>
+  sendMail(to, annualReminderMail({ renewsOn, price: opts?.price, locale: opts?.locale }, manageUrl()));

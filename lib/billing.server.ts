@@ -1,14 +1,15 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PlanId } from "./plans";
-import { getPlan, RU_TRIAL } from "./plans";
+import { getPlan, priceFor, RU_TRIAL, type BillingInterval } from "./plans";
 
 // Тарифы, которые можно оплатить, и их цены — только с сервера (браузеру сумму не доверяем).
 export type PaidPlanId = Exclude<PlanId, "free">;
 export const isPaidPlan = (v: unknown): v is PaidPlanId => v === "premium";
-export const planPrice = (id: PaidPlanId) => getPlan(id).price;
+export const planPrice = (id: PaidPlanId, interval: BillingInterval = "month") => priceFor(id, interval);
 // Название платежа — оно же позиция в чеке («Подписка MIRRO Premium»).
-export const planDescription = (id: PaidPlanId) => `Подписка MIRRO ${getPlan(id).name}`;
+export const planDescription = (id: PaidPlanId, interval: BillingInterval = "month") =>
+  `Подписка MIRRO ${getPlan(id).name}${interval === "year" ? " (год)" : ""}`;
 // Триал: отдельный платёж 399 ₽ с сохранением карты; через 7 дней — автосписание цены Premium.
 export const trialDescription = `Пробный период MIRRO Premium (${RU_TRIAL.days} дней)`;
 // Позиция чека для докупки токенов (когда появится оплата пакетов).
@@ -21,9 +22,10 @@ export async function userEmail(admin: SupabaseClient, userId: string): Promise<
   return data.user?.email || null;
 }
 
-// Подписка действует месяц с момента оплаты.
-export function periodEnd(from = new Date()) {
+// Подписка действует месяц (или год — у годового плана) с момента оплаты.
+export function periodEnd(from = new Date(), interval: BillingInterval = "month") {
   const d = new Date(from);
-  d.setMonth(d.getMonth() + 1);
+  if (interval === "year") d.setFullYear(d.getFullYear() + 1);
+  else d.setMonth(d.getMonth() + 1);
   return d;
 }

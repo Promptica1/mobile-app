@@ -26,11 +26,14 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return fail("unauthorized", 401);
 
-  const body = (await request.json().catch(() => null)) as { plan?: unknown; consent?: unknown; trial?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { plan?: unknown; consent?: unknown; trial?: unknown; interval?: unknown } | null;
   const plan = body?.plan;
   if (!isPaidPlan(plan)) return fail("bad_plan", 400);
   // Триал: 399 ₽ за 7 дней с сохранением карты, затем автосписание цены Premium. Один раз на человека.
   const trial = body?.trial === true;
+  // Годовой Premium: 10 990 ₽ раз в год, credits начисляются каждый месяц. С триалом не сочетается.
+  const interval = body?.interval === "year" ? "year" : "month";
+  if (trial && interval === "year") return fail("bad_plan", 400);
   // Без согласия с офертой и политикой подписку не оформляем.
   if (body?.consent !== true) return fail("consent_required", 400);
 
@@ -70,8 +73,8 @@ export async function POST(request: NextRequest) {
 
   // Наш номер заказа: по нему вернёмся с оплаты и найдём платёж.
   const orderId = randomUUID();
-  const amount = trial ? RU_TRIAL.price : planPrice(plan);
-  const description = trial ? trialDescription : planDescription(plan);
+  const amount = trial ? RU_TRIAL.price : planPrice(plan, interval);
+  const description = trial ? trialDescription : planDescription(plan, interval);
   if (trial) {
     // Триал только тому, у кого не было ни оплаты, ни триала (аккаунт, почта). Бронь ставится сразу
     // и снимается, если платёж не пройдёт; карту проверяем после оплаты.
@@ -92,7 +95,7 @@ export async function POST(request: NextRequest) {
   const releaseTrial = () => (trial ? admin.rpc("release_trial", { p_subscription_id: `yk:${orderId}` }) : null);
   const { error: insertError } = await admin
     .from("payments")
-    .insert({ id: orderId, user_id: user.id, plan, amount, status: "pending", test: yookassaIsTest(), ...(trial ? { kind: "trial" } : {}) });
+    .insert({ id: orderId, user_id: user.id, plan, amount, status: "pending", test: yookassaIsTest(), ...(trial ? { kind: "trial" } : {}), ...(interval === "year" ? { billing_interval: "year" } : {}) });
   if (insertError) {
     console.log(`YK: payments insert failed: ${insertError.message}`);
     await releaseTrial();
@@ -123,7 +126,7 @@ export async function POST(request: NextRequest) {
       description,
       receipt: buildReceipt({ email: user.email, description, amount }),
       returnUrl: `${base}/profile/subscription/result?order=${orderId}`,
-      metadata: { user_id: user.id, plan, order_id: orderId, ...(trial ? { kind: "trial" } : {}) },
+      metadata: { user_id: user.id, plan, order_id: orderId, ...(trial ? { kind: "trial" } : {}), ...(interval === "year" ? { interval: "year" } : {}) },
       // Новый ключ на каждый заказ: повтор этого же запроса не создаст второй платёж.
       idempotenceKey: orderId,
     });

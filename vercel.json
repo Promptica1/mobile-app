@@ -5,7 +5,7 @@
       "schedule": "0 6 * * *"
     },
     {
-      "path": "/api/cron/stripe",
+      "path": "/api/cron/subscriptions",
       "schedule": "30 6 * * *"
     }
   ]

@@ -17,7 +17,7 @@ import {
   startCheckout,
   type Subscription,
 } from "@/lib/billing";
-import { PLANS, RU_TRIAL, formatPrice, type Plan, type PlanId } from "@/lib/plans";
+import { PLANS, RU_ANNUAL, RU_TRIAL, formatPrice, ruAnnualSavingPercent, type Plan, type PlanId } from "@/lib/plans";
 
 // «Оформить» создаёт платёж на сервере и уводит на страницу оплаты ЮKassa.
 const STYLES: Record<Plan["id"], { card: string; muted: string; check: string }> = {
@@ -33,6 +33,7 @@ function PlanCard({
   plan,
   current,
   renewByHand,
+  blocked = false,
   busy,
   disabled,
   onSubscribe,
@@ -42,6 +43,8 @@ function PlanCard({
   current: boolean;
   // Тариф действует, но карта не привязана: продлить можно оплатой вручную.
   renewByHand: boolean;
+  // Действует подписка другого периода (например, годовая): здесь ведём в «Моя подписка».
+  blocked?: boolean;
   busy: boolean;
   disabled: boolean;
   onSubscribe: () => void;
@@ -90,7 +93,7 @@ function PlanCard({
         ))}
       </ul>
 
-      {paid && trial && !current && (
+      {paid && trial && !current && !blocked && (
         <div className="mt-6 rounded-2xl bg-surface/70 p-4">
           <p className="text-[15px] font-medium">{t("trialTitle", { days: RU_TRIAL.days, price: formatPrice(RU_TRIAL.price, locale) })}</p>
           {/* Условия продления — до оплаты: «затем 1499 ₽/мес», отмена в любой момент. */}
@@ -108,7 +111,7 @@ function PlanCard({
       )}
 
       {paid &&
-        (current && !renewByHand ? (
+        ((current && !renewByHand) || blocked ? (
           <Link
             href="/profile/subscription/manage"
             className="mt-6 flex h-12 w-full items-center justify-center rounded-full border border-border bg-surface text-[15px] font-medium text-text"
@@ -128,8 +131,81 @@ function PlanCard({
             {busy ? t("redirecting") : t(current ? "renew" : "subscribe", { price: formatPrice(plan.price, locale) })}
           </button>
         ))}
-      {paid && !current && (
+      {paid && !current && !blocked && (
         <p className={`mt-3 text-center text-xs leading-relaxed ${s.muted}`}>{t("renewNote", { price: formatPrice(plan.price, locale) })}</p>
+      )}
+    </article>
+  );
+}
+
+// Годовой Premium: платится раз в год, credits (60) начисляются каждый месяц. Триала нет.
+function AnnualCard({
+  current,
+  renewByHand,
+  blocked,
+  busy,
+  disabled,
+  onSubscribe,
+}: {
+  current: boolean;
+  renewByHand: boolean;
+  blocked: boolean;
+  busy: boolean;
+  disabled: boolean;
+  onSubscribe: () => void;
+}) {
+  const t = useTranslations("subscription");
+  const ta = useTranslations("subscription.annual");
+  const tPlan = useTranslations("plans.premium");
+  const locale = useLocale();
+  const price = formatPrice(RU_ANNUAL.price, locale);
+  const premium = PLANS.find((p) => p.id === "premium") as Plan;
+  return (
+    <article className="relative rounded-card border border-border bg-surface p-5" aria-label={ta("title")}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-serif text-[1.75rem] font-medium leading-none">{ta("title")}</h2>
+          <p className="mt-1.5 text-xs text-muted">{ta("tagline")}</p>
+        </div>
+        {current && (
+          <span className="shrink-0 rounded-full bg-lavender/30 px-2.5 py-1 text-[11px] font-medium">{t("currentBadge")}</span>
+        )}
+      </div>
+      <p className="mt-5 flex items-baseline gap-1">
+        <span className="font-serif text-[2.5rem] font-medium leading-none tracking-tight">{price}</span>
+        <span className="text-sm text-muted">{ta("priceNote")}</span>
+      </p>
+      <p className="mt-1.5 text-xs font-medium text-text/70">{ta("save", { percent: ruAnnualSavingPercent() })}</p>
+      <ul className="mt-5 flex flex-col gap-2.5">
+        {["f1", "f2", "f3", "f4"].map((f) => (
+          <li key={f} className="flex items-center gap-2.5 text-[15px]">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-subtle text-text">
+              <Check size={12} strokeWidth={2.5} />
+            </span>
+            {tPlan(f, { n: premium.tokens })}
+          </li>
+        ))}
+      </ul>
+      {(current && !renewByHand) || blocked ? (
+        <Link
+          href="/profile/subscription/manage"
+          className="mt-6 flex h-12 w-full items-center justify-center rounded-full border border-border bg-surface text-[15px] font-medium text-text"
+        >
+          {t("manageButton")}
+        </Link>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={onSubscribe}
+            disabled={disabled}
+            className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-lime text-[15px] font-medium text-text transition-transform active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100"
+          >
+            {busy && <LoaderCircle size={18} strokeWidth={2} className="animate-spin" />}
+            {busy ? t("redirecting") : ta(current ? "renew" : "subscribe", { price })}
+          </button>
+          <p className="mt-3 text-center text-xs leading-relaxed text-muted">{ta("note", { price })}</p>
+        </>
       )}
     </article>
   );
@@ -145,7 +221,7 @@ export default function Plans({ trialAvailable = false }: { trialAvailable?: boo
   // undefined — загружается.
   const [sub, setSub] = useState<Subscription | null | undefined>(undefined);
   const [mode, setMode] = useState<{ available: boolean; test: boolean } | null>(null);
-  const [busy, setBusy] = useState<PlanId | "trial" | null>(null);
+  const [busy, setBusy] = useState<PlanId | "trial" | "annual" | null>(null);
 
   useEffect(() => {
     fetchSubscription().then(setSub, () => setSub(null));
@@ -154,12 +230,15 @@ export default function Plans({ trialAvailable = false }: { trialAvailable?: boo
 
   const currentPlan: PlanId = sub && isActive(sub) ? sub.plan : "free";
 
-  const subscribe = async (plan: Plan, trial = false) => {
+  const activeSub = sub && isActive(sub) ? sub : null;
+  const annualActive = activeSub?.billing_interval === "year";
+
+  const subscribe = async (plan: Plan, trial = false, interval: "month" | "year" = "month") => {
     if (plan.id === "free" || busy) return;
     if (mode && !mode.available) return toast.show(tBilling("paymentSoon"));
-    setBusy(trial ? "trial" : plan.id);
+    setBusy(trial ? "trial" : interval === "year" ? "annual" : plan.id);
     try {
-      await startCheckout(plan.id, trial);
+      await startCheckout(plan.id, trial, interval);
       // Дальше браузер уходит на страницу оплаты — кнопку не возвращаем.
     } catch (e) {
       toast.show(e instanceof CheckoutError ? checkoutErrorText(e.reason, e.code, e.parameter, tErrors) : checkoutErrorText("failed", null, null, tErrors));
@@ -198,7 +277,8 @@ export default function Plans({ trialAvailable = false }: { trialAvailable?: boo
         <PlanCard
           key={plan.id}
           plan={plan}
-          current={sub !== undefined && plan.id === currentPlan}
+          current={sub !== undefined && plan.id === currentPlan && !annualActive}
+          blocked={annualActive && plan.id === "premium"}
           renewByHand={Boolean(sub && isActive(sub) && !hasSavedMethod(sub))}
           busy={busy === plan.id}
           disabled={busy !== null || sub === undefined}
@@ -206,6 +286,15 @@ export default function Plans({ trialAvailable = false }: { trialAvailable?: boo
           trial={trialAvailable && plan.id === "premium" ? { busy: busy === "trial", onStart: () => subscribe(plan, true) } : undefined}
         />
       ))}
+
+      <AnnualCard
+        current={sub !== undefined && annualActive}
+        blocked={Boolean(activeSub) && !annualActive}
+        renewByHand={Boolean(sub && isActive(sub) && !hasSavedMethod(sub))}
+        busy={busy === "annual"}
+        disabled={busy !== null || sub === undefined}
+        onSubscribe={() => subscribe(PLANS.find((p) => p.id === "premium") as Plan, false, "year")}
+      />
 
       <p className="px-2 text-center text-xs leading-relaxed text-muted">
         {t("agreePrefix")}{" "}

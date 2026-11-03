@@ -21,6 +21,8 @@ export type Subscription = {
   offer?: "trial" | "trial_free" | "annual" | "monthly" | null;
   is_trial?: boolean;
   trial_end?: string | null;
+  // month — месяц, year — годовой Premium. Нет поля — месяц.
+  billing_interval?: "month" | "year" | null;
 };
 
 export const isStripeSub = (s: Subscription | null) => s?.provider === "stripe";
@@ -36,7 +38,7 @@ export async function fetchSubscription(): Promise<Subscription | null> {
   const base = "plan, status, current_period_end, card_last4, card_type, test";
   let { data, error } = await supabase
     .from("subscriptions")
-    .select(`${base}, provider, offer, is_trial, trial_end`)
+    .select(`${base}, provider, offer, is_trial, trial_end, billing_interval`)
     .eq("user_id", session.user.id)
     .maybeSingle<Subscription>();
   if (error) {
@@ -164,14 +166,14 @@ export class CheckoutError extends Error {
 }
 
 // Создаёт платёж на сервере и уводит на страницу оплаты ЮKassa.
-export async function startCheckout(plan: Exclude<PlanId, "free">, trial = false): Promise<void> {
+export async function startCheckout(plan: Exclude<PlanId, "free">, trial = false, interval: "month" | "year" = "month"): Promise<void> {
   let res: Response;
   try {
     res = await fetch("/api/payments/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       // Пользователь видел строку «Оформляя подписку, я принимаю Оферту и Политику…» рядом с кнопкой.
-      body: JSON.stringify({ plan, consent: true, trial }),
+      body: JSON.stringify({ plan, consent: true, trial, interval }),
     });
   } catch {
     throw new CheckoutError("network");
@@ -227,6 +229,8 @@ export type PaymentResult =
       offer?: StripeOffer | null;
       trial?: boolean;
       trialEnd?: string | null;
+      // Годовой Premium (ЮKassa).
+      annual?: boolean;
     }
   | { status: "canceled"; reason: string; planName: string }
   | { status: "pending"; planName: string }

@@ -216,6 +216,102 @@ console.log("\n[ЮKassa] триал 399 ₽ на 7 дней → автоспис
   eq([(await status(clara, ccl.json.orderId)).json?.trial, (await balance(clara)).b], [true, 15], "новый человек и новая карта: триал выдан, 15 credits");
 }
 
+console.log("\n[ЮKassa] годовой Premium 10 990 ₽: 60 credits в месяц, автопродление раз в год, письмо за 7 дней");
+{
+  const ykPay = async (order) => (await fetch(YK + "/__payments").then((r) => r.json())).find((p) => p.metadata?.order_id === order);
+  const settle = async (order, result, card) => post(YK + "/__settle", { id: (await ykPay(order)).id, result, card });
+  const status = (u, order) => call(u, "GET", `/api/payments/status?order=${order}`, null, "RU");
+  const cronSubs = () => fetch(APP + "/api/cron/subscriptions", { headers: { authorization: "Bearer cron-secret" } }).then((r) => r.json());
+  const cronRenew = () => fetch(APP + "/api/cron/renew", { headers: { authorization: "Bearer cron-secret" } });
+  const card = { first6: String(run).slice(-6), last4: String(run).slice(-4) };
+
+  const u = await newUser(`annual-${run}@example.com`);
+  eq((await call(u, "POST", "/api/payments/create", { plan: "premium", interval: "year", trial: true, consent: true }, "RU")).json?.error, "bad_plan", "год вместе с триалом не оформляется");
+  const cr = await call(u, "POST", "/api/payments/create", { plan: "premium", interval: "year", consent: true }, "RU");
+  ok(cr.status === 200 && /54500\/pay\//.test(cr.json?.confirmationUrl ?? ""), "создан платёж годового Premium", JSON.stringify(cr.json));
+  const [pr] = await q("select kind, billing_interval bi, amount::float amt, plan from payments where id = $1", [cr.json.orderId]);
+  eq([pr.kind, pr.bi, pr.amt, pr.plan], ["initial", "year", 10990, "premium"], "платёж: год, 10 990 ₽");
+  const y = await ykPay(cr.json.orderId);
+  eq(y._body.amount, { value: "10990.00", currency: "RUB" }, "в ЮKassa ушло 10990.00 RUB");
+  ok(y._body.description === "Подписка MIRRO Premium (год)" && y._body.receipt.items[0].description === "Подписка MIRRO Premium (год)" && y._body.save_payment_method === true, "чек: «Подписка MIRRO Premium (год)», карта сохраняется");
+  await settle(cr.json.orderId, "success", card);
+  const st = await status(u, cr.json.orderId);
+  ok(st.json?.status === "succeeded" && st.json?.annual === true, "после оплаты: succeeded, annual = true", JSON.stringify(st.json));
+  let sub = await subRow(u);
+  eq([sub.provider, sub.plan, sub.status, sub.offer, sub.billing_interval, sub.is_trial], ["yookassa", "premium", "active", "annual", "year", false], "подписка: ЮKassa / Premium / годовая");
+  ok(Math.abs(new Date(sub.current_period_end) - Date.now() - 365 * 86400e3) < 2 * 86400e3, "период — год");
+  ok(Math.abs(new Date(sub.credits_next_grant_at) - Date.now() - 30 * 86400e3) < 3 * 86400e3, "следующий месячный пакет — через месяц", String(sub.credits_next_grant_at));
+  eq(await balance(u), { b: 60, t: 60 }, "сразу 60 credits");
+  await status(u, cr.json.orderId);
+  eq((await balance(u)).b, 60, "повторная проверка не начисляет второй раз");
+  eq((await call(u, "POST", "/api/payments/create", { plan: "premium", interval: "year", consent: true }, "RU")).json?.error, "already_subscribed", "второй раз год не оформляется");
+
+  // месячные credits — ежедневный cron
+  await q("update profiles set tokens_balance = 3 where id = $1", [u.id]);
+  await q("update subscriptions set credits_next_grant_at = now() - interval '1 hour' where user_id = $1", [u.id]);
+  const g1 = await cronSubs();
+  eq((await balance(u)).b, 60, "cron: месячный пакет, баланс сброшен до 60 (не 3+60)");
+  ok(g1.creditGrants >= 1, "cron сообщил о начислении", JSON.stringify(g1));
+  ok(new Date((await subRow(u)).credits_next_grant_at) > new Date(), "дата следующего пакета сдвинута");
+  await q("update profiles set tokens_balance = 7 where id = $1", [u.id]);
+  await cronSubs();
+  eq((await balance(u)).b, 7, "повторный запуск в тот же день не начисляет второй раз");
+
+  // напоминание на почту за 7 дней до списания
+  await fetch(MAIL + "/__reset");
+  await q("update subscriptions set current_period_end = now() + interval '6 days 12 hours' where user_id = $1", [u.id]);
+  const r1 = await cronSubs();
+  const m1 = await mails();
+  ok(r1.annualEmails === 1 && m1.length === 1 && m1[0].to[0] === u.email, "письмо о продлении ушло владельцу подписки", JSON.stringify(r1));
+  ok(/Годовая подписка MIRRO продлится через 7 дней/.test(m1[0]?.subject ?? "") && /10[\s ]990[\s ]₽/.test(m1[0]?.text ?? "") && /Premium на год/.test(m1[0]?.text ?? ""), "письмо по-русски, сумма 10 990 ₽", m1[0]?.text);
+  await cronSubs();
+  eq((await mails()).length, 1, "второе напоминание за то же продление не отправляется");
+  // язык профиля — английский
+  await fetch(MAIL + "/__reset");
+  await q("update profiles set locale = 'en' where id = $1", [u.id]);
+  await q("update subscriptions set renewal_reminder_for = null where user_id = $1", [u.id]);
+  await cronSubs();
+  const m2 = await mails();
+  ok(/annual plan renews in 7 days/i.test(m2[0]?.subject ?? "") && /₽10,990/.test(m2[0]?.text ?? ""), "язык профиля en: письмо по-английски, ₽10,990", m2[0]?.text);
+
+  // автопродление раз в год: списывается 10 990 ₽, баланс 60, период +1 год
+  await q("update subscriptions set current_period_end = now() - interval '1 hour', renewal_reminder_for = null where user_id = $1", [u.id]);
+  await q("update profiles set tokens_balance = 5 where id = $1", [u.id]);
+  const rn = await cronRenew();
+  ok(rn.status === 200, "cron автопродления отработал");
+  const [rp] = await q("select kind, billing_interval bi, amount::float amt, status from payments where user_id = $1 and kind = 'renewal'", [u.id]);
+  eq([rp?.kind, rp?.bi, rp?.amt, rp?.status], ["renewal", "year", 10990, "succeeded"], "списано 10 990 ₽ за год");
+  const ykRenew = (await fetch(YK + "/__payments").then((r) => r.json())).filter((p) => p._auto && p.metadata?.user_id === u.id);
+  eq([ykRenew.length, ykRenew[0]?._body.amount.value], [1, "10990.00"], "в ЮKassa — одно автосписание 10990.00");
+  sub = await subRow(u);
+  ok(new Date(sub.current_period_end) > new Date(Date.now() + 360 * 86400e3), "новый период — год");
+  eq([(await balance(u)).b, sub.billing_interval], [60, "year"], "баланс сброшен до 60, подписка осталась годовой");
+  ok(new Date(sub.credits_next_grant_at) > new Date(), "следующий месячный пакет назначен");
+  await cronRenew();
+  eq((await q("select count(*)::int c from payments where user_id = $1 and kind = 'renewal'", [u.id]))[0].c, 1, "повторный запуск не списывает второй раз");
+
+  // отмена и отвязка карты — как у месячного
+  eq((await call(u, "POST", "/api/subscription", { action: "cancel" }, "RU")).status, 200, "отмена продления");
+  eq((await subRow(u)).status, "canceled", "статус canceled, доступ до конца оплаченного года");
+  await q("update subscriptions set current_period_end = now() - interval '1 hour' where user_id = $1", [u.id]);
+  await cronRenew();
+  eq((await q("select count(*)::int c from payments where user_id = $1 and kind = 'renewal'", [u.id]))[0].c, 1, "отменённый год не списывается");
+  eq((await subRow(u)).status, "expired", "доступ закончился вместе с годом");
+
+  // отвязка карты у другого годового подписчика
+  const u2 = await newUser(`annual2-${run}@example.com`);
+  const c2 = await call(u2, "POST", "/api/payments/create", { plan: "premium", interval: "year", consent: true }, "RU");
+  await settle(c2.json.orderId, "success", { first6: String(run + 1).slice(-6), last4: String(run + 1).slice(-4) });
+  await status(u2, c2.json.orderId);
+  eq((await call(u2, "POST", "/api/subscription", { action: "unlink_card" }, "RU")).status, 200, "отвязка карты");
+  const s2 = await subRow(u2);
+  eq([s2.status, s2.card_last4, s2.yookassa_payment_method_id], ["canceled", null, null], "карта удалена, продление отключено");
+  ok(new Date(s2.current_period_end) > new Date(Date.now() + 360 * 86400e3), "доступ сохранён до конца оплаченного года");
+  // годовая оплата — это оплата: триал после неё недоступен
+  await q("update subscriptions set status = 'expired', current_period_end = now() - interval '1 day' where user_id = $1", [u2.id]);
+  eq((await call(u2, "POST", "/api/payments/create", { plan: "premium", trial: true, consent: true }, "RU")).json?.error, "trial_used", "после годовой оплаты триал недоступен");
+}
+
 console.log("\n[Провайдер] страна → ЮKassa / Stripe");
 {
   const u = await newUser(`prov-${run}@example.com`);
@@ -237,6 +333,7 @@ console.log("\n[Провайдер] страна → ЮKassa / Stripe");
 
 // ═══════════════════════════ Stripe ═══════════════════════════
 console.log("\n[Stripe] триал $3,99: оформление → credits → письмо → повтор webhook");
+await fetch(MAIL + "/__reset"); // письма предыдущих сценариев не мешают счёту
 const anna = await newUser(`Anna.${run}@Example.com`);
 let annaSub;
 {
@@ -393,23 +490,23 @@ console.log("\n[Stripe] Premium annual: 60 credits в месяц, cron, пись
   // cron: наступил срок месячного пакета
   await db.query("update profiles set tokens_balance = 3 where id = $1", [u.id]);
   await db.query("update subscriptions set credits_next_grant_at = now() - interval '1 hour' where user_id = $1", [u.id]);
-  const cron1 = await fetch(APP + "/api/cron/stripe", { headers: { authorization: "Bearer cron-secret" } }).then((r) => r.json());
+  const cron1 = await fetch(APP + "/api/cron/subscriptions", { headers: { authorization: "Bearer cron-secret" } }).then((r) => r.json());
   eq((await balance(u)).b, 60, "cron: месячный пакет, баланс сброшен до 60");
   ok(cron1.creditGrants >= 1, "cron сообщил о начислении", JSON.stringify(cron1));
   sub = await subRow(u);
   ok(new Date(sub.credits_next_grant_at) > new Date(), "дата следующего пакета сдвинута");
   await db.query("update profiles set tokens_balance = 7 where id = $1", [u.id]);
-  await fetch(APP + "/api/cron/stripe", { headers: { authorization: "Bearer cron-secret" } });
+  await fetch(APP + "/api/cron/subscriptions", { headers: { authorization: "Bearer cron-secret" } });
   eq((await balance(u)).b, 7, "повторный запуск cron в тот же день не начисляет второй раз");
-  eq((await fetch(APP + "/api/cron/stripe")).status, 401, "cron без секрета закрыт");
+  eq((await fetch(APP + "/api/cron/subscriptions")).status, 401, "cron без секрета закрыт");
 
   // письмо за 7 дней до продления года
   await fetch(MAIL + "/__reset");
   await db.query("update subscriptions set current_period_end = now() + interval '6 days 12 hours' where user_id = $1", [u.id]);
-  const cron2 = await fetch(APP + "/api/cron/stripe", { headers: { authorization: "Bearer cron-secret" } }).then((r) => r.json());
+  const cron2 = await fetch(APP + "/api/cron/subscriptions", { headers: { authorization: "Bearer cron-secret" } }).then((r) => r.json());
   const m = await mails();
   ok(cron2.annualEmails === 1 && m.length === 1 && /annual plan renews in 7 days/i.test(m[0].subject) && /\$99\/year/.test(m[0].text), "письмо о продлении годового плана за 7 дней ($99/year)", JSON.stringify(cron2));
-  await fetch(APP + "/api/cron/stripe", { headers: { authorization: "Bearer cron-secret" } });
+  await fetch(APP + "/api/cron/subscriptions", { headers: { authorization: "Bearer cron-secret" } });
   eq((await mails()).length, 1, "второе напоминание за то же продление не отправляется");
 }
 
@@ -420,12 +517,12 @@ console.log("\n[Stripe] письмо на 4-й день триала");
   const u2 = await newUser(`trialmail2-${run}@example.com`);
   await db.query("insert into subscriptions (user_id, plan, status, provider, stripe_subscription_id, offer, is_trial, trial_end, current_period_end) values ($1,'premium','active','stripe','sub_x2','trial',true, now() + interval '3 days', now() + interval '3 days')", [u2.id]);
   await fetch(MAIL + "/__reset");
-  await fetch(APP + "/api/cron/stripe", { headers: { authorization: "Bearer cron-secret" } }).then((r) => r.json());
+  await fetch(APP + "/api/cron/subscriptions", { headers: { authorization: "Bearer cron-secret" } }).then((r) => r.json());
   const m = await mails();
   eq(m.filter((x) => x.to[0] === u.email).length, 1, "за ~30 часов до конца триала письмо отправлено");
   ok(/trial ends/i.test(m.find((x) => x.to[0] === u.email)?.subject ?? "") && /\$12\.99\/month/.test(m.find((x) => x.to[0] === u.email)?.text ?? ""), "в письме: триал заканчивается, потом $12.99/month");
   eq(m.filter((x) => x.to[0] === u2.email).length, 0, "за 3 дня до конца письма ещё нет");
-  await fetch(APP + "/api/cron/stripe", { headers: { authorization: "Bearer cron-secret" } });
+  await fetch(APP + "/api/cron/subscriptions", { headers: { authorization: "Bearer cron-secret" } });
   eq((await mails()).filter((x) => x.to[0] === u.email).length, 1, "письмо отправляется один раз");
 }
 

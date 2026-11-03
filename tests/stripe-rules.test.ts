@@ -117,3 +117,17 @@ test("письма на английском и с нужными суммами
   assert.match(trialEndingMail({ trialEnd: new Date("2026-11-05T10:00:00Z") }, url).text, /\$12\.99\/month/);
   assert.match(annualReminderMail({ renewsOn: new Date("2027-10-27T00:00:00Z") }, url).subject, /7 days/);
 });
+
+test("напоминание о продлении года: русский для ЮKassa (рубли) и английский по умолчанию", () => {
+  const url = "https://example.com/manage";
+  const ru = annualReminderMail({ renewsOn: new Date("2027-11-10T00:00:00Z"), price: "10\u00a0990\u00a0₽", locale: "ru" }, url);
+  assert.equal(ru.subject, "Годовая подписка MIRRO продлится через 7 дней");
+  assert.match(ru.text, /10\u00a0990\u00a0₽/);
+  assert.match(ru.text, /10 ноября 2027/);
+  assert.match(ru.html, /Управление подпиской/);
+  assert.ok(ru.html.includes(url));
+  const en = annualReminderMail({ renewsOn: new Date("2027-11-10T00:00:00Z"), price: "₽10,990", locale: "en" }, url);
+  assert.match(en.subject, /7 days/);
+  assert.match(en.text, /₽10,990\/year/);
+  assert.doesNotMatch(en.text, /[А-Яа-я]/);
+});

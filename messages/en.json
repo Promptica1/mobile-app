@@ -341,7 +341,8 @@
       "stripeChangeCard": "Change card",
       "stripeAddCard": "Add a card",
       "stripeCreditsResetYearly": "Every month the balance is reset to {total}; the remainder doesn't carry over.",
-      "stripeCreditsResetTrial": "When the trial ends and the subscription renews, your balance is refreshed; the remainder doesn't carry over."
+      "stripeCreditsResetTrial": "When the trial ends and the subscription renews, your balance is refreshed; the remainder doesn't carry over.",
+      "planLineYear": "{price}/year · {tokens} credits every month"
     },
     "result": {
       "checkFailedTitle": "Couldn't verify the payment",
@@ -370,7 +371,8 @@
       "stripeRenewNote": "The subscription renews automatically at {price}. You can cancel at any time in “My subscription”.",
       "trialUsedRefund": "A trial has already been used with this account, email or card, so we canceled it and refunded the payment. You can subscribe to Premium without a trial.",
       "trialTitle": "Your trial has started",
-      "trialText": "You're all set. On {date} we'll charge {price}/month. You can cancel at any time in “My subscription”."
+      "trialText": "You're all set. On {date} we'll charge {price}/month. You can cancel at any time in “My subscription”.",
+      "autoRenewNoteYear": "The subscription renews automatically once a year. We'll email you 7 days before. You can cancel at any time in “My subscription”."
     },
     "pageTitle": "Subscription",
     "manageTitle": "My subscription",
@@ -378,7 +380,16 @@
     "trialTitle": "{days}-day trial for {price}",
     "trialNote": "Then {price}/month. You can cancel at any time.",
     "startTrial": "Start trial for {price}",
-    "renewNote": "Renews every month at {price}. You can cancel at any time."
+    "renewNote": "Renews every month at {price}. You can cancel at any time.",
+    "annual": {
+      "title": "Premium annual",
+      "tagline": "Best value for the whole year",
+      "priceNote": "/year",
+      "save": "Save {percent}% compared to monthly",
+      "note": "Renews once a year at {price}. We'll email you 7 days before. You can cancel at any time.",
+      "subscribe": "Subscribe for {price}/year",
+      "renew": "Renew for {price}/year"
+    }
   },
   "common": {
     "back": "Back",

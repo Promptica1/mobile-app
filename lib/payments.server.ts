@@ -2,7 +2,8 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { periodEnd, trialDescription, userEmail } from "./billing.server";
 import { storedMethodFields } from "./payment-method";
-import { getPlan, RU_TRIAL } from "./plans";
+import { getPlan, RU_TRIAL, type BillingInterval } from "./plans";
+import { nextMonthlyGrant } from "./stripe/rules";
 import { hashFor, recordPayer, ykCardFingerprint } from "./trial.server";
 import { buildReceipt, capturePayment, createRefund, getPayment, yookassaIsTest, type YooKassaPayment } from "./yookassa";
 
@@ -20,6 +21,8 @@ export type PaymentRow = {
   // Есть после SQL автопродления: initial — первая оплата, renewal — автосписание за период,
   // который заканчивался в renewal_for, trial — пробный платёж (399 ₽ за 7 дней).
   kind?: "initial" | "renewal" | "trial";
+  // Период оплаты: month — месяц, year — годовой Premium (после SQL годового плана).
+  billing_interval?: BillingInterval;
   renewal_for?: string | null;
   cancellation_reason?: string | null;
   test?: boolean;
@@ -112,7 +115,9 @@ export async function applyPayment(
           ? currentEnd
           : now;
     }
-    const end = row.kind === "trial" ? new Date(now.getTime() + RU_TRIAL.days * 24 * 60 * 60 * 1000) : periodEnd(extendFrom);
+    const interval: BillingInterval = row.billing_interval === "year" ? "year" : "month";
+    const annual = interval === "year";
+    const end = row.kind === "trial" ? new Date(now.getTime() + RU_TRIAL.days * 24 * 60 * 60 * 1000) : periodEnd(extendFrom, interval);
 
     const update: Record<string, unknown> = {
       user_id: row.user_id,
@@ -143,13 +148,17 @@ export async function applyPayment(
       provider: "yookassa",
       stripe_subscription_id: null,
       stripe_customer_id: null,
-      credits_next_grant_at: null,
+      // Годовой план: credits начисляются каждый месяц (их начисляет ежедневный cron), первый пакет — через месяц.
+      credits_next_grant_at: annual ? (nextMonthlyGrant("annual", extendFrom, end)?.toISOString() ?? null) : null,
+      billing_interval: interval,
       ...(trial
-        ? { offer: "trial", is_trial: true, trial_end: end.toISOString(), billing_interval: "month" }
-        : { offer: null, is_trial: false, trial_end: null }),
+        ? { offer: "trial", is_trial: true, trial_end: end.toISOString() }
+        : { offer: annual ? "annual" : null, is_trial: false, trial_end: null }),
     };
+    // Для триала и годового плана эти поля обязательны (по ним cron начисляет credits и продлевает на год);
+    // для обычной месячной оплаты без них можно обойтись (SQL Stripe может быть не выполнен).
     let { error: subError } = await admin.from("subscriptions").upsert({ ...update, ...extra }, { onConflict: "user_id" });
-    if (subError && !trial) ({ error: subError } = await admin.from("subscriptions").upsert(update, { onConflict: "user_id" }));
+    if (subError && !trial && !annual) ({ error: subError } = await admin.from("subscriptions").upsert(update, { onConflict: "user_id" }));
     if (subError) {
       // Возвращаем платёж в прежний статус, чтобы следующая попытка (повтор webhook) применила его.
       await admin.from("payments").update({ status: row.status, updated_at: now.toISOString() }).eq("id", row.id);

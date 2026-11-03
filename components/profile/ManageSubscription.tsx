@@ -21,7 +21,7 @@ import {
   type Subscription,
 } from "@/lib/billing";
 import { OFFER_INFO } from "@/lib/stripe/rules";
-import { getPlan, formatPrice, RENEWAL_GRACE_DAYS } from "@/lib/plans";
+import { getPlan, formatPrice, RENEWAL_GRACE_DAYS, RU_ANNUAL } from "@/lib/plans";
 import { useTokens } from "@/lib/tokens";
 
 // Реальная подписка из базы. Если её нет — предпросмотр (тариф Premium, дата условная).
@@ -186,7 +186,9 @@ export default function ManageSubscription() {
         <p className="mt-2 text-sm text-text/70">
           {offerInfo
             ? t(offerInfo.interval === "year" ? "stripePlanYear" : "stripePlanMonth", { price: formatUsd(offerInfo.recurringUsd, locale) })
-            : t("planLine", { price: formatPrice(plan.price, locale), tokens: plan.tokens })}
+            : real?.billing_interval === "year"
+              ? t("planLineYear", { price: formatPrice(RU_ANNUAL.price, locale), tokens: plan.tokens })
+              : t("planLine", { price: formatPrice(plan.price, locale), tokens: plan.tokens })}
         </p>
         <div className="mt-4 flex items-center gap-3 rounded-2xl bg-surface/70 px-4 py-3">
           <CalendarDays size={18} strokeWidth={1.5} className="shrink-0" />
@@ -295,7 +297,7 @@ export default function ManageSubscription() {
         <p className="mt-2.5 text-xs text-muted">
           {status === "canceled"
             ? t("noNewTokens")
-            : t(real?.is_trial ? "stripeCreditsResetTrial" : offerInfo?.monthlyGrant ? "stripeCreditsResetYearly" : "tokensReset", { total })}
+            : t(real?.is_trial ? "stripeCreditsResetTrial" : offerInfo?.monthlyGrant || real?.billing_interval === "year" ? "stripeCreditsResetYearly" : "tokensReset", { total })}
         </p>
         <button
           type="button"

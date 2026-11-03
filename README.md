@@ -80,6 +80,7 @@ Nano Banana одеть аватар и сохраняет результат в 
 ## Тарифы (ЮKassa, Россия и Беларусь)
 
 - Один платный тариф Premium: 1499 ₽/мес, 60 credits (токенов) в месяц, обновляются каждый период и не накапливаются (`lib/plans.ts`). Premium+ убран; миграция `20261103120000_tariffs.sql` переводит старых подписчиков на Premium.
+- Годовой Premium ЮKassa (`RU_ANNUAL` в `lib/plans.ts`): 10 990 ₽ в год, 60 credits в месяц. Платёж `initial` с `billing_interval = 'year'`, период +1 год, автопродление раз в год тем же cron `/api/cron/renew` (сумма по `subscriptions.billing_interval`). Месячные credits начисляет `/api/cron/subscriptions` (баланс сбрасывается до 60), он же шлёт письмо за 7 дней до списания (русский или английский по языку профиля). SQL: `20261104120000_ru_annual.sql`.
 - Триал ЮKassa (`RU_TRIAL` в `lib/plans.ts`): отдельный платёж 399 ₽ с сохранением карты (`payments.kind = 'trial'`), 15 credits, подписка на 7 дней; в конце cron `/api/cron/renew` списывает 1499 ₽ и начисляет 60 credits. Отмена в триале — списания не будет. Бронь триала ставится при создании платежа и снимается, если платёж не прошёл.
 
 ## Оплата за границей (Stripe, доллары)
@@ -87,7 +88,7 @@ Nano Banana одеть аватар и сохраняет результат в 
 - Провайдер выбирается сам по стране (заголовок Vercel `x-vercel-ip-country`): Россия и Беларусь → ЮKassa (рубли), остальные → Stripe (USD). Telegram (Mini App) всегда платит через ЮKassa. Ручного переключателя нет, пересчёта по курсу нет.
 - Предложения (`lib/stripe/rules.ts`): триал $3,99 на 7 дней → Premium $12,99/мес (15 credits, затем 60 в месяц); Premium annual $99/год (60 credits каждый месяц); вариант B — бесплатные 3 дня с картой (5 credits), включается `STRIPE_FREE_TRIAL` в `lib/features.ts`; Premium $12,99/мес без триала — для тех, кто триал уже не может взять.
 - Триал (и в Stripe, и в ЮKassa) — только тому, у кого никогда не было ни оплаты (любого тарифа, включая старые Premium и Premium+), ни триала: проверка по аккаунту и нормализованной почте до оплаты и по отпечатку карты после неё (не прошёл — платёж возвращается). Правило — в SQL (`trial_available`, `claim_trial`, `record_payer`), на экране тарифов без триала про него нет ни слова.
-- Credits при каждой оплате «сбрасываются» до числа тарифа, при окончании подписки обнуляются. Годовой план: месячные пакеты начисляет cron `/api/cron/stripe` (он же шлёт письма: за 7 дней до продления года и на 4-й день триала). Письма — через Resend, на английском.
+- Credits при каждой оплате «сбрасываются» до числа тарифа, при окончании подписки обнуляются. Годовой план: месячные пакеты начисляет cron `/api/cron/subscriptions` (он же шлёт письма: за 7 дней до продления года и на 4-й день триала). Письма — через Resend, на английском.
 - Webhook: `/api/stripe/webhook` (события `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted`).
 - SQL: `supabase/migrations/20261015120000_stripe.sql`. Переменные: см. `.env.local.example`.
 - Проверки: `npm test`, SQL-тест `supabase/tests/stripe_credits_trial.sql`, сквозной стенд `tests/stand/README.md`.

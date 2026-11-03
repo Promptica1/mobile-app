@@ -39,6 +39,8 @@ type DueSub = {
   yookassa_payment_method_id: string | null;
   last_renewal_attempt_at: string | null;
   test: boolean;
+  // Период подписки: month — месяц (1499 ₽), year — годовой Premium (10 990 ₽). Нет колонки — месяц.
+  billing_interval?: "month" | "year" | null;
 };
 
 type Result = "renewed" | "pending" | "failed" | "skipped" | "expired" | "error";
@@ -75,22 +77,18 @@ export async function GET(request: NextRequest) {
 
   // Подписки Stripe продлевает сам Stripe — их здесь не трогаем (у них нет карты ЮKassa, и без этого фильтра
   // они ошибочно «заканчивались» бы). Колонки provider может не быть, пока не выполнен SQL Stripe.
-  const dueQuery = () =>
-    admin
-      .from("subscriptions")
-      .select("user_id, plan, status, current_period_end, yookassa_payment_method_id, last_renewal_attempt_at, test")
-      .in("status", ["active", "past_due"])
-      .lte("current_period_end", nowIso)
-      .limit(200);
-  let { data: due, error } = await dueQuery().neq("provider", "stripe");
-  if (error) ({ data: due, error } = await dueQuery());
+  const COLUMNS = "user_id, plan, status, current_period_end, yookassa_payment_method_id, last_renewal_attempt_at, test";
+  const dueQuery = (columns: string) =>
+    admin.from("subscriptions").select(columns).in("status", ["active", "past_due"]).lte("current_period_end", nowIso).limit(200);
+  let { data: due, error } = await dueQuery(`${COLUMNS}, billing_interval`).neq("provider", "stripe");
+  if (error) ({ data: due, error } = await dueQuery(COLUMNS));
   if (error) {
     console.log(`YK[cron]: db error: ${error.message}`);
     return NextResponse.json({ error: "db_failed" }, { status: 500 });
   }
 
   const summary: Record<Result, number> = { renewed: 0, pending: 0, failed: 0, skipped: 0, expired: 0, error: 0 };
-  for (const sub of (due ?? []) as DueSub[]) {
+  for (const sub of (due ?? []) as unknown as DueSub[]) {
     let result: Result;
     try {
       result = await renew(admin, sub, now, deadline);
@@ -129,7 +127,8 @@ async function renew(admin: Admin, sub: DueSub, now: Date, deadline: number): Pr
   }
 
   const orderId = randomUUID();
-  const amount = planPrice(sub.plan);
+  const interval = sub.billing_interval === "year" ? "year" : "month";
+  const amount = planPrice(sub.plan, interval);
   const { error: insertError } = await admin.from("payments").insert({
     id: orderId,
     user_id: sub.user_id,
@@ -139,6 +138,7 @@ async function renew(admin: Admin, sub: DueSub, now: Date, deadline: number): Pr
     test: yookassaIsTest(),
     kind: "renewal",
     renewal_for: sub.current_period_end,
+    ...(interval === "year" ? { billing_interval: "year" } : {}),
   });
   if (insertError) {
     // 23505 — за этот период списание уже идёт или прошло. Досверяем его с ЮKassa (на случай,
@@ -157,6 +157,7 @@ async function renew(admin: Admin, sub: DueSub, now: Date, deadline: number): Pr
     yookassa_payment_id: null,
     kind: "renewal",
     renewal_for: sub.current_period_end,
+    billing_interval: interval,
     test: yookassaIsTest(),
   };
   let payment;
@@ -165,11 +166,11 @@ async function renew(admin: Admin, sub: DueSub, now: Date, deadline: number): Pr
     const email = await userEmail(admin, sub.user_id);
     if (!email) throw new YooKassaError("failed", "no email for receipt");
     payment = await createRecurringPayment({
-      receipt: buildReceipt({ email, description: planDescription(sub.plan), amount }),
+      receipt: buildReceipt({ email, description: planDescription(sub.plan, interval), amount }),
       amount,
-      description: planDescription(sub.plan),
+      description: planDescription(sub.plan, interval),
       paymentMethodId: sub.yookassa_payment_method_id,
-      metadata: { user_id: sub.user_id, plan: sub.plan, order_id: orderId, kind: "renewal" },
+      metadata: { user_id: sub.user_id, plan: sub.plan, order_id: orderId, kind: "renewal", ...(interval === "year" ? { interval: "year" } : {}) },
       idempotenceKey: orderId,
     });
   } catch (e) {

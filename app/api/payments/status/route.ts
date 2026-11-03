@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       .select("card_last4, current_period_end")
       .eq("user_id", user.id)
       .maybeSingle<{ card_last4: string | null; current_period_end: string | null }>();
-    return json({ status: "succeeded", plan: row.plan, planName, cardLast4: sub?.card_last4 ?? null, periodEnd: sub?.current_period_end ?? null, trial: row.kind === "trial", trialEnd: row.kind === "trial" ? (sub?.current_period_end ?? null) : null });
+    return json({ status: "succeeded", plan: row.plan, planName, cardLast4: sub?.card_last4 ?? null, periodEnd: sub?.current_period_end ?? null, trial: row.kind === "trial", trialEnd: row.kind === "trial" ? (sub?.current_period_end ?? null) : null, annual: row.billing_interval === "year" });
   }
   if (!row.yookassa_payment_id) return json({ status: "canceled", reason: "create_failed", planName });
 
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
         .select("card_last4, current_period_end")
         .eq("user_id", user.id)
         .maybeSingle<{ card_last4: string | null; current_period_end: string | null }>();
-      return json({ status: "succeeded", plan: row.plan, planName, cardLast4: sub?.card_last4 ?? null, periodEnd: sub?.current_period_end ?? null, trial: row.kind === "trial", trialEnd: row.kind === "trial" ? (sub?.current_period_end ?? null) : null });
+      return json({ status: "succeeded", plan: row.plan, planName, cardLast4: sub?.card_last4 ?? null, periodEnd: sub?.current_period_end ?? null, trial: row.kind === "trial", trialEnd: row.kind === "trial" ? (sub?.current_period_end ?? null) : null, annual: row.billing_interval === "year" });
     }
     case "canceled":
       return json({ status: "canceled", reason: outcome.reason, planName });

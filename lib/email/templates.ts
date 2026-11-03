@@ -1,19 +1,21 @@
 import { OFFER_INFO, type Offer } from "../stripe/rules.ts";
 
-// Письма о подписке (Stripe). Только английский. Без зависимостей — проверяются тестами.
+// Письма о подписке. Покупка и триал (Stripe) — английский; напоминание о продлении года — русский или английский.
+// Без зависимостей — проверяются тестами.
 
 export type Mail = { subject: string; html: string; text: string };
 
 const usd = (n: number) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
 const day = (d: Date) => d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
 
-function layout(title: string, paragraphs: string[], manageUrl: string): Mail["html"] {
+function layout(title: string, paragraphs: string[], manageUrl: string, locale: "ru" | "en" = "en"): Mail["html"] {
+  const ru = locale === "ru";
   return `<div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#2c2c2a">
   <p style="font-size:22px;letter-spacing:.25em;font-weight:600;margin:0 0 24px">MIRRO</p>
   <h1 style="font-size:24px;margin:0 0 12px">${title}</h1>
   ${paragraphs.map((p) => `<p style="font-size:15px;line-height:1.6;margin:0 0 16px">${p}</p>`).join("\n  ")}
-  <p style="margin:24px 0"><a href="${manageUrl}" style="display:inline-block;background:#d9f26b;color:#2c2c2a;text-decoration:none;font-weight:500;padding:14px 28px;border-radius:999px">Manage subscription</a></p>
-  <p style="font-size:12px;color:#8a8a85;line-height:1.6">You can cancel any time in Profile → Subscription → Manage subscription.</p>
+  <p style="margin:24px 0"><a href="${manageUrl}" style="display:inline-block;background:#d9f26b;color:#2c2c2a;text-decoration:none;font-weight:500;padding:14px 28px;border-radius:999px">${ru ? "Управление подпиской" : "Manage subscription"}</a></p>
+  <p style="font-size:12px;color:#8a8a85;line-height:1.6">${ru ? "Отменить подписку можно в любой момент: Профиль → Подписка → Управление подпиской." : "You can cancel any time in Profile → Subscription → Manage subscription."}</p>
 </div>`;
 }
 
@@ -66,12 +68,31 @@ export function trialEndingMail(info: { trialEnd: Date }, manageUrl: string): Ma
   );
 }
 
-export function annualReminderMail(info: { renewsOn: Date }, manageUrl: string): Mail {
+const dayRu = (d: Date) => d.toLocaleDateString("ru-RU", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+
+// Годовой план продлится через 7 дней. price — готовая строка с суммой («$99», «10 990 ₽»).
+export function annualReminderMail(
+  info: { renewsOn: Date; price?: string; locale?: "ru" | "en" },
+  manageUrl: string,
+): Mail {
+  const price = info.price ?? usd(OFFER_INFO.annual.recurringUsd);
+  if (info.locale === "ru") {
+    const title = "Годовая подписка скоро продлится";
+    const paragraphs = [
+      `Ваша подписка Premium на год продлится ${dayRu(info.renewsOn)}: спишем ${price}.`,
+      "Если не хотите продлевать, отключите продление в «Моей подписке» — доступ сохранится до конца оплаченного года.",
+    ];
+    return {
+      subject: "Годовая подписка MIRRO продлится через 7 дней",
+      html: layout(title, paragraphs, manageUrl, "ru"),
+      text: [title, "", ...paragraphs, "", `Управление подпиской: ${manageUrl}`].join("\n"),
+    };
+  }
   return build(
     "Your MIRRO annual plan renews in 7 days",
     "Your annual plan renews soon",
     [
-      `Your Premium annual plan renews on ${day(info.renewsOn)} at ${usd(OFFER_INFO.annual.recurringUsd)}/year.`,
+      `Your Premium annual plan renews on ${day(info.renewsOn)} at ${price}/year.`,
       "If you don't want to renew, you can turn off renewal now and keep access until the end of the paid year.",
     ],
     manageUrl,
