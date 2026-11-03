@@ -9,6 +9,6 @@ export const SHOW_APPLE_LOGIN = false;
 export const SHOW_SOCIAL_LOGIN = SHOW_GOOGLE_LOGIN || SHOW_APPLE_LOGIN;
 
 // Stripe (пользователи вне России): какой триал предлагаем.
-// false — вариант A: триал $4,99 на 5 дней, затем Premium $9,99 в месяц;
-// true  — вариант B: бесплатные 3 дня, карта обязательна, затем Premium $9,99 в месяц.
+// false — вариант A: триал $3,99 на 7 дней, затем Premium $12,99 в месяц;
+// true  — вариант B: бесплатные 3 дня, карта обязательна, затем Premium $12,99 в месяц.
 export const STRIPE_FREE_TRIAL = false;

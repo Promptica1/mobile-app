@@ -7,6 +7,7 @@ import { Check, ChevronRight, FlaskConical, Info, LoaderCircle, Lock } from "luc
 import InAppBrowserHint from "@/components/InAppBrowserHint";
 import { useToast } from "@/components/ui/useToast";
 import {
+  formatUsd,
   checkoutErrorText,
   CheckoutError,
   fetchPaymentMode,
@@ -19,7 +20,7 @@ import {
   type Subscription,
 } from "@/lib/billing";
 import { LEGAL_DOCS } from "@/lib/legal";
-import { OFFER_INFO } from "@/lib/stripe/rules";
+import { annualSavingPercent, OFFER_INFO } from "@/lib/stripe/rules";
 
 // Экран тарифов для пользователей вне России: Stripe, доллары. Валюту задаёт платёжная система —
 // пересчёта по курсу нет. Количество credits в рекламе не пишем, только строкой «Includes N try-ons and looks».
@@ -29,8 +30,6 @@ type Props = {
   // Какой триал сейчас предлагается: false — $4,99 на 5 дней, true — бесплатные 3 дня.
   freeTrial: boolean;
 };
-
-const usd = (n: number) => `$${n.toFixed(2)}`;
 
 function OfferCard({
   offer,
@@ -48,7 +47,15 @@ function OfferCard({
   const t = useTranslations(`stripe.offers.${offer}`);
   const tp = useTranslations("stripe");
   const tPlan = useTranslations("plans.premium");
+  const locale = useLocale();
   const info = OFFER_INFO[offer];
+  // Все суммы и сроки в текстах берутся из lib/stripe/rules.ts — меняются в одном месте.
+  const values = {
+    setup: formatUsd(info.setupUsd, locale),
+    price: formatUsd(info.recurringUsd, locale),
+    days: info.trialDays,
+    percent: annualSavingPercent(),
+  };
   const trial = offer === "trial" || offer === "trial_free";
   return (
     <article
@@ -57,11 +64,11 @@ function OfferCard({
           ? "border border-lavender/40 bg-gradient-to-br from-lavender/35 via-surface to-lime/45"
           : "border border-border bg-surface"
       }`}
-      aria-label={t("title")}
+      aria-label={t("title", values)}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-serif text-[1.75rem] font-medium leading-none">{t("title")}</h2>
+          <h2 className="font-serif text-[1.75rem] font-medium leading-none">{t("title", values)}</h2>
           <p className="mt-1.5 text-xs text-muted">{t("tagline")}</p>
         </div>
         {primary && (
@@ -71,11 +78,11 @@ function OfferCard({
 
       <p className="mt-5 flex items-baseline gap-1.5">
         <span className="font-serif text-[2.5rem] font-medium leading-none tracking-tight">
-          {offer === "trial_free" ? tp("free") : usd(trial ? info.setupUsd : info.recurringUsd)}
+          {offer === "trial_free" ? tp("free") : trial ? values.setup : values.price}
         </span>
-        <span className="text-sm text-muted">{t("priceNote")}</span>
+        <span className="text-sm text-muted">{t("priceNote", values)}</span>
       </p>
-      {offer === "annual" && <p className="mt-1.5 text-xs font-medium text-text/70">{t("save")}</p>}
+      {offer === "annual" && <p className="mt-1.5 text-xs font-medium text-text/70">{t("save", values)}</p>}
 
       <ul className="mt-5 flex flex-col gap-2.5">
         {[
@@ -93,7 +100,7 @@ function OfferCard({
       </ul>
 
       {/* Условия продления — до оплаты, рядом с кнопкой. */}
-      <p className="mt-5 text-xs leading-relaxed text-text/70">{t("note")}</p>
+      <p className="mt-5 text-xs leading-relaxed text-text/70">{t("note", values)}</p>
 
       <button
         type="button"
@@ -102,7 +109,7 @@ function OfferCard({
         className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-lime text-[15px] font-medium text-text transition-transform active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100"
       >
         {busy && <LoaderCircle size={18} strokeWidth={2} className="animate-spin" />}
-        {busy ? tp("redirecting") : t("cta")}
+        {busy ? tp("redirecting") : t("cta", values)}
       </button>
     </article>
   );
@@ -189,7 +196,6 @@ export default function StripePlans({ trialAvailable, freeTrial }: Props) {
         ))
       )}
 
-      {!active && !trialAvailable && sub !== undefined && <p className="px-1 text-xs leading-relaxed text-muted">{t("trialUsed")}</p>}
 
       {!active && (
         <p className="px-2 text-center text-xs leading-relaxed text-muted">

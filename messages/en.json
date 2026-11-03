@@ -204,20 +204,11 @@
     "premium": {
       "name": "Premium",
       "tagline": "For those who put looks together every week",
-      "f1": "50 credits per month",
+      "f1": "Includes {n} try-ons and looks every month",
       "f2": "Up to 150 items",
       "f3": "Folders for looks",
       "f4": "Buy extra credits",
       "badge": "Popular"
-    },
-    "premium_plus": {
-      "name": "Premium+",
-      "tagline": "Your whole wardrobe and the most try-ons",
-      "f1": "150 credits per month",
-      "f2": "Unlimited items",
-      "f3": "Folders for looks",
-      "f4": "Buy extra credits",
-      "f5": "Priority generation"
     }
   },
   "billing": {
@@ -377,11 +368,17 @@
       "stripeTrialText": "You're all set. After {date} your subscription renews at {price}. You can cancel at any time in “My subscription”.",
       "stripePaidText": "Your MIRRO Premium subscription ({price}) is active and valid until {date}.",
       "stripeRenewNote": "The subscription renews automatically at {price}. You can cancel at any time in “My subscription”.",
-      "trialUsedRefund": "A trial has already been used with this account, email or card, so we canceled it and refunded the payment. You can subscribe to Premium without a trial."
+      "trialUsedRefund": "A trial has already been used with this account, email or card, so we canceled it and refunded the payment. You can subscribe to Premium without a trial.",
+      "trialTitle": "Your trial has started",
+      "trialText": "You're all set. On {date} we'll charge {price}/month. You can cancel at any time in “My subscription”."
     },
     "pageTitle": "Subscription",
     "manageTitle": "My subscription",
-    "payTitle": "Payment"
+    "payTitle": "Payment",
+    "trialTitle": "{days}-day trial for {price}",
+    "trialNote": "Then {price}/month. You can cancel at any time.",
+    "startTrial": "Start trial for {price}",
+    "renewNote": "Renews every month at {price}. You can cancel at any time."
   },
   "common": {
     "back": "Back",
@@ -847,37 +844,36 @@
     "includes": "Includes {n} try-ons and looks",
     "includesMonthly": "Includes {n} try-ons and looks every month",
     "redirecting": "Taking you to payment…",
-    "trialUsed": "A trial has already been used with this account or email. You can subscribe to Premium without a trial.",
     "secure": "Payment on a secure page. Tax is calculated at checkout.",
     "offers": {
       "trial": {
-        "title": "5-day trial",
+        "title": "{days}-day trial",
         "tagline": "Try everything in Premium",
-        "priceNote": "for 5 days",
-        "note": "After the trial your subscription renews at $9.99/month. You can cancel at any time.",
-        "cta": "Start trial for $4.99"
+        "priceNote": "for {days} days",
+        "note": "Then {price}/month. You can cancel at any time.",
+        "cta": "Start trial for {setup}"
       },
       "trial_free": {
-        "title": "3 days free",
+        "title": "{days} days free",
         "tagline": "Try everything in Premium",
-        "priceNote": "for 3 days · card required",
-        "note": "After the free trial your subscription renews at $9.99/month. You can cancel at any time.",
+        "priceNote": "for {days} days · card required",
+        "note": "Then {price}/month. You can cancel at any time.",
         "cta": "Start free trial"
       },
       "annual": {
         "title": "Premium annual",
         "tagline": "Best value for the whole year",
         "priceNote": "/year",
-        "save": "Save 58% compared to monthly",
-        "note": "Renews every year at $49.99. You can cancel at any time.",
-        "cta": "Subscribe for $49.99/year"
+        "save": "Save {percent}% compared to monthly",
+        "note": "Renews every year at {price}. You can cancel at any time.",
+        "cta": "Subscribe for {price}/year"
       },
       "monthly": {
         "title": "Premium",
         "tagline": "Flexible, month to month",
         "priceNote": "/month",
-        "note": "Renews every month at $9.99. You can cancel at any time.",
-        "cta": "Subscribe for $9.99/month"
+        "note": "Renews every month at {price}. You can cancel at any time.",
+        "cta": "Subscribe for {price}/month"
       }
     }
   },

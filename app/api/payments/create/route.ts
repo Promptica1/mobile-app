@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
-import { isPaidPlan, planDescription, planPrice } from "@/lib/billing.server";
+import { isPaidPlan, planDescription, planPrice, trialDescription } from "@/lib/billing.server";
+import { RU_TRIAL } from "@/lib/plans";
+import { hashFor } from "@/lib/trial.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -24,9 +26,11 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return fail("unauthorized", 401);
 
-  const body = (await request.json().catch(() => null)) as { plan?: unknown; consent?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { plan?: unknown; consent?: unknown; trial?: unknown } | null;
   const plan = body?.plan;
   if (!isPaidPlan(plan)) return fail("bad_plan", 400);
+  // Триал: 399 ₽ за 7 дней с сохранением карты, затем автосписание цены Premium. Один раз на человека.
+  const trial = body?.trial === true;
   // Без согласия с офертой и политикой подписку не оформляем.
   if (body?.consent !== true) return fail("consent_required", 400);
 
@@ -66,12 +70,32 @@ export async function POST(request: NextRequest) {
 
   // Наш номер заказа: по нему вернёмся с оплаты и найдём платёж.
   const orderId = randomUUID();
-  const amount = planPrice(plan);
+  const amount = trial ? RU_TRIAL.price : planPrice(plan);
+  const description = trial ? trialDescription : planDescription(plan);
+  if (trial) {
+    // Триал только тому, у кого не было ни оплаты, ни триала (аккаунт, почта). Бронь ставится сразу
+    // и снимается, если платёж не пройдёт; карту проверяем после оплаты.
+    if (sub && sub.status !== "expired" && sub.current_period_end && new Date(sub.current_period_end) > new Date()) {
+      return fail("already_subscribed", 409);
+    }
+    const { data: claim, error: claimError } = await admin.rpc("claim_trial_pending", {
+      p_user: user.id,
+      p_email_hash: hashFor(user.email, user.id),
+      p_payment_id: orderId,
+    });
+    if (claimError) {
+      console.log(`YK: claim_trial_pending failed: ${claimError.message}`);
+      return fail("trial_check_failed", 500);
+    }
+    if (claim !== "ok") return fail("trial_used", 409);
+  }
+  const releaseTrial = () => (trial ? admin.rpc("release_trial", { p_subscription_id: `yk:${orderId}` }) : null);
   const { error: insertError } = await admin
     .from("payments")
-    .insert({ id: orderId, user_id: user.id, plan, amount, status: "pending", test: yookassaIsTest() });
+    .insert({ id: orderId, user_id: user.id, plan, amount, status: "pending", test: yookassaIsTest(), ...(trial ? { kind: "trial" } : {}) });
   if (insertError) {
     console.log(`YK: payments insert failed: ${insertError.message}`);
+    await releaseTrial();
     return fail("db_failed", 500);
   }
 
@@ -96,10 +120,10 @@ export async function POST(request: NextRequest) {
   try {
     const payment = await createPayment({
       amount,
-      description: planDescription(plan),
-      receipt: buildReceipt({ email: user.email, description: planDescription(plan), amount }),
+      description,
+      receipt: buildReceipt({ email: user.email, description, amount }),
       returnUrl: `${base}/profile/subscription/result?order=${orderId}`,
-      metadata: { user_id: user.id, plan, order_id: orderId },
+      metadata: { user_id: user.id, plan, order_id: orderId, ...(trial ? { kind: "trial" } : {}) },
       // Новый ключ на каждый заказ: повтор этого же запроса не создаст второй платёж.
       idempotenceKey: orderId,
     });
@@ -115,6 +139,7 @@ export async function POST(request: NextRequest) {
     const reason = error instanceof YooKassaError ? error.reason : "failed";
     const details = error instanceof YooKassaError ? error.details : undefined;
     console.log(`YK: create failed (${reason}): ${error instanceof Error ? error.message : String(error)}`);
+    await releaseTrial();
     await admin
       .from("payments")
       .update({

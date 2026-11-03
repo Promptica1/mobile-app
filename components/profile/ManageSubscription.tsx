@@ -143,7 +143,7 @@ export default function ManageSubscription() {
   };
 
   // Для Stripe «из N» — сколько credits дал последний платёж (профиль хранит это число).
-  const total = stripe && tokens ? tokens.total || plan.tokens : plan.tokens;
+  const total = real && tokens ? tokens.total || plan.tokens : plan.tokens;
   const left = real ? (tokens?.balance ?? 0) : plan.tokens;
   const share = total > 0 ? Math.min(1, left / total) : 0;
   const offerInfo = stripe && real?.offer ? OFFER_INFO[real.offer] : null;
@@ -164,9 +164,12 @@ export default function ManageSubscription() {
         </p>
       )}
 
-      {stripe && real?.is_trial && real.trial_end && (
+      {real?.is_trial && real.trial_end && (
         <p className="rounded-2xl bg-lavender/20 px-4 py-3 text-xs leading-relaxed">
-          {t("stripeTrialBanner", { date: formatDate(real.trial_end, locale), price: formatUsd(OFFER_INFO.monthly.recurringUsd) })}
+          {t("stripeTrialBanner", {
+            date: formatDate(real.trial_end, locale),
+            price: stripe ? formatUsd(OFFER_INFO.monthly.recurringUsd, locale) : formatPrice(plan.price, locale),
+          })}
         </p>
       )}
 
@@ -182,7 +185,7 @@ export default function ManageSubscription() {
         <h2 className="mt-4 font-serif text-[2rem] font-medium leading-none">{t("yourPlan", { name: planName })}</h2>
         <p className="mt-2 text-sm text-text/70">
           {offerInfo
-            ? t(offerInfo.interval === "year" ? "stripePlanYear" : "stripePlanMonth", { price: formatUsd(offerInfo.recurringUsd) })
+            ? t(offerInfo.interval === "year" ? "stripePlanYear" : "stripePlanMonth", { price: formatUsd(offerInfo.recurringUsd, locale) })
             : t("planLine", { price: formatPrice(plan.price, locale), tokens: plan.tokens })}
         </p>
         <div className="mt-4 flex items-center gap-3 rounded-2xl bg-surface/70 px-4 py-3">
@@ -292,7 +295,7 @@ export default function ManageSubscription() {
         <p className="mt-2.5 text-xs text-muted">
           {status === "canceled"
             ? t("noNewTokens")
-            : t(real?.is_trial && stripe ? "stripeCreditsResetTrial" : offerInfo?.monthlyGrant ? "stripeCreditsResetYearly" : "tokensReset", { total })}
+            : t(real?.is_trial ? "stripeCreditsResetTrial" : offerInfo?.monthlyGrant ? "stripeCreditsResetYearly" : "tokensReset", { total })}
         </p>
         <button
           type="button"

@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { CircleAlert, CircleCheck, Clock, LoaderCircle } from "lucide-react";
 import { cancelReasonText, checkPayment, checkStripeSession, formatDate, formatUsd, type PaymentResult as Result } from "@/lib/billing";
 import { usePwa } from "@/components/pwa/PwaProvider";
+import { formatPrice, getPlan } from "@/lib/plans";
 import { OFFER_INFO } from "@/lib/stripe/rules";
 
 // Пока ЮKassa не дала окончательный ответ — переспрашиваем сервер каждые 2 секунды.
@@ -87,6 +88,17 @@ export default function PaymentResult({ order: yookassaOrder, stripeSession = nu
         </p>
         <Actions primary={{ label: t("close"), href: "/wardrobe" }} />
         <p className="mt-6 max-w-[290px] text-xs leading-relaxed text-muted">{t("stripeRenewNote", { price })}</p>
+      </Screen>
+    );
+  }
+
+  if (result?.status === "succeeded" && result.trial) {
+    // Триал ЮKassa: платёж 399 ₽ прошёл, через 7 дней — автосписание цены Premium.
+    return (
+      <Screen icon={<CircleCheck size={40} strokeWidth={1.25} className="text-green" />} title={t("trialTitle")}>
+        <p>{t("trialText", { date: formatDate(result.trialEnd ?? result.periodEnd ?? "", locale), price: formatPrice(getPlan(result.plan).price, locale) })}</p>
+        <Actions primary={{ label: t("close"), href: "/wardrobe" }} />
+        <p className="mt-6 max-w-[290px] text-xs leading-relaxed text-muted">{t("autoRenewNote")}</p>
       </Screen>
     );
   }

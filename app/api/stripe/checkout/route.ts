@@ -19,12 +19,13 @@ const fail = (reason: string, status: number) => {
   return json({ error: reason }, status);
 };
 
-// Что видит пользователь на странице оплаты рядом с кнопкой.
+// Что видит пользователь на странице оплаты рядом с кнопкой (суммы — из lib/stripe/rules.ts).
+const usd = (n: number) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
 const SUBMIT_NOTE: Record<Offer, string> = {
-  trial: "After the trial your subscription renews at $9.99/month. You can cancel at any time.",
-  trial_free: "After the free trial your subscription renews at $9.99/month. You can cancel at any time.",
-  annual: "Your subscription renews every year at $49.99. You can cancel at any time.",
-  monthly: "Your subscription renews every month at $9.99. You can cancel at any time.",
+  trial: `After the trial your subscription renews at ${usd(OFFER_INFO.trial.recurringUsd)}/month. You can cancel at any time.`,
+  trial_free: `After the free trial your subscription renews at ${usd(OFFER_INFO.trial_free.recurringUsd)}/month. You can cancel at any time.`,
+  annual: `Your subscription renews every year at ${usd(OFFER_INFO.annual.recurringUsd)}. You can cancel at any time.`,
+  monthly: `Your subscription renews every month at ${usd(OFFER_INFO.monthly.recurringUsd)}. You can cancel at any time.`,
 };
 
 export async function POST(request: NextRequest) {

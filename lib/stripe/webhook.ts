@@ -138,6 +138,16 @@ export async function applyCheckout(d: Deps, s: SessionInfo): Promise<Outcome> {
   if (!(await canApply(d, userId, withIds))) return "other_subscription";
   const next = nextMonthlyGrant(offer, now(d), sub.periodEnd);
   await d.store.upsertSubscription(userId, withIds, offer, next);
+  // Оплата без триала (Premium, годовой) тоже закрывает триал: платившему человеку он не нужен
+  // ни с новой почтой-алиасом, ни с той же картой.
+  if (!isTrialOffer(offer)) {
+    try {
+      const payerEmail = await d.store.userEmail(userId);
+      await d.store.recordPayer(userId, payerEmail ? emailHash(payerEmail) : createHash("sha256").update(`user:${userId}`).digest("hex"), `stripe:${sub.id}`, sub.card?.fingerprint ?? null);
+    } catch (e) {
+      log(d, `record payer failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
   const granted = await d.store.grantCredits(`checkout:${s.id}`, userId, "checkout", creditsOnCheckout(offer));
   log(d, `checkout ${s.id}: user ${userId}, offer ${offer}, credits ${granted ? `set ${creditsOnCheckout(offer)}` : "already granted"}`);
   if (!granted) return "already_applied";

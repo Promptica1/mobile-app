@@ -3,11 +3,11 @@ import { getPlan, type PlanId } from "@/lib/plans";
 import type { Tokens } from "@/lib/tokens";
 
 // Сколько токенов осталось и на что тратятся.
-// Premium / Premium+ — «осталось X из 50 / 150» (столько начисляется каждый оплаченный месяц).
+// Premium — «осталось X из N»: N — сколько дало последнее начисление (триал 15, Premium 60, обновляется каждый период).
 // Бесплатный тариф — просто остаток: стартовые 10 токенов не пополняются.
 export default function TokensCard({ tokens, plan }: { tokens: Tokens; plan: PlanId | null }) {
   const t = useTranslations("profile.tokens");
-  const monthly = plan && plan !== "free" ? getPlan(plan).tokens : null;
+  const monthly = plan && plan !== "free" ? tokens.total || getPlan(plan).tokens : null;
   const share = monthly ? Math.min(1, tokens.balance / monthly) : 0;
   const empty = tokens.balance <= 0;
   const bold = (chunks: React.ReactNode) => <span className="font-semibold tabular-nums">{chunks}</span>;

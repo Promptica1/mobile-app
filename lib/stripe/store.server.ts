@@ -77,6 +77,10 @@ export function createStore(admin: SupabaseClient): Store {
       if (error) throw new Error(`claim trial: ${error.message}`);
       return data as TrialClaim;
     },
+    async recordPayer(userId, emailHash, ref, fingerprint) {
+      const { error } = await admin.rpc("record_payer", { p_user: userId, p_email_hash: emailHash, p_ref: ref, p_fingerprint: fingerprint });
+      if (error) console.log(`STRIPE: record_payer failed (${error.message})`);
+    },
     async grantCredits(key, userId, source, credits) {
       const { data, error } = await admin.rpc("grant_credits", { p_key: key, p_user: userId, p_source: source, p_credits: credits });
       if (error) throw new Error(`grant credits: ${error.message}`);

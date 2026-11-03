@@ -20,6 +20,7 @@ type Db = {
   refunded: string[];
   mails: { to: string; offer: Offer }[];
   customers: Record<string, string>;
+  payers: { userId: string; hash: string; ref: string; fp: string | null }[];
 };
 
 let db: Db;
@@ -45,7 +46,7 @@ function makeSub(over: Partial<StripeSub> & { id: string }): StripeSub {
 }
 
 beforeEach(() => {
-  db = { emails: { u1: "Anna@Example.com", u2: "anna+2@example.com", u3: "other@example.com" }, rows: new Map(), balance: new Map(), grants: new Set(), claims: [], canceled: [], refunded: [], mails: [], customers: {} };
+  db = { emails: { u1: "Anna@Example.com", u2: "anna+2@example.com", u3: "other@example.com" }, rows: new Map(), balance: new Map(), grants: new Set(), claims: [], canceled: [], refunded: [], mails: [], customers: {}, payers: [] };
   stripeSubs = new Map();
   for (const u of ["u1", "u2", "u3"]) db.balance.set(u, 10);
 
@@ -93,6 +94,9 @@ beforeEach(() => {
       db.claims.push({ userId, emailHash: hash, sub: subId, fp });
       return "ok";
     },
+    async recordPayer(userId, hash, ref, fp) {
+      db.payers.push({ userId, hash, ref, fp });
+    },
     async grantCredits(key, u, _s, credits) {
       if (db.grants.has(key)) return false;
       db.grants.add(key);
@@ -124,7 +128,7 @@ const invoicePaid = (id: string, sub: string, reason: string): RawEvent => ({
 });
 const subEvent = (type: string, id: string): RawEvent => ({ id: `evt_${type}_${id}`, type, data: { object: { id } } });
 
-test("триал $4,99: при оформлении 15 credits, письмо уходит один раз", async () => {
+test("триал $3,99: при оформлении 15 credits, письмо уходит один раз", async () => {
   stripeSubs.set("sub_1", makeSub({ id: "sub_1" }));
   assert.equal(await handleStripeEvent(deps, checkout("cs_1", "sub_1")), "activated");
   assert.equal(db.balance.get("u1"), 15);
@@ -144,13 +148,13 @@ test("вариант B: бесплатные 3 дня дают 5 credits", async
   assert.equal(db.balance.get("u1"), 5);
 });
 
-test("после триала первая оплата $9,99 сбрасывает баланс до 30; повтор webhook не начисляет второй раз", async () => {
+test("после триала первая оплата $12,99 сбрасывает баланс до 60; повтор webhook не начисляет второй раз", async () => {
   stripeSubs.set("sub_1", makeSub({ id: "sub_1" }));
   await handleStripeEvent(deps, checkout("cs_1", "sub_1"));
   db.balance.set("u1", 3); // за триал потратил почти всё
   stripeSubs.set("sub_1", makeSub({ id: "sub_1", status: "active", trialEnd: day(5), periodStart: day(5), periodEnd: day(35) }));
   assert.equal(await handleStripeEvent(deps, invoicePaid("in_2", "sub_1", "subscription_cycle")), "activated");
-  assert.equal(db.balance.get("u1"), 30, "30, а не 3+30: неиспользованное сгорает");
+  assert.equal(db.balance.get("u1"), 60, "60, а не 3+60: неиспользованное сгорает");
   db.balance.set("u1", 12);
   assert.equal(await handleStripeEvent(deps, invoicePaid("in_2", "sub_1", "subscription_cycle")), "already_applied");
   assert.equal(db.balance.get("u1"), 12);
@@ -165,16 +169,16 @@ test("первый счёт подписки (subscription_create) credits не 
   assert.equal(db.balance.get("u1"), 9);
 });
 
-test("Premium annual: 25 credits при оплате, дальше — месячные пакеты по cron, в продление снова 25", async () => {
+test("Premium annual: 60 credits при оплате, дальше — месячные пакеты по cron, в продление снова 60", async () => {
   stripeSubs.set("sub_a", makeSub({ id: "sub_a", offer: "annual", status: "active", interval: "year", trialEnd: null, periodStart: NOW, periodEnd: day(365) }));
   await handleStripeEvent(deps, checkout("cs_a", "sub_a", { metadata: { user_id: "u1", offer: "annual" } }));
-  assert.equal(db.balance.get("u1"), 25);
+  assert.equal(db.balance.get("u1"), 60);
   assert.equal(db.rows.get("u1")?.next?.toISOString(), "2026-12-01T12:00:00.000Z", "следующий пакет — через месяц");
   // Через год Stripe списывает продление.
   stripeSubs.set("sub_a", makeSub({ id: "sub_a", offer: "annual", status: "active", interval: "year", trialEnd: null, periodStart: day(365), periodEnd: day(730) }));
   db.balance.set("u1", 1);
   await handleStripeEvent(deps, invoicePaid("in_y2", "sub_a", "subscription_cycle"));
-  assert.equal(db.balance.get("u1"), 25);
+  assert.equal(db.balance.get("u1"), 60);
 });
 
 test("один триал на человека: тот же человек с другой почтой-алиасом и той же картой получает отказ и возврат денег", async () => {
@@ -224,7 +228,7 @@ test("отклонённый триал не обнуляет credits дейст
 test("отмена продления: доступ остаётся, credits не трогаем; окончание подписки обнуляет credits", async () => {
   stripeSubs.set("sub_m", makeSub({ id: "sub_m", offer: "monthly", status: "active", trialEnd: null, periodEnd: day(30) }));
   await handleStripeEvent(deps, checkout("cs_m", "sub_m", { metadata: { user_id: "u1", offer: "monthly" } }));
-  assert.equal(db.balance.get("u1"), 30);
+  assert.equal(db.balance.get("u1"), 60);
   db.balance.set("u1", 18);
 
   stripeSubs.set("sub_m", makeSub({ id: "sub_m", offer: "monthly", status: "active", cancelAtPeriodEnd: true, trialEnd: null, periodEnd: day(30) }));
@@ -250,4 +254,35 @@ test("лишние события и неоплаченные сессии иг�
   stripeSubs.set("sub_1", makeSub({ id: "sub_1" }));
   assert.equal(await handleStripeEvent(deps, checkout("cs_u", "sub_1", { payment_status: "unpaid" })), "pending");
   assert.equal(db.balance.get("u1"), 10);
+});
+
+test("оплата без триала (Premium, годовой) записывает человека как платившего: триал ему больше не положен", async () => {
+  stripeSubs.set("sub_m", makeSub({ id: "sub_m", offer: "monthly", status: "active", trialEnd: null, periodEnd: day(30) }));
+  assert.equal(await handleStripeEvent(deps, checkout("cs_m", "sub_m", { metadata: { user_id: "u1", offer: "monthly" } })), "activated");
+  assert.equal(db.payers.length, 1);
+  assert.equal(db.payers[0].userId, "u1");
+  assert.equal(db.payers[0].hash, emailHash(db.emails.u1), "почта нормализована: алиас того же человека даст тот же отпечаток");
+  assert.equal(db.payers[0].fp, "fp_A", "и отпечаток карты запомнен");
+  // Повтор webhook не плодит записей о том, что человек уже начислен.
+  await handleStripeEvent(deps, checkout("cs_m", "sub_m", { metadata: { user_id: "u1", offer: "monthly" } }));
+  assert.equal((await handleStripeEvent(deps, checkout("cs_m", "sub_m", { metadata: { user_id: "u1", offer: "monthly" } }))), "already_applied");
+});
+
+test("триал не записывается как «платил»: его занимает claim_trial", async () => {
+  stripeSubs.set("sub_1", makeSub({ id: "sub_1" }));
+  await handleStripeEvent(deps, checkout("cs_1", "sub_1"));
+  assert.equal(db.payers.length, 0);
+  assert.equal(db.claims.length, 1);
+});
+
+test("человек, который уже платил, не получает триал: Stripe отменяет его и возвращает деньги", async () => {
+  // claimTrial в заглушке отвечает paid_before — как SQL-функция для плательщика.
+  const original = deps.store.claimTrial;
+  deps.store.claimTrial = async () => "paid_before";
+  stripeSubs.set("sub_1", makeSub({ id: "sub_1" }));
+  assert.equal(await handleStripeEvent(deps, checkout("cs_1", "sub_1")), "trial_rejected");
+  assert.deepEqual(db.canceled, ["sub_1"]);
+  assert.deepEqual(db.refunded, ["cus_1"]);
+  assert.equal(db.balance.get("u1"), 10, "credits не начислены");
+  deps.store.claimTrial = original;
 });

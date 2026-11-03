@@ -64,9 +64,9 @@ console.log("\n[ЮKassa] первая оплата → подписка → то
   ok(done.json?.status === "succeeded" && done.json?.cardLast4 === "4477", "после оплаты: succeeded, карта •••• 4477", JSON.stringify(done.json));
   const sub = await subRow(u);
   eq([sub.plan, sub.status, sub.provider], ["premium", "active", "yookassa"], "подписка Premium активна (provider = yookassa)");
-  eq((await balance(u)).b, 50, "начислено 50 токенов (как раньше)");
+  eq((await balance(u)).b, 60, "начислено 60 токенов (Premium)");
   await call(u, "GET", `/api/payments/status?order=${order}`, null, "RU");
-  eq((await balance(u)).b, 50, "повторная проверка не начисляет второй раз");
+  eq((await balance(u)).b, 60, "повторная проверка не начисляет второй раз");
 
   const again = await call(u, "POST", "/api/payments/create", { plan: "premium", consent: true }, "RU");
   eq(again.json?.error, "already_subscribed", "второй раз тот же тариф не оформляется");
@@ -78,7 +78,7 @@ console.log("\n[ЮKassa] первая оплата → подписка → то
   ok(cron.status === 200, "cron автопродления отработал", String(cron.status));
   const after = await subRow(u);
   ok(new Date(after.current_period_end) > new Date(), "период продлён");
-  eq((await balance(u)).b, 50, "при продлении баланс сброшен до 50");
+  eq((await balance(u)).b, 60, "при продлении баланс сброшен до 60");
 
   // отмена и возобновление
   const cancel = await call(u, "POST", "/api/subscription", { action: "cancel" }, "RU");
@@ -92,7 +92,7 @@ console.log("\n[ЮKassa] первая оплата → подписка → то
 
   // неудачная оплата
   const u2 = await newUser(`ru2-${run}@example.com`);
-  const c2 = await call(u2, "POST", "/api/payments/create", { plan: "premium_plus", consent: true }, "RU");
+  const c2 = await call(u2, "POST", "/api/payments/create", { plan: "premium", consent: true }, "RU");
   const yk2 = (await fetch(YK + "/__payments").then((r) => r.json())).find((p) => p.metadata.order_id === c2.json.orderId);
   await post(YK + "/__settle", { id: yk2.id, result: "fail" });
   const failedRes = await call(u2, "GET", `/api/payments/status?order=${c2.json.orderId}`, null, "RU");
@@ -102,6 +102,120 @@ console.log("\n[ЮKassa] первая оплата → подписка → то
 }
 
 // ═══════════════════════════ Выбор провайдера ═══════════════════════════
+console.log("\n[ЮKassa] триал 399 ₽ на 7 дней → автосписание 1499 ₽; триал только тем, кто не платил и не брал триал");
+{
+  const ykPay = async (order) => (await fetch(YK + "/__payments").then((r) => r.json())).find((p) => p.metadata?.order_id === order);
+  const settle = async (order, result, card) => post(YK + "/__settle", { id: (await ykPay(order)).id, result, card });
+  const trialCreate = (u) => call(u, "POST", "/api/payments/create", { plan: "premium", trial: true, consent: true }, "RU");
+  const status = (u, order) => call(u, "GET", `/api/payments/status?order=${order}`, null, "RU");
+  const claims = async (u) => (await q("select count(*)::int c from trial_claims where user_id = $1", [u.id]))[0].c;
+  const pageTrial = async (u) => /trialAvailable\\?":true/.test(await fetch(APP + "/profile/subscription", { headers: { cookie: cookie(u), "x-vercel-ip-country": "RU" } }).then((r) => r.text()));
+
+  const a = await newUser(`Olga.${run}@Example.com`);
+  eq(await pageTrial(a), true, "новому человеку экран тарифов предлагает триал");
+  const c1 = await trialCreate(a);
+  ok(c1.status === 200 && /54500\/pay\//.test(c1.json?.confirmationUrl ?? ""), "создан платёж триала в ЮKassa", JSON.stringify(c1.json));
+  const [p1] = await q("select kind, amount::float amt, plan from payments where id = $1", [c1.json.orderId]);
+  eq([p1.kind, p1.amt, p1.plan], ["trial", 399, "premium"], "платёж триала: 399 ₽");
+  const y1 = await ykPay(c1.json.orderId);
+  eq(y1._body.amount, { value: "399.00", currency: "RUB" }, "в ЮKassa ушло 399.00 RUB");
+  ok(/Пробный период MIRRO Premium \(7 дней\)/.test(y1._body.description) && y1._body.receipt.items[0].description.startsWith("Пробный период") && y1._body.save_payment_method === true, "чек по-русски, карта сохраняется для автосписания");
+  eq(await claims(a), 1, "бронь триала поставлена");
+
+  const c1b = await trialCreate(a);
+  eq(c1b.status, 200, "закрыл страницу оплаты — можно попробовать ещё раз");
+  await settle(c1b.json.orderId, "fail");
+  eq((await status(a, c1b.json.orderId)).json?.status, "canceled", "отказ банка: платёж отменён");
+  eq(await claims(a), 0, "после отказа бронь снята — триал не сгорел");
+
+  const c2 = await trialCreate(a);
+  const OLGA_CARD = { first6: "510510", last4: "4477" }; // карты в сценариях разные: карта платившего тоже закрывает триал
+  await settle(c2.json.orderId, "success", OLGA_CARD);
+  const s2 = await status(a, c2.json.orderId);
+  ok(s2.json?.status === "succeeded" && s2.json?.trial === true, "после оплаты: succeeded, trial = true", JSON.stringify(s2.json));
+  let sub = await subRow(a);
+  eq([sub.provider, sub.plan, sub.status, sub.offer, sub.is_trial], ["yookassa", "premium", "active", "trial", true], "подписка: ЮKassa / Premium / триал");
+  ok(Math.abs(new Date(sub.trial_end) - Date.now() - 7 * 86400e3) < 120e3, "триал заканчивается через 7 дней");
+  eq(new Date(sub.current_period_end).getTime(), new Date(sub.trial_end).getTime(), "конец периода = конец триала (там спишется 1499 ₽)");
+  ok(sub.yookassa_payment_method_id && sub.card_last4 === "4477", "карта сохранена для автосписания");
+  eq(await balance(a), { b: 15, t: 15 }, "начислено 15 credits");
+  await db.query("update profiles set tokens_balance = 9 where id = $1", [a.id]);
+  await status(a, c2.json.orderId);
+  eq((await balance(a)).b, 9, "повторная проверка не начисляет второй раз");
+  eq(await claims(a), 1, "триал занят за человеком");
+  eq(await pageTrial(a), false, "после триала экран тарифов его больше не предлагает");
+
+  // конец триала: автосписание цены Premium
+  await q("update subscriptions set current_period_end = now() - interval '1 hour' where user_id = $1", [a.id]);
+  await q("update profiles set tokens_balance = 3 where id = $1", [a.id]);
+  const cron = await fetch(APP + "/api/cron/renew", { headers: { authorization: "Bearer cron-secret" } });
+  ok(cron.status === 200, "cron автопродления отработал");
+  const [rp] = await q("select kind, amount::float amt, status from payments where user_id = $1 and kind = 'renewal'", [a.id]);
+  eq([rp?.kind, rp?.amt, rp?.status], ["renewal", 1499, "succeeded"], "в конце триала списано 1499 ₽");
+  eq(await balance(a), { b: 60, t: 60 }, "баланс сброшен до 60 (Premium)");
+  const sub2 = await subRow(a);
+  eq([sub2.is_trial, sub2.trial_end, sub2.status], [false, null, "active"], "триал закончился, обычная подписка");
+  ok(new Date(sub2.current_period_end) > new Date(Date.now() + 25 * 86400e3), "новый период — месяц");
+
+  // отмена в триале: доступ до конца, дальше не списываем
+  const a2 = await newUser(`cancel-${run}@example.com`);
+  const cc = await trialCreate(a2); await settle(cc.json.orderId, "success", { last4: "0001", first6: "400000" }); await status(a2, cc.json.orderId);
+  await call(a2, "POST", "/api/subscription", { action: "cancel" }, "RU");
+  eq((await subRow(a2)).status, "canceled", "отмена в триале");
+  await q("update subscriptions set current_period_end = now() - interval '1 hour' where user_id = $1", [a2.id]);
+  await fetch(APP + "/api/cron/renew", { headers: { authorization: "Bearer cron-secret" } });
+  eq((await q("select count(*)::int c from payments where user_id = $1 and kind = 'renewal'", [a2.id]))[0].c, 0, "отменённый триал в конце периода не списывается");
+  eq((await subRow(a2)).status, "expired", "доступ закончился вместе с триалом");
+
+  // ── триал недоступен ──
+  // 1. тот же аккаунт (триал уже брал)
+  await q("update subscriptions set status = 'expired', current_period_end = now() - interval '1 day' where user_id = $1", [a.id]);
+  const again = await trialCreate(a);
+  eq([again.status, again.json?.error], [409, "trial_used"], "тот же аккаунт: повторный триал не выдаётся");
+  // 2. другая почта-алиас того же человека
+  const alias = await newUser(`olga.${run}+2@example.com`);
+  const viaAlias = await trialCreate(alias);
+  eq([viaAlias.status, viaAlias.json?.error], [409, "trial_used"], "почта-алиас (+метка, регистр): триал не выдаётся");
+  eq(await pageTrial(alias), false, "экран тарифов для алиаса без триала");
+  // 3. уже платил (обычная оплата Premium), подписка закончилась
+  const payer = await newUser(`payer.${run}@example.com`);
+  const cp = await call(payer, "POST", "/api/payments/create", { plan: "premium", consent: true }, "RU");
+  await settle(cp.json.orderId, "success", { last4: "9999", first6: "222222" });
+  eq((await status(payer, cp.json.orderId)).json?.status, "succeeded", "обычная оплата Premium прошла");
+  await q("update subscriptions set status = 'expired', current_period_end = now() - interval '1 day' where user_id = $1", [payer.id]);
+  const afterPay = await trialCreate(payer);
+  eq([afterPay.status, afterPay.json?.error], [409, "trial_used"], "платил раньше: триал не выдаётся");
+  eq(await pageTrial(payer), false, "платившему экран тарифов триал не показывает");
+  const payerAlias = await newUser(`Payer.${run}+x@example.com`);
+  eq((await trialCreate(payerAlias)).json?.error, "trial_used", "алиас почты платившего: триал не выдаётся");
+  // 4. старый тариф Premium+ (после миграции — Premium, подписка закончилась)
+  const legacy = await newUser(`legacy-${run}@example.com`);
+  await q("insert into subscriptions (user_id, plan, status, current_period_end, provider) values ($1, 'premium', 'expired', now() - interval '20 days', 'yookassa')", [legacy.id]);
+  eq((await trialCreate(legacy)).json?.error, "trial_used", "был старый платный тариф: триал не выдаётся");
+  eq(await pageTrial(legacy), false, "ему экран тарифов триал не показывает");
+  // 5. новая карта на другой почте — но карта уже брала триал (проверка после оплаты, платёж возвращается)
+  const boris = await newUser(`boris-${run}@example.com`);
+  const cb = await trialCreate(boris);
+  eq(cb.status, 200, "другой человек по почте: страница оплаты создаётся");
+  await settle(cb.json.orderId, "success", OLGA_CARD); // та же карта, что у Ольги
+  const sb = await status(boris, cb.json.orderId);
+  ok(sb.json?.status === "canceled" && sb.json?.reason === "trial_used", "та же карта: триал отклонён", JSON.stringify(sb.json));
+  const refunds = await fetch(YK + "/__refunds").then((r) => r.json());
+  const ykBoris = await ykPay(cb.json.orderId);
+  const rf = refunds.find((x) => x.payment_id === ykBoris.id);
+  ok(rf && rf.amount.value === "399.00" && rf.receipt?.items?.[0]?.description?.startsWith("Пробный период"), "деньги за триал возвращены (399.00, чек возврата)", JSON.stringify(rf));
+  await status(boris, cb.json.orderId);
+  eq((await fetch(YK + "/__refunds").then((r) => r.json())).filter((x) => x.payment_id === rf?.payment_id).length, 1, "повторная проверка не создаёт второй возврат");
+  eq([(await balance(boris)).b, await subRow(boris)], [10, undefined], "credits не начислены, подписка не создана");
+  const [pb] = await q("select status, cancellation_reason from payments where id = $1", [cb.json.orderId]);
+  eq([pb.status, pb.cancellation_reason], ["canceled", "trial_used"], "платёж помечен: триал отклонён");
+  // 6. новый человек с новой картой — триал выдан
+  const clara = await newUser(`clara-${run}@example.com`);
+  const ccl = await trialCreate(clara);
+  await settle(ccl.json.orderId, "success", { last4: "1111", first6: "411111" });
+  eq([(await status(clara, ccl.json.orderId)).json?.trial, (await balance(clara)).b], [true, 15], "новый человек и новая карта: триал выдан, 15 credits");
+}
+
 console.log("\n[Провайдер] страна → ЮKassa / Stripe");
 {
   const u = await newUser(`prov-${run}@example.com`);
@@ -122,7 +236,7 @@ console.log("\n[Провайдер] страна → ЮKassa / Stripe");
 }
 
 // ═══════════════════════════ Stripe ═══════════════════════════
-console.log("\n[Stripe] триал $4,99: оформление → credits → письмо → повтор webhook");
+console.log("\n[Stripe] триал $3,99: оформление → credits → письмо → повтор webhook");
 const anna = await newUser(`Anna.${run}@Example.com`);
 let annaSub;
 {
@@ -139,12 +253,12 @@ let annaSub;
   const sess = state.sessions.at(-1);
   eq(sess.mode, "subscription", "Checkout в режиме подписки");
   const items = Object.values(sess.params.line_items).map((x) => x.price);
-  eq(items, ["price_setup", "price_monthly"], "позиции: разовые $4,99 + подписка $9,99");
-  eq(sess.params.subscription_data.trial_period_days, "5", "триал 5 дней");
+  eq(items, ["price_setup", "price_monthly"], "позиции: разовые $3,99 + подписка $12,99");
+  eq(sess.params.subscription_data.trial_period_days, "7", "триал 7 дней");
   eq(sess.params.automatic_tax.enabled, "true", "включён Stripe Tax");
   eq(sess.params.payment_method_collection, "always", "карта обязательна");
   eq(Object.values(sess.params.allowed_payment_method_types), ["card", "link"], "способы: карта (Apple Pay / Google Pay внутри) и Link, без экрана выбора");
-  ok(/\$9\.99\/month/.test(sess.params.custom_text.submit.message) && /cancel at any time/i.test(sess.params.custom_text.submit.message), "на странице оплаты: после триала $9,99 в месяц, отмена в любой момент");
+  ok(/\$12\.99\/month/.test(sess.params.custom_text.submit.message) && /cancel at any time/i.test(sess.params.custom_text.submit.message), "на странице оплаты: после триала $12,99 в месяц, отмена в любой момент");
   eq(sess.metadata.user_id, u.id, "в сессии user_id");
   eq((await q("select count(*)::int c from legal_consents where user_id = $1 and context = 'payment'", [u.id]))[0].c, 2, "записаны согласия");
 
@@ -156,11 +270,11 @@ let annaSub;
   eq(await balance(u), { b: 15, t: 15 }, "начислено 15 credits");
   const sub = await subRow(u);
   eq([sub.provider, sub.plan, sub.status, sub.offer, sub.is_trial, sub.card_last4], ["stripe", "premium", "active", "trial", true, "4242"], "подписка: Stripe/Premium/триал/карта 4242");
-  ok(sub.trial_end && Math.abs(new Date(sub.trial_end) - Date.now() - 5 * 86400e3) < 60e3, "триал заканчивается через 5 дней");
+  ok(sub.trial_end && Math.abs(new Date(sub.trial_end) - Date.now() - 7 * 86400e3) < 60e3, "триал заканчивается через 7 дней");
   eq((await q("select count(*)::int c from trial_claims where user_id = $1", [u.id]))[0].c, 1, "триал занят за человеком");
   const m1 = await mails();
   eq([m1.length, m1[0]?.to?.[0]], [1, u.email], "письмо о покупке отправлено");
-  ok(/trial/i.test(m1[0]?.subject ?? "") && /\$4\.99/.test(m1[0]?.text ?? "") && !/[А-Яа-я]/.test(m1[0]?.text ?? ""), "письмо на английском, указано $4.99");
+  ok(/trial/i.test(m1[0]?.subject ?? "") && /\$3\.99/.test(m1[0]?.text ?? "") && !/[А-Яа-я]/.test(m1[0]?.text ?? ""), "письмо на английском, указано $3.99");
   ok(m1[0]?.auth === "Bearer re_test" && m1[0]?.from.includes("MIRRO"), "письмо ушло через Resend с ключом из окружения");
 
   await db.query("update profiles set tokens_balance = 9 where id = $1", [u.id]);
@@ -183,7 +297,7 @@ console.log("\n[Stripe] один триал на человека");
   eq([pre.status, pre.json?.error], [409, "trial_used"], "та же почта (алиас): триал недоступен ещё до оплаты");
   // страница тарифов для такого человека не предлагает триал
   const page = await fetch(APP + "/profile/subscription", { headers: { cookie: cookie(alias), "x-vercel-ip-country": "US" } }).then((r) => r.text());
-  ok(!/5-day trial/.test(page) && /Premium/.test(page), "на экране тарифов триала нет, есть обычный Premium");
+  ok(!/7-day trial/.test(page) && /Premium/.test(page), "на экране тарифов триала нет, есть обычный Premium");
   // можно взять обычный Premium без триала
   const monthly = await call(alias, "POST", "/api/stripe/checkout", { offer: "monthly", consent: true }, "US");
   eq(monthly.status, 200, "Premium без триала доступен");
@@ -222,7 +336,7 @@ console.log("\n[Stripe] продление: credits сбрасываются; о
   await post(ST + "/__sub", { id: annaSub, patch: { status: "active", period_start: t, period_end: t + 30 * 86400, trial_end: null } });
   const inv = { id: "in_cycle1", billing_reason: "subscription_cycle", parent: { subscription_details: { subscription: annaSub } } };
   const r1 = await webhook("invoice.paid", inv);
-  eq([r1.json?.outcome, (await balance(u)).b], ["activated", 30], "invoice.paid после триала: баланс 30 (неиспользованное сгорело)");
+  eq([r1.json?.outcome, (await balance(u)).b], ["activated", 60], "invoice.paid после триала: баланс 60 (неиспользованное сгорело)");
   eq((await subRow(u)).is_trial, false, "триал закончился, подписка обычная");
   await db.query("update profiles set tokens_balance = 12 where id = $1", [u.id]);
   eq((await webhook("invoice.paid", inv)).json?.outcome, "already_applied", "повтор invoice.paid не начисляет");
@@ -261,7 +375,7 @@ console.log("\n[Stripe] продление: credits сбрасываются; о
   eq((await subRow(u)).status, "expired", "статус expired");
 }
 
-console.log("\n[Stripe] Premium annual: 25 credits в месяц, cron, письма");
+console.log("\n[Stripe] Premium annual: 60 credits в месяц, cron, письма");
 {
   const u = await newUser(`year-${run}@example.com`);
   const chk = await call(u, "POST", "/api/stripe/checkout", { offer: "annual", consent: true }, "US");
@@ -270,7 +384,7 @@ console.log("\n[Stripe] Premium annual: 25 credits в месяц, cron, пись
   eq(s.params.subscription_data.trial_period_days, undefined, "у годового плана нет триала");
   const d = await post(ST + "/__complete", { session: s.id, fingerprint: "fp_year", interval: "year", paymentStatus: "paid" });
   const w = await webhook("checkout.session.completed", { id: s.id, mode: "subscription", payment_status: "paid", subscription: d.subscription, customer: s.customer, client_reference_id: u.id, metadata: { user_id: u.id, offer: "annual" } });
-  eq([chk.status, w.json?.outcome, (await balance(u)).b], [200, "activated", 25], "годовой план: 25 credits");
+  eq([chk.status, w.json?.outcome, (await balance(u)).b], [200, "activated", 60], "годовой план: 60 credits");
   let sub = await subRow(u);
   eq([sub.billing_interval, sub.is_trial], ["year", false], "интервал — год");
   const next = new Date(sub.credits_next_grant_at);
@@ -280,7 +394,7 @@ console.log("\n[Stripe] Premium annual: 25 credits в месяц, cron, пись
   await db.query("update profiles set tokens_balance = 3 where id = $1", [u.id]);
   await db.query("update subscriptions set credits_next_grant_at = now() - interval '1 hour' where user_id = $1", [u.id]);
   const cron1 = await fetch(APP + "/api/cron/stripe", { headers: { authorization: "Bearer cron-secret" } }).then((r) => r.json());
-  eq((await balance(u)).b, 25, "cron: месячный пакет, баланс сброшен до 25");
+  eq((await balance(u)).b, 60, "cron: месячный пакет, баланс сброшен до 60");
   ok(cron1.creditGrants >= 1, "cron сообщил о начислении", JSON.stringify(cron1));
   sub = await subRow(u);
   ok(new Date(sub.credits_next_grant_at) > new Date(), "дата следующего пакета сдвинута");
@@ -294,7 +408,7 @@ console.log("\n[Stripe] Premium annual: 25 credits в месяц, cron, пись
   await db.query("update subscriptions set current_period_end = now() + interval '6 days 12 hours' where user_id = $1", [u.id]);
   const cron2 = await fetch(APP + "/api/cron/stripe", { headers: { authorization: "Bearer cron-secret" } }).then((r) => r.json());
   const m = await mails();
-  ok(cron2.annualEmails === 1 && m.length === 1 && /annual plan renews in 7 days/i.test(m[0].subject) && /\$49\.99\/year/.test(m[0].text), "письмо о продлении годового плана за 7 дней ($49.99/year)", JSON.stringify(cron2));
+  ok(cron2.annualEmails === 1 && m.length === 1 && /annual plan renews in 7 days/i.test(m[0].subject) && /\$99\/year/.test(m[0].text), "письмо о продлении годового плана за 7 дней ($99/year)", JSON.stringify(cron2));
   await fetch(APP + "/api/cron/stripe", { headers: { authorization: "Bearer cron-secret" } });
   eq((await mails()).length, 1, "второе напоминание за то же продление не отправляется");
 }
@@ -309,7 +423,7 @@ console.log("\n[Stripe] письмо на 4-й день триала");
   await fetch(APP + "/api/cron/stripe", { headers: { authorization: "Bearer cron-secret" } }).then((r) => r.json());
   const m = await mails();
   eq(m.filter((x) => x.to[0] === u.email).length, 1, "за ~30 часов до конца триала письмо отправлено");
-  ok(/trial ends/i.test(m.find((x) => x.to[0] === u.email)?.subject ?? "") && /\$9\.99\/month/.test(m.find((x) => x.to[0] === u.email)?.text ?? ""), "в письме: триал заканчивается, потом $9.99/month");
+  ok(/trial ends/i.test(m.find((x) => x.to[0] === u.email)?.subject ?? "") && /\$12\.99\/month/.test(m.find((x) => x.to[0] === u.email)?.text ?? ""), "в письме: триал заканчивается, потом $12.99/month");
   eq(m.filter((x) => x.to[0] === u2.email).length, 0, "за 3 дня до конца письма ещё нет");
   await fetch(APP + "/api/cron/stripe", { headers: { authorization: "Bearer cron-secret" } });
   eq((await mails()).filter((x) => x.to[0] === u.email).length, 1, "письмо отправляется один раз");
@@ -322,10 +436,16 @@ console.log("\n[Stripe] платёж не прошёл");
   const s = (await stState()).sessions.at(-1);
   const d = await post(ST + "/__complete", { session: s.id, fingerprint: "fp_pd", interval: "month", paymentStatus: "paid" });
   await webhook("checkout.session.completed", { id: s.id, mode: "subscription", payment_status: "paid", subscription: d.subscription, customer: s.customer, client_reference_id: u.id, metadata: { user_id: u.id, offer: "monthly" } });
-  eq((await balance(u)).b, 30, "Premium без триала: 30 credits");
+  eq((await balance(u)).b, 60, "Premium без триала: 60 credits");
   await post(ST + "/__sub", { id: d.subscription, patch: { status: "past_due" } });
   const f = await webhook("invoice.payment_failed", { id: "in_fail", billing_reason: "subscription_cycle", parent: { subscription_details: { subscription: d.subscription } } });
   eq([f.json?.outcome, (await subRow(u)).status], ["synced", "past_due"], "invoice.payment_failed → past_due");
+  // Платил (Premium без триала), подписка закончилась — триал в Stripe недоступен.
+  await db.query("update subscriptions set status = 'expired', current_period_end = now() - interval '1 day' where user_id = $1", [u.id]);
+  const trialAfterPaid = await call(u, "POST", "/api/stripe/checkout", { offer: "trial", consent: true }, "US");
+  eq([trialAfterPaid.status, trialAfterPaid.json?.error], [409, "trial_used"], "платил раньше: триал Stripe не выдаётся");
+  const plainAgain = await call(u, "POST", "/api/stripe/checkout", { offer: "monthly", consent: true }, "US");
+  eq(plainAgain.status, 200, "обычный Premium по-прежнему доступен");
 }
 
 console.log("\n[Stripe] смена карты");

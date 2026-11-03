@@ -7,7 +7,7 @@ export const OFFERS: readonly Offer[] = ["trial", "trial_free", "annual", "month
 export const isOffer = (v: unknown): v is Offer => typeof v === "string" && (OFFERS as readonly string[]).includes(v);
 
 export type OfferInfo = {
-  // Цена разового платежа сейчас (триал за $4,99), 0 — нет.
+  // Цена разового платежа сейчас (триал за $3,99), 0 — нет.
   setupUsd: number;
   // Регулярная цена: за месяц или за год.
   recurringUsd: number;
@@ -22,15 +22,19 @@ export type OfferInfo = {
 };
 
 export const OFFER_INFO: Record<Offer, OfferInfo> = {
-  trial: { setupUsd: 4.99, recurringUsd: 9.99, interval: "month", trialDays: 5, startCredits: 15, cycleCredits: 30, monthlyGrant: false },
-  trial_free: { setupUsd: 0, recurringUsd: 9.99, interval: "month", trialDays: 3, startCredits: 5, cycleCredits: 30, monthlyGrant: false },
-  annual: { setupUsd: 0, recurringUsd: 49.99, interval: "year", trialDays: 0, startCredits: 25, cycleCredits: 25, monthlyGrant: true },
-  monthly: { setupUsd: 0, recurringUsd: 9.99, interval: "month", trialDays: 0, startCredits: 30, cycleCredits: 30, monthlyGrant: false },
+  trial: { setupUsd: 3.99, recurringUsd: 12.99, interval: "month", trialDays: 7, startCredits: 15, cycleCredits: 60, monthlyGrant: false },
+  trial_free: { setupUsd: 0, recurringUsd: 12.99, interval: "month", trialDays: 3, startCredits: 5, cycleCredits: 60, monthlyGrant: false },
+  annual: { setupUsd: 0, recurringUsd: 99, interval: "year", trialDays: 0, startCredits: 60, cycleCredits: 60, monthlyGrant: true },
+  monthly: { setupUsd: 0, recurringUsd: 12.99, interval: "month", trialDays: 0, startCredits: 60, cycleCredits: 60, monthlyGrant: false },
 };
 
-// Какое предложение активно в варианте «триал за $4,99» и в варианте B (бесплатные 3 дня).
+// Какое предложение активно в варианте «триал за $3,99» и в варианте B (бесплатные 3 дня).
 export const trialOffer = (freeTrial: boolean): Offer => (freeTrial ? "trial_free" : "trial");
 export const isTrialOffer = (o: Offer) => o === "trial" || o === "trial_free";
+
+// На сколько процентов годовой план дешевле двенадцати месяцев по месячной цене (для подписи на экране).
+export const annualSavingPercent = () =>
+  Math.round((1 - OFFER_INFO.annual.recurringUsd / (OFFER_INFO.monthly.recurringUsd * 12)) * 100);
 
 // Credits при оформлении (checkout.session.completed).
 export const creditsOnCheckout = (o: Offer) => OFFER_INFO[o].startCredits;

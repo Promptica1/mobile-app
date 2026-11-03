@@ -122,7 +122,7 @@ export default function ProfileScreen({ profile: initial, userId, photo, tokens,
         <p className="mt-2 max-w-[260px] text-sm leading-relaxed text-text/70">
           {activeSub?.current_period_end
             ? subscriptionNote(activeSub, tBilling, locale)
-            : t("moreTokens", { price: usd ? formatUsd(OFFER_INFO.monthly.recurringUsd) : formatPrice(getPlan("premium").price, locale) })}
+            : t("moreTokens", { price: usd ? formatUsd(OFFER_INFO.monthly.recurringUsd, locale) : formatPrice(getPlan("premium").price, locale) })}
         </p>
         <span className="mt-5 flex h-12 w-full items-center justify-center rounded-full bg-text text-[15px] font-medium text-background">
           {activeSub ? t("manage") : t("goPremium")}

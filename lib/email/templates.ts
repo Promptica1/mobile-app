@@ -4,7 +4,7 @@ import { OFFER_INFO, type Offer } from "../stripe/rules.ts";
 
 export type Mail = { subject: string; html: string; text: string };
 
-const usd = (n: number) => `$${n.toFixed(2)}`;
+const usd = (n: number) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
 const day = (d: Date) => d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
 
 function layout(title: string, paragraphs: string[], manageUrl: string): Mail["html"] {

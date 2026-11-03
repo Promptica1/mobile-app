@@ -1,6 +1,7 @@
-// Тарифы подписки. Цены везде показываем через formatPrice.
+// Тарифы подписки (ЮKassa, рубли). Цены везде показываем через formatPrice.
+// Для Stripe (доллары) — отдельные предложения в lib/stripe/rules.ts.
 
-export type PlanId = "free" | "premium" | "premium_plus";
+export type PlanId = "free" | "premium";
 
 // Тексты тарифов (название, описание, список возможностей) — в переводах: plans.<id>.*
 // (name, tagline, f1…fN, badge). Здесь только числа и устойчивые поля.
@@ -10,9 +11,7 @@ export type Plan = {
   name: string;
   // Цена в рублях за месяц (0 — бесплатно).
   price: number;
-  // Примерная цена в долларах — только для справки, списание всегда в рублях.
-  usd?: number;
-  // Сколько токенов даёт тариф (для «Осталось токенов: X из N»).
+  // Сколько credits (токенов) даёт тариф: обновляются каждый период и не накапливаются.
   tokens: number;
   // Сколько пунктов в списке возможностей (plans.<id>.f1…fN).
   features: number;
@@ -22,16 +21,20 @@ export type Plan = {
 
 export const PLANS: Plan[] = [
   { id: "free", name: "Free", price: 0, tokens: 10, features: 3 },
-  { id: "premium", name: "Premium", price: 1499, usd: 15, tokens: 50, features: 4, badge: true },
-  { id: "premium_plus", name: "Premium+", price: 2499, usd: 25, tokens: 150, features: 5 },
+  { id: "premium", name: "Premium", price: 1499, tokens: 60, features: 4, badge: true },
 ];
 
-export const getPlan = (id: PlanId) => PLANS.find((p) => p.id === id) as Plan;
+// Старые значения из базы (например, снятый тариф «premium_plus») читаем как Premium.
+export const getPlan = (id: string): Plan => PLANS.find((p) => p.id === id) ?? (PLANS.find((p) => p.id === "premium") as Plan);
 
-// 1499 → «1.499₽» (ru) / «₽1,499» (en), 0 → «0₽»: разделитель тысяч по языку.
+// Триал в ЮKassa: отдельный платёж с сохранением карты, через TRIAL_DAYS дней — автосписание цены Premium.
+// Доступен только тому, у кого никогда не было ни оплаты, ни триала (правило проверяет база).
+export const RU_TRIAL = { price: 399, days: 7, credits: 15 } as const;
+
+// 1499 → «1499 ₽» (ru, с неразрывным пробелом) / «₽1,499» (en), 0 → «0 ₽».
 export function formatPrice(rubles: number, locale = "ru"): string {
   const n = Math.round(rubles);
-  if (locale === "ru") return `${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".")}₽`;
+  if (locale === "ru") return `${n}\u00a0₽`;
   return `₽${n.toLocaleString(locale)}`;
 }
 

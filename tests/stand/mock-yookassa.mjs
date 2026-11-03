@@ -1,5 +1,6 @@
 import http from "node:http";
 const payments = new Map();
+const refunds = [];
 let n = 0;
 const send = (res, status, body) => { res.writeHead(status, { "Content-Type": "application/json" }); res.end(JSON.stringify(body)); };
 http.createServer(async (req, res) => {
@@ -24,13 +25,21 @@ http.createServer(async (req, res) => {
     if (p._auto && p.status === "pending") settle(p, "success"); // автосписание проходит сразу
     return send(res, 200, p);
   }
-  if (url.pathname === "/__settle") { const p = payments.get(b.id); settle(p, b.result, b.method); return send(res, 200, p); }
+  if (req.method === "POST" && url.pathname === "/v3/refunds") {
+    const r = { id: `rf-${refunds.length + 1}`, status: "succeeded", payment_id: b.payment_id, amount: b.amount, receipt: b.receipt, key: req.headers["idempotence-key"] };
+    const dup = refunds.find((x) => x.key === r.key);
+    if (dup) return send(res, 200, dup);
+    refunds.push(r);
+    return send(res, 200, r);
+  }
+  if (url.pathname === "/__refunds") return send(res, 200, refunds);
+  if (url.pathname === "/__settle") { const p = payments.get(b.id); settle(p, b.result, b.method, b.card); return send(res, 200, p); }
   if (url.pathname === "/__payments") return send(res, 200, [...payments.values()]);
   send(res, 404, { type: "error", code: "not_found", description: url.pathname });
 }).listen(54500, () => console.log("mock yookassa on :54500"));
-function settle(p, result, method = "bank_card") {
+function settle(p, result, method = "bank_card", card = {}) {
   if (result === "success") {
     p.status = "succeeded"; p.paid = true;
-    p.payment_method = method === "sbp" ? { id: "pm-sbp-1", type: "sbp", saved: true } : { id: "pm-card-1234", type: "bank_card", saved: true, card: { last4: "4477", card_type: "MasterCard" } };
+    p.payment_method = method === "sbp" ? { id: "pm-sbp-1", type: "sbp", saved: true } : { id: "pm-card-1234", type: "bank_card", saved: true, card: { first6: "555555", last4: "4477", expiry_month: "12", expiry_year: "2030", card_type: "MasterCard", ...card } };
   } else { p.status = "canceled"; p.cancellation_details = { party: "yoo_money", reason: "insufficient_funds" }; }
 }

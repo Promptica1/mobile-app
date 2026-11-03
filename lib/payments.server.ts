@@ -1,9 +1,10 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { periodEnd } from "./billing.server";
+import { periodEnd, trialDescription, userEmail } from "./billing.server";
 import { storedMethodFields } from "./payment-method";
-import { getPlan } from "./plans";
-import { capturePayment, getPayment, yookassaIsTest, type YooKassaPayment } from "./yookassa";
+import { getPlan, RU_TRIAL } from "./plans";
+import { hashFor, recordPayer, ykCardFingerprint } from "./trial.server";
+import { buildReceipt, capturePayment, createRefund, getPayment, yookassaIsTest, type YooKassaPayment } from "./yookassa";
 
 // Применение платежа ЮKassa к нашей базе. Общий код для двух путей:
 // возврата пользователя в приложение (/api/payments/status) и уведомления ЮKassa (webhook).
@@ -12,14 +13,15 @@ import { capturePayment, getPayment, yookassaIsTest, type YooKassaPayment } from
 export type PaymentRow = {
   id: string;
   user_id: string | null;
-  plan: "premium" | "premium_plus";
+  plan: "premium";
   amount: number | string;
   status: string;
   yookassa_payment_id: string | null;
   // Есть после SQL автопродления: initial — первая оплата, renewal — автосписание за период,
-  // который заканчивался в renewal_for.
-  kind?: "initial" | "renewal";
+  // который заканчивался в renewal_for, trial — пробный платёж (399 ₽ за 7 дней).
+  kind?: "initial" | "renewal" | "trial";
   renewal_for?: string | null;
+  cancellation_reason?: string | null;
   test?: boolean;
 };
 
@@ -54,6 +56,10 @@ export async function applyPayment(
 
   if (payment.status === "succeeded" && payment.paid) {
     const method = payment.payment_method;
+    // Триал: «один на человека». Проверяем аккаунт, почту и карту; не положен — возвращаем деньги.
+    if (row.kind === "trial" && !(await trialAllowed(admin, row, payment, source))) {
+      return { kind: "canceled", reason: "trial_used" };
+    }
     // Атомарно «забираем» платёж: обновится только если он ещё не был подтверждён.
     // Второй путь (webhook или возврат) получит пустой ответ и ничего не продлит повторно.
     const { data: claimed, error: claimError } = await admin
@@ -73,7 +79,7 @@ export async function applyPayment(
       return { kind: "already_active" };
     }
 
-    // Токены тарифа за этот оплаченный период: баланс = 50 / 150 (остаток не переносится).
+    // Токены за этот оплаченный период: баланс = 60 (Premium) или 15 (триал), остаток не переносится.
     // Раньше продления подписки: если продление упадёт, повтор не начислит токены второй раз.
     try {
       await grantPlanTokens(admin, row, source);
@@ -92,7 +98,10 @@ export async function applyPayment(
     const currentEnd = current?.current_period_end ? new Date(current.current_period_end) : null;
     const samePlan = current?.plan === row.plan;
     let extendFrom: Date;
-    if (renewal) {
+    if (row.kind === "trial") {
+      // Триал: период — RU_TRIAL.days дней с момента оплаты; в конце cron спишет цену Premium.
+      extendFrom = now;
+    } else if (renewal) {
       // Автопродление: следующий месяц начинается ровно с конца оплаченного периода.
       const due = new Date(row.renewal_for as string);
       extendFrom = samePlan && currentEnd && currentEnd > due ? currentEnd : due;
@@ -103,7 +112,7 @@ export async function applyPayment(
           ? currentEnd
           : now;
     }
-    const end = periodEnd(extendFrom);
+    const end = row.kind === "trial" ? new Date(now.getTime() + RU_TRIAL.days * 24 * 60 * 60 * 1000) : periodEnd(extendFrom);
 
     const update: Record<string, unknown> = {
       user_id: row.user_id,
@@ -127,11 +136,28 @@ export async function applyPayment(
       update.renewal_failures = 0;
       if (!renewal) update.canceled_at = null;
     }
-    const { error: subError } = await admin.from("subscriptions").upsert(update, { onConflict: "user_id" });
+    // Поля триала и провайдера появились в SQL Stripe/тарифов: для обычной оплаты без них можно обойтись,
+    // для триала они обязательны (по ним видно, что подписка пробная).
+    const trial = row.kind === "trial";
+    const extra: Record<string, unknown> = {
+      provider: "yookassa",
+      stripe_subscription_id: null,
+      stripe_customer_id: null,
+      credits_next_grant_at: null,
+      ...(trial
+        ? { offer: "trial", is_trial: true, trial_end: end.toISOString(), billing_interval: "month" }
+        : { offer: null, is_trial: false, trial_end: null }),
+    };
+    let { error: subError } = await admin.from("subscriptions").upsert({ ...update, ...extra }, { onConflict: "user_id" });
+    if (subError && !trial) ({ error: subError } = await admin.from("subscriptions").upsert(update, { onConflict: "user_id" }));
     if (subError) {
       // Возвращаем платёж в прежний статус, чтобы следующая попытка (повтор webhook) применила его.
       await admin.from("payments").update({ status: row.status, updated_at: now.toISOString() }).eq("id", row.id);
       throw new Error(`subscription upsert: ${subError.message}`);
+    }
+    // Оплата без триала (первая или продление) закрывает триал для этого человека: карта и почта запоминаются.
+    if (!trial && row.user_id) {
+      await recordPayer(admin, { id: row.user_id, email: await userEmail(admin, row.user_id) }, `yk:paid:${row.id}`, ykCardFingerprint(method));
     }
     console.log(`YK[${source}]: payment ${payment.id} applied, plan = ${row.plan}, until ${end.toISOString()}, method = ${method?.type ?? "-"}, saved = ${Boolean(method?.saved)}`);
     return { kind: "activated", periodEnd: end.toISOString() };
@@ -147,6 +173,8 @@ export async function applyPayment(
       .in("status", ["pending", "waiting_for_capture"])
       .select("id");
     console.log(`YK[${source}]: payment ${payment.id} canceled: ${reason}`);
+    // Пробный платёж не прошёл — бронь триала снимается, можно попробовать снова.
+    if (row.kind === "trial" && changed && changed.length > 0) await admin.rpc("release_trial", { p_subscription_id: `yk:${row.id}` });
     if (row.kind === "renewal" && row.renewal_for && changed && changed.length > 0) {
       await markRenewalFailed(admin, row.user_id as string, row.renewal_for, source);
     }
@@ -209,9 +237,41 @@ export async function settlePayment(
   return applyPayment(admin, row, current, source);
 }
 
+// Триал положен, если у человека не было ни оплаты, ни триала (аккаунт, почта, карта). Иначе платёж
+// возвращается целиком, подписка не включается, credits не начисляются. Повторные вызовы безопасны.
+async function trialAllowed(admin: SupabaseClient, row: PaymentRow, payment: YooKassaPayment, source: string): Promise<boolean> {
+  if (!row.user_id) return false;
+  // Уже отклонён и возвращён раньше (второй путь — webhook / возврат в приложение).
+  if (row.status === "canceled" && row.cancellation_reason === "trial_used") return false;
+  const email = await userEmail(admin, row.user_id);
+  const { data, error } = await admin.rpc("claim_trial", {
+    p_user: row.user_id,
+    p_email_hash: hashFor(email, row.user_id),
+    p_subscription_id: `yk:${row.id}`,
+    p_fingerprint: ykCardFingerprint(payment.payment_method),
+  });
+  if (error) throw new Error(`claim trial: ${error.message}`);
+  if (data === "ok") return true;
+  console.log(`YK[${source}]: trial rejected for user ${row.user_id}: ${String(data)} — refund ${payment.id}`);
+  if (email) {
+    await createRefund({
+      paymentId: payment.id,
+      amount: Number(row.amount),
+      receipt: buildReceipt({ email, description: trialDescription, amount: Number(row.amount) }),
+      idempotenceKey: `refund-${row.id}`,
+    });
+  }
+  await admin
+    .from("payments")
+    .update({ status: "canceled", cancellation_reason: "trial_used", updated_at: new Date().toISOString() })
+    .eq("id", row.id);
+  return false;
+}
+
 // Начисление токенов тарифа (модель «сброс»). Идемпотентно в базе: один платёж — одно начисление.
+// Триал даёт RU_TRIAL.credits, обычная оплата и продление — credits тарифа Premium.
 async function grantPlanTokens(admin: SupabaseClient, row: PaymentRow, source: string) {
-  const tokens = getPlan(row.plan).tokens;
+  const tokens = row.kind === "trial" ? RU_TRIAL.credits : getPlan(row.plan).tokens;
   const { data, error } = await admin.rpc("grant_plan_tokens", {
     p_payment_id: row.id,
     p_user_id: row.user_id,

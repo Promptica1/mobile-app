@@ -146,7 +146,11 @@ export async function checkStripeSession(session: string): Promise<PaymentResult
 }
 
 // $9.99 — цены Stripe всегда в долларах, без пересчёта по курсу.
-export const formatUsd = (n: number) => `$${n.toFixed(2)}`;
+// Целые суммы без копеек ($99), в русском тексте запятая ($12,99).
+export const formatUsd = (n: number, locale = "en") => {
+  const s = Number.isInteger(n) ? String(n) : n.toFixed(2);
+  return `$${locale === "ru" ? s.replace(".", ",") : s}`;
+};
 
 export class CheckoutError extends Error {
   // code/parameter — ответ ЮKassa, если платёж отклонила она.
@@ -160,14 +164,14 @@ export class CheckoutError extends Error {
 }
 
 // Создаёт платёж на сервере и уводит на страницу оплаты ЮKassa.
-export async function startCheckout(plan: Exclude<PlanId, "free">): Promise<void> {
+export async function startCheckout(plan: Exclude<PlanId, "free">, trial = false): Promise<void> {
   let res: Response;
   try {
     res = await fetch("/api/payments/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       // Пользователь видел строку «Оформляя подписку, я принимаю Оферту и Политику…» рядом с кнопкой.
-      body: JSON.stringify({ plan, consent: true }),
+      body: JSON.stringify({ plan, consent: true, trial }),
     });
   } catch {
     throw new CheckoutError("network");

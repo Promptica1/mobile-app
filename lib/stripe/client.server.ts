@@ -22,9 +22,9 @@ export function stripeIsTest() {
 
 // Цены (Price) из Stripe Dashboard: создаются один раз, их id — в переменных окружения.
 export const stripePrices = () => ({
-  trialSetup: process.env.STRIPE_PRICE_TRIAL_SETUP?.trim() || null, // разово $4,99
-  monthly: process.env.STRIPE_PRICE_PREMIUM_MONTHLY?.trim() || null, // $9,99 в месяц
-  annual: process.env.STRIPE_PRICE_PREMIUM_ANNUAL?.trim() || null, // $49,99 в год
+  trialSetup: process.env.STRIPE_PRICE_TRIAL_SETUP?.trim() || null, // разово $3,99
+  monthly: process.env.STRIPE_PRICE_PREMIUM_MONTHLY?.trim() || null, // $12,99 в месяц
+  annual: process.env.STRIPE_PRICE_PREMIUM_ANNUAL?.trim() || null, // $99 в год
 });
 
 export function stripeMode() {

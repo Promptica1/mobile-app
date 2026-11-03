@@ -37,13 +37,13 @@ export type InvoiceInfo = {
   subscriptionId: string | null;
 };
 
-export type TrialClaim = "ok" | "user_used" | "email_used" | "card_used";
+export type TrialClaim = "ok" | "paid_before" | "user_used" | "email_used" | "card_used";
 
 export interface StripeApi {
   retrieveSubscription(id: string): Promise<StripeSub>;
   // Отменить подписку сразу (триал отклонён).
   cancelNow(id: string): Promise<void>;
-  // Вернуть деньги за последний платёж клиента (разовые $4,99 за триал).
+  // Вернуть деньги за последний платёж клиента (разовые $3,99 за триал).
   refundLatestCharge(customerId: string): Promise<void>;
   // Смена карты: платёжный способ из Checkout (setup) становится основным у подписки.
   applySetupSession(sessionId: string): Promise<{ subscriptionId: string } | null>;
@@ -58,6 +58,8 @@ export interface Store {
   userBySubscription(subscriptionId: string): Promise<string | null>;
   upsertSubscription(userId: string, sub: StripeSub, offer: Offer, creditsNextGrantAt: Date | null): Promise<void>;
   claimTrial(userId: string, emailHash: string, subscriptionId: string, fingerprint: string | null): Promise<TrialClaim>;
+  // Запомнить «этот человек уже платил» (триал ему больше недоступен). Ошибки не критичны.
+  recordPayer(userId: string, emailHash: string, ref: string, fingerprint: string | null): Promise<void>;
   grantCredits(key: string, userId: string, source: string, credits: number): Promise<boolean>;
   expireCredits(userId: string): Promise<void>;
 }

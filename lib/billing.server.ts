@@ -1,14 +1,16 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PlanId } from "./plans";
-import { getPlan } from "./plans";
+import { getPlan, RU_TRIAL } from "./plans";
 
 // Тарифы, которые можно оплатить, и их цены — только с сервера (браузеру сумму не доверяем).
 export type PaidPlanId = Exclude<PlanId, "free">;
-export const isPaidPlan = (v: unknown): v is PaidPlanId => v === "premium" || v === "premium_plus";
+export const isPaidPlan = (v: unknown): v is PaidPlanId => v === "premium";
 export const planPrice = (id: PaidPlanId) => getPlan(id).price;
-// Название платежа — оно же позиция в чеке («Подписка MIRRO Premium» / «Подписка MIRRO Premium+»).
+// Название платежа — оно же позиция в чеке («Подписка MIRRO Premium»).
 export const planDescription = (id: PaidPlanId) => `Подписка MIRRO ${getPlan(id).name}`;
+// Триал: отдельный платёж 399 ₽ с сохранением карты; через 7 дней — автосписание цены Premium.
+export const trialDescription = `Пробный период MIRRO Premium (${RU_TRIAL.days} дней)`;
 // Позиция чека для докупки токенов (когда появится оплата пакетов).
 export const TOKEN_PACK_DESCRIPTION = "Пакет токенов MIRRO";
 

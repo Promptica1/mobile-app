@@ -33,7 +33,7 @@ const RETRY_AFTER_MS = 20 * 60 * 60 * 1000;
 
 type DueSub = {
   user_id: string;
-  plan: "premium" | "premium_plus";
+  plan: "premium";
   status: "active" | "past_due";
   current_period_end: string;
   yookassa_payment_method_id: string | null;
@@ -73,12 +73,17 @@ export async function GET(request: NextRequest) {
   await admin.from("subscriptions").update({ status: "expired", yookassa_payment_method_id: null, card_last4: null, card_type: null, updated_at: nowIso }).eq("status", "canceled").lte("current_period_end", nowIso);
   await admin.from("subscriptions").update({ status: "expired", yookassa_payment_method_id: null, card_last4: null, card_type: null, updated_at: nowIso }).eq("status", "past_due").lte("current_period_end", graceLimit);
 
-  const { data: due, error } = await admin
-    .from("subscriptions")
-    .select("user_id, plan, status, current_period_end, yookassa_payment_method_id, last_renewal_attempt_at, test")
-    .in("status", ["active", "past_due"])
-    .lte("current_period_end", nowIso)
-    .limit(200);
+  // Подписки Stripe продлевает сам Stripe — их здесь не трогаем (у них нет карты ЮKassa, и без этого фильтра
+  // они ошибочно «заканчивались» бы). Колонки provider может не быть, пока не выполнен SQL Stripe.
+  const dueQuery = () =>
+    admin
+      .from("subscriptions")
+      .select("user_id, plan, status, current_period_end, yookassa_payment_method_id, last_renewal_attempt_at, test")
+      .in("status", ["active", "past_due"])
+      .lte("current_period_end", nowIso)
+      .limit(200);
+  let { data: due, error } = await dueQuery().neq("provider", "stripe");
+  if (error) ({ data: due, error } = await dueQuery());
   if (error) {
     console.log(`YK[cron]: db error: ${error.message}`);
     return NextResponse.json({ error: "db_failed" }, { status: 500 });

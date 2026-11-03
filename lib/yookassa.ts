@@ -57,7 +57,7 @@ export type YooKassaPayment = {
     type: string; // bank_card, sbp, …
     saved: boolean;
     title?: string;
-    card?: { last4?: string; card_type?: string };
+    card?: { first6?: string; last4?: string; card_type?: string; expiry_month?: string; expiry_year?: string };
   };
   cancellation_details?: { party: string; reason: string };
 };
@@ -185,6 +185,18 @@ export function createRecurringPayment(input: {
       metadata: input.metadata,
       receipt: input.receipt,
     },
+    input.idempotenceKey,
+  );
+}
+
+// Возврат всей суммы платежа (триал не положен: человек уже платил или брал триал). При «Чеках от ЮKassa»
+// возврат тоже сопровождается чеком. Idempotence-Key — повтор не создаст второй возврат.
+export function createRefund(input: { paymentId: string; amount: number; receipt: Receipt; idempotenceKey: string }) {
+  if (!/^[\w-]{10,64}$/.test(input.paymentId)) throw new YooKassaError("failed", "bad payment id");
+  return call<{ id: string; status: string }>(
+    "POST",
+    "/refunds",
+    { payment_id: input.paymentId, amount: { value: input.amount.toFixed(2), currency: "RUB" }, receipt: input.receipt },
     input.idempotenceKey,
   );
 }

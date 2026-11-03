@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { LEGAL_DOCS } from "@/lib/legal";
-import { Check, ChevronRight, FlaskConical, Info, LoaderCircle, Lock, Sparkles } from "lucide-react";
+import { Check, ChevronRight, FlaskConical, Info, LoaderCircle, Lock } from "lucide-react";
 import { useToast } from "@/components/ui/useToast";
 import {
   checkoutErrorText,
@@ -17,7 +17,7 @@ import {
   startCheckout,
   type Subscription,
 } from "@/lib/billing";
-import { PLANS, formatPrice, type Plan, type PlanId } from "@/lib/plans";
+import { PLANS, RU_TRIAL, formatPrice, type Plan, type PlanId } from "@/lib/plans";
 
 // «Оформить» создаёт платёж на сервере и уводит на страницу оплаты ЮKassa.
 const STYLES: Record<Plan["id"], { card: string; muted: string; check: string }> = {
@@ -27,7 +27,6 @@ const STYLES: Record<Plan["id"], { card: string; muted: string; check: string }>
     muted: "text-text/60",
     check: "bg-surface/80 text-text",
   },
-  premium_plus: { card: "bg-text text-background", muted: "text-background/60", check: "bg-lime text-text" },
 };
 
 function PlanCard({
@@ -37,6 +36,7 @@ function PlanCard({
   busy,
   disabled,
   onSubscribe,
+  trial,
 }: {
   plan: Plan;
   current: boolean;
@@ -45,6 +45,8 @@ function PlanCard({
   busy: boolean;
   disabled: boolean;
   onSubscribe: () => void;
+  // Триал (только тем, у кого не было ни оплаты, ни триала): отдельная кнопка с условиями до оплаты.
+  trial?: { busy: boolean; onStart: () => void };
 }) {
   const s = STYLES[plan.id];
   const t = useTranslations("subscription");
@@ -66,8 +68,6 @@ function PlanCard({
           <span className="shrink-0 rounded-full bg-text px-2.5 py-1 text-[11px] font-medium text-background">
             {tPlan("badge")}
           </span>
-        ) : plan.id === "premium_plus" ? (
-          <Sparkles size={18} strokeWidth={1.5} className="shrink-0 text-lime" aria-hidden />
         ) : null}
       </div>
 
@@ -76,7 +76,6 @@ function PlanCard({
           {formatPrice(plan.price, locale)}
         </span>
         {paid && <span className={`text-sm ${s.muted}`}>{t("perMonth")}</span>}
-        {plan.usd && <span className={`ml-1.5 text-sm ${s.muted}`}>≈ ${plan.usd}</span>}
       </p>
       {paid && <p className={`mt-1.5 text-xs ${s.muted}`}>{t("paidInRub")}</p>}
 
@@ -86,10 +85,27 @@ function PlanCard({
             <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${s.check}`}>
               <Check size={12} strokeWidth={2.5} />
             </span>
-            {tPlan(f)}
+            {tPlan(f, { n: plan.tokens })}
           </li>
         ))}
       </ul>
+
+      {paid && trial && !current && (
+        <div className="mt-6 rounded-2xl bg-surface/70 p-4">
+          <p className="text-[15px] font-medium">{t("trialTitle", { days: RU_TRIAL.days, price: formatPrice(RU_TRIAL.price, locale) })}</p>
+          {/* Условия продления — до оплаты: «затем 1499 ₽/мес», отмена в любой момент. */}
+          <p className="mt-1 text-xs leading-relaxed text-text/70">{t("trialNote", { price: formatPrice(plan.price, locale) })}</p>
+          <button
+            type="button"
+            onClick={trial.onStart}
+            disabled={disabled}
+            className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-lime text-[15px] font-medium text-text transition-transform active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100"
+          >
+            {trial.busy && <LoaderCircle size={18} strokeWidth={2} className="animate-spin" />}
+            {trial.busy ? t("redirecting") : t("startTrial", { price: formatPrice(RU_TRIAL.price, locale) })}
+          </button>
+        </div>
+      )}
 
       {paid &&
         (current && !renewByHand ? (
@@ -104,17 +120,22 @@ function PlanCard({
             type="button"
             onClick={onSubscribe}
             disabled={disabled}
-            className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-lime text-[15px] font-medium text-text transition-transform active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100"
+            className={`flex h-12 w-full items-center justify-center gap-2 rounded-full text-[15px] font-medium transition-transform active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100 ${
+              trial && !current ? "mt-3 border border-border bg-surface text-text" : "mt-6 bg-lime text-text"
+            }`}
           >
             {busy && <LoaderCircle size={18} strokeWidth={2} className="animate-spin" />}
             {busy ? t("redirecting") : t(current ? "renew" : "subscribe", { price: formatPrice(plan.price, locale) })}
           </button>
         ))}
+      {paid && !current && (
+        <p className={`mt-3 text-center text-xs leading-relaxed ${s.muted}`}>{t("renewNote", { price: formatPrice(plan.price, locale) })}</p>
+      )}
     </article>
   );
 }
 
-export default function Plans() {
+export default function Plans({ trialAvailable = false }: { trialAvailable?: boolean }) {
   const toast = useToast();
   const t = useTranslations("subscription");
   const tBilling = useTranslations("billing");
@@ -124,7 +145,7 @@ export default function Plans() {
   // undefined — загружается.
   const [sub, setSub] = useState<Subscription | null | undefined>(undefined);
   const [mode, setMode] = useState<{ available: boolean; test: boolean } | null>(null);
-  const [busy, setBusy] = useState<PlanId | null>(null);
+  const [busy, setBusy] = useState<PlanId | "trial" | null>(null);
 
   useEffect(() => {
     fetchSubscription().then(setSub, () => setSub(null));
@@ -133,12 +154,12 @@ export default function Plans() {
 
   const currentPlan: PlanId = sub && isActive(sub) ? sub.plan : "free";
 
-  const subscribe = async (plan: Plan) => {
+  const subscribe = async (plan: Plan, trial = false) => {
     if (plan.id === "free" || busy) return;
     if (mode && !mode.available) return toast.show(tBilling("paymentSoon"));
-    setBusy(plan.id);
+    setBusy(trial ? "trial" : plan.id);
     try {
-      await startCheckout(plan.id);
+      await startCheckout(plan.id, trial);
       // Дальше браузер уходит на страницу оплаты — кнопку не возвращаем.
     } catch (e) {
       toast.show(e instanceof CheckoutError ? checkoutErrorText(e.reason, e.code, e.parameter, tErrors) : checkoutErrorText("failed", null, null, tErrors));
@@ -182,6 +203,7 @@ export default function Plans() {
           busy={busy === plan.id}
           disabled={busy !== null || sub === undefined}
           onSubscribe={() => subscribe(plan)}
+          trial={trialAvailable && plan.id === "premium" ? { busy: busy === "trial", onStart: () => subscribe(plan, true) } : undefined}
         />
       ))}
 

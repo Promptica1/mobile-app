@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { resolveProvider, currencyOf } from "../lib/payment-provider.ts";
 import {
   addMonths,
+  annualSavingPercent,
   creditsOnCheckout,
   creditsOnCycle,
   mapStatus,
@@ -16,22 +17,28 @@ import { purchaseMail, trialEndingMail, annualReminderMail } from "../lib/email/
 test("credits: что начисляется при оформлении и при продлении", () => {
   assert.equal(creditsOnCheckout("trial"), 15);
   assert.equal(creditsOnCheckout("trial_free"), 5);
-  assert.equal(creditsOnCheckout("annual"), 25);
-  assert.equal(creditsOnCheckout("monthly"), 30);
-  // Триал → Premium: после первой оплаты $9,99 баланс становится 30 в месяц.
-  assert.equal(creditsOnCycle("trial"), 30);
-  assert.equal(creditsOnCycle("trial_free"), 30);
-  assert.equal(creditsOnCycle("monthly"), 30);
-  assert.equal(creditsOnCycle("annual"), 25);
+  assert.equal(creditsOnCheckout("annual"), 60);
+  assert.equal(creditsOnCheckout("monthly"), 60);
+  // Триал → Premium: после первой оплаты $12,99 баланс становится 60 в месяц (не накапливается).
+  assert.equal(creditsOnCycle("trial"), 60);
+  assert.equal(creditsOnCycle("trial_free"), 60);
+  assert.equal(creditsOnCycle("monthly"), 60);
+  assert.equal(creditsOnCycle("annual"), 60);
 });
 
 test("тарифы: цены и сроки", () => {
-  assert.equal(OFFER_INFO.trial.setupUsd, 4.99);
-  assert.equal(OFFER_INFO.trial.trialDays, 5);
-  assert.equal(OFFER_INFO.trial.recurringUsd, 9.99);
+  assert.equal(OFFER_INFO.trial.setupUsd, 3.99);
+  assert.equal(OFFER_INFO.trial.trialDays, 7);
+  assert.equal(OFFER_INFO.trial.recurringUsd, 12.99);
+  assert.equal(OFFER_INFO.trial.startCredits, 15);
+  assert.equal(OFFER_INFO.monthly.recurringUsd, 12.99);
+  assert.equal(OFFER_INFO.monthly.startCredits, 60);
   assert.equal(OFFER_INFO.trial_free.setupUsd, 0);
   assert.equal(OFFER_INFO.trial_free.trialDays, 3);
-  assert.equal(OFFER_INFO.annual.recurringUsd, 49.99);
+  assert.equal(OFFER_INFO.annual.recurringUsd, 99);
+  assert.equal(OFFER_INFO.trial_free.trialDays, 3); // вариант B не менялся
+  assert.equal(OFFER_INFO.trial_free.startCredits, 5);
+  assert.equal(annualSavingPercent(), 36);
   assert.equal(OFFER_INFO.annual.interval, "year");
   assert.equal(trialOffer(false), "trial");
   assert.equal(trialOffer(true), "trial_free");
@@ -100,12 +107,13 @@ test("письма на английском и с нужными суммами
   const url = "https://example.com/manage";
   const trial = purchaseMail({ offer: "trial", periodEnd: null, trialEnd: new Date("2026-11-05T10:00:00Z") }, url);
   assert.match(trial.subject, /trial/i);
-  assert.match(trial.text, /\$4\.99/);
-  assert.match(trial.text, /\$9\.99\/month/);
+  assert.match(trial.text, /\$3\.99/);
+  assert.match(trial.text, /7-day trial/);
+  assert.match(trial.text, /\$12\.99\/month/);
   assert.match(trial.text, /November 5, 2026/);
   assert.ok(trial.html.includes(url));
   assert.doesNotMatch(trial.text + trial.html, /[А-Яа-я]/);
-  assert.match(purchaseMail({ offer: "annual", periodEnd: new Date("2027-10-27T00:00:00Z"), trialEnd: null }, url).text, /\$49\.99\/year/);
-  assert.match(trialEndingMail({ trialEnd: new Date("2026-11-05T10:00:00Z") }, url).text, /\$9\.99\/month/);
+  assert.match(purchaseMail({ offer: "annual", periodEnd: new Date("2027-10-27T00:00:00Z"), trialEnd: null }, url).text, /\$99\/year/);
+  assert.match(trialEndingMail({ trialEnd: new Date("2026-11-05T10:00:00Z") }, url).text, /\$12\.99\/month/);
   assert.match(annualReminderMail({ renewsOn: new Date("2027-10-27T00:00:00Z") }, url).subject, /7 days/);
 });

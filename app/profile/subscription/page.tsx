@@ -5,7 +5,7 @@ import StripePlans from "@/components/profile/StripePlans";
 import SubScreen from "@/components/profile/SubScreen";
 import { STRIPE_FREE_TRIAL } from "@/lib/features";
 import { getPaymentProvider } from "@/lib/payment-provider.server";
-import { emailHash } from "@/lib/stripe/webhook";
+import { isTrialAvailable } from "@/lib/trial.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -15,27 +15,27 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t("subscription")} — MIRRO` };
 }
 
-// Можно ли этому человеку взять триал. Не удалось проверить — показываем триал: окончательно
-// решает сервер при оплате (и по карте — после неё).
+// Триал только тому, у кого никогда не было ни оплаты (любого тарифа), ни триала: аккаунт и нормализованная
+// почта (карту проверяет сервер после ввода). Нет проверки (демо без базы) — триал не показываем.
 async function trialAvailable(): Promise<boolean> {
-  if (!getSupabaseEnv()) return true;
+  if (!getSupabaseEnv()) return false;
   const admin = createAdminClient();
-  if (!admin) return true;
+  if (!admin) return false;
   const {
     data: { user },
   } = await (await createClient()).auth.getUser();
-  if (!user?.email) return true;
-  const { data, error } = await admin.rpc("trial_available", { p_user: user.id, p_email_hash: emailHash(user.email) });
-  return error ? true : data === true;
+  if (!user) return false;
+  return isTrialAvailable(admin, user);
 }
 
 // Россия и Telegram — ЮKassa (рубли), остальные страны — Stripe (доллары). Переключателя нет.
 export default async function SubscriptionPage() {
   const t = await getTranslations("pages");
   const provider = await getPaymentProvider();
+  const trial = await trialAvailable();
   return (
     <SubScreen title={t("subscription")}>
-      {provider === "stripe" ? <StripePlans trialAvailable={await trialAvailable()} freeTrial={STRIPE_FREE_TRIAL} /> : <Plans />}
+      {provider === "stripe" ? <StripePlans trialAvailable={trial} freeTrial={STRIPE_FREE_TRIAL} /> : <Plans trialAvailable={trial} />}
     </SubScreen>
   );
 }
