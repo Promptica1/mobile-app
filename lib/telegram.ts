@@ -1,3 +1,4 @@
+import { RU_ENABLED } from "./features";
 import { TELEGRAM_COOKIE } from "./payment-provider";
 
 // Открыто ли приложение внутри Telegram (Mini App): оттуда оплата всегда идёт через ЮKassa.
@@ -14,7 +15,8 @@ export function inTelegram(): boolean {
 
 // Запомнить «мы в Telegram» для сервера (он выбирает платёжную систему по cookie).
 export function markTelegram() {
-  if (!inTelegram()) return;
+  // Мини-приложение Telegram отключено вместе с ЮKassa: пометку не ставим.
+  if (!RU_ENABLED || !inTelegram()) return;
   try {
     document.cookie = `${TELEGRAM_COOKIE}=1; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
   } catch {

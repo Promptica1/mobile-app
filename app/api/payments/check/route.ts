@@ -1,3 +1,4 @@
+import { RU_ENABLED } from "@/lib/features";
 import { NextResponse } from "next/server";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -7,6 +8,8 @@ import { getShop, yookassaMode, YooKassaError } from "@/lib/yookassa";
 // подходят ли ShopID и ключ друг к другу, какой это магазин и включены ли чеки.
 // Секреты не показываются.
 export async function GET() {
+  // ЮKassa выключена (RU_ENABLED): адрес не существует, ничего не выполняется.
+  if (!RU_ENABLED) return new NextResponse(null, { status: 404 });
   if (!getSupabaseEnv()) return NextResponse.json({ error: "not_configured" }, { status: 503 });
   const supabase = await createClient();
   const {

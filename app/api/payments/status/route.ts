@@ -1,3 +1,4 @@
+import { RU_ENABLED } from "@/lib/features";
 import { NextResponse, type NextRequest } from "next/server";
 import { settlePayment, type PaymentRow } from "@/lib/payments.server";
 import { getPlan } from "@/lib/plans";
@@ -13,6 +14,8 @@ const json = (body: Record<string, unknown>, status = 200) =>
   NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
 
 export async function GET(request: NextRequest) {
+  // ЮKassa выключена (RU_ENABLED): адрес не существует, ничего не выполняется.
+  if (!RU_ENABLED) return new NextResponse(null, { status: 404 });
   if (!getSupabaseEnv()) return json({ error: "not_configured" }, 503);
   const supabase = await createClient();
   const {

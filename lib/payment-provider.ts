@@ -2,12 +2,19 @@
 // страны — Stripe (доллары). Мини-приложение Telegram всегда платит через ЮKassa.
 // Ручного переключателя нет. Страна неизвестна (локально, нет заголовка) — ЮKassa, как раньше.
 
+import { RU_ENABLED } from "./features.ts";
+
 export type Provider = "yookassa" | "stripe";
 
 // Страны, которые платят через ЮKassa.
 export const YOOKASSA_COUNTRIES = ["RU", "BY"] as const;
 
-export function resolveProvider({ country, telegram }: { country?: string | null; telegram?: boolean }): Provider {
+// ruEnabled выключен (по умолчанию) — весь трафик идёт в Stripe, ЮKassa не выбирается ни по стране, ни из Telegram.
+export function resolveProvider(
+  { country, telegram }: { country?: string | null; telegram?: boolean },
+  ruEnabled: boolean = RU_ENABLED,
+): Provider {
+  if (!ruEnabled) return "stripe";
   if (telegram) return "yookassa";
   const c = country?.trim().toUpperCase();
   if (!c) return "yookassa";

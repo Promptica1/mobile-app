@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { emailConfigured, sendAnnualReminder, sendTrialEnding } from "@/lib/email.server";
+import { RU_ENABLED } from "@/lib/features";
 import { formatPrice, RU_ANNUAL } from "@/lib/plans";
 import { createStore } from "@/lib/stripe/store.server";
 import { ANNUAL_REMINDER_DAYS, creditsOnCycle, nextMonthlyGrant, OFFER_INFO, TRIAL_REMINDER_HOURS } from "@/lib/stripe/rules";
@@ -132,7 +133,10 @@ export async function GET(request: NextRequest) {
         // Сумма и язык письма: Stripe — доллары (английский по умолчанию), ЮKassa — рубли (русский по умолчанию);
         // если человек выбрал язык в профиле, пишем на нём.
         const stripe = sub.provider === "stripe";
-        const locale = (await profileLocale(admin, sub.user_id)) ?? (stripe ? "en" : "ru");
+        // Напоминание в рублях (ЮKassa) — только пока русская версия включена.
+        if (!stripe && !RU_ENABLED) continue;
+        // Язык писем: пока RU_ENABLED выключен — всегда английский (язык профиля игнорируется).
+        const locale = !RU_ENABLED ? "en" : (await profileLocale(admin, sub.user_id)) ?? (stripe ? "en" : "ru");
         const price = stripe ? `$${OFFER_INFO.annual.recurringUsd}` : formatPrice(RU_ANNUAL.price, locale === "ru" ? "ru" : "en");
         if (await sendAnnualReminder(email, new Date(end), { price, locale: locale === "ru" ? "ru" : "en" })) {
           await admin.from("subscriptions").update({ renewal_reminder_for: end }).eq("user_id", sub.user_id);

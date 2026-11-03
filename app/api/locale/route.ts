@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { LOCALE_COOKIE, isLocale } from "@/i18n/config";
+import { RU_ENABLED } from "@/lib/features";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -9,6 +10,8 @@ import { createClient } from "@/lib/supabase/server";
 // язык писем Supabase. Если базы или колонки нет, язык всё равно переключается через cookie.
 
 export async function POST(request: NextRequest) {
+  // Язык не переключается (RU_ENABLED выключен).
+  if (!RU_ENABLED) return new NextResponse(null, { status: 404 });
   const body = (await request.json().catch(() => null)) as { locale?: unknown } | null;
   const locale = body?.locale;
   if (!isLocale(locale)) return NextResponse.json({ error: "bad_locale" }, { status: 400 });

@@ -7,6 +7,6 @@ SUPABASE_SERVICE_ROLE_KEY=test-service-key \
 YOOKASSA_SHOP_ID=123456 YOOKASSA_SECRET_KEY=test_abc YOOKASSA_API_URL=http://localhost:54500/v3 \
 STRIPE_SECRET_KEY=sk_test_abc STRIPE_API_URL=http://localhost:54600 STRIPE_WEBHOOK_SECRET=whsec_test_secret \
 STRIPE_PRICE_TRIAL_SETUP=price_setup STRIPE_PRICE_PREMIUM_MONTHLY=price_monthly STRIPE_PRICE_PREMIUM_ANNUAL=price_annual \
-CRON_SECRET=cron-secret APP_URL=http://localhost:3100 \
+ALLOWLIST_EMAILS="Staff@Example.com, other-staff@example.com" CRON_SECRET=cron-secret APP_URL=http://localhost:3100 \
 RESEND_API_KEY=re_test RESEND_API_URL=http://localhost:54700 EMAIL_FROM="MIRRO <billing@example.com>" \
 exec npx next start -p 3100

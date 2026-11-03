@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { DEFAULT_LOCALE } from "@/i18n/config";
+import { RU_ENABLED } from "./features";
 import type { LegalDoc } from "./legal";
 
 const LEGAL_DIR = () => path.join(process.cwd(), "content", "legal");
@@ -10,6 +11,16 @@ const LEGAL_DIR = () => path.join(process.cwd(), "content", "legal");
 // Какой файл показывать: перевод content/legal/<документ>.<язык>.md, если он есть и не пуст
 // (его проверяет юрист), иначе русский оригинал content/legal/<документ>.md.
 function legalFile(doc: LegalDoc, locale: string): { text: string; translated: boolean } {
+  // Русская версия выключена (RU_ENABLED): русские документы не показываем. Английский файл пуст —
+  // страница сообщит, что документ дорабатывается.
+  if (!RU_ENABLED) {
+    try {
+      const text = readFileSync(path.join(LEGAL_DIR(), `${doc}.en.md`), "utf8");
+      return { text, translated: true };
+    } catch {
+      return { text: "", translated: true };
+    }
+  }
   if (locale !== DEFAULT_LOCALE) {
     try {
       const text = readFileSync(path.join(LEGAL_DIR(), `${doc}.${locale}.md`), "utf8");
@@ -36,7 +47,7 @@ export function legalVersion(doc: LegalDoc, locale: string = DEFAULT_LOCALE): st
 export type LegalBlock = { kind: "h1" | "h2" | "p"; text: string };
 
 // translated: false — показан русский оригинал (перевода нет), страница предупредит об этом.
-export function legalBlocks(doc: LegalDoc, locale: string = DEFAULT_LOCALE): { blocks: LegalBlock[]; translated: boolean } {
+export function legalBlocks(doc: LegalDoc, locale: string = DEFAULT_LOCALE): { blocks: LegalBlock[]; translated: boolean; available: boolean } {
   const { text, translated } = legalFile(doc, locale);
   const blocks = text
     .replace(/\r\n/g, "\n")
@@ -48,5 +59,5 @@ export function legalBlocks(doc: LegalDoc, locale: string = DEFAULT_LOCALE): { b
       if (chunk.startsWith("# ")) return { kind: "h1", text: chunk.slice(2).trim() };
       return { kind: "p", text: chunk };
     });
-  return { blocks, translated };
+  return { blocks, translated, available: blocks.length > 0 };
 }

@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { LanguageSheet } from "@/components/LanguageSwitcher";
+import { RU_ENABLED } from "@/lib/features";
 import { usePwa } from "@/components/pwa/PwaProvider";
 import { LOCALE_NAMES, isLocale } from "@/i18n/config";
 import { fetchSubscription, formatUsd, isActive, subscriptionNote, type Subscription } from "@/lib/billing";
@@ -134,12 +135,17 @@ export default function ProfileScreen({ profile: initial, userId, photo, tokens,
           { label: t("rows.avatar"), Icon: UserRound, href: "/profile/avatar" },
           { label: t("rows.privacy"), Icon: ShieldCheck, href: "/profile/privacy" },
           { label: t("rows.help"), Icon: CircleHelp, href: "/profile/help" },
-          {
-            label: t("rows.language"),
-            Icon: Globe,
-            onClick: () => setLanguageOpen(true),
-            value: isLocale(locale) ? LOCALE_NAMES[locale] : undefined,
-          },
+          // Язык не выбирается (RU_ENABLED выключен) — строки «Язык» нет.
+          ...(RU_ENABLED
+            ? [
+                {
+                  label: t("rows.language"),
+                  Icon: Globe,
+                  onClick: () => setLanguageOpen(true),
+                  value: isLocale(locale) ? LOCALE_NAMES[locale] : undefined,
+                },
+              ]
+            : []),
           { label: t("rows.install"), Icon: Smartphone, onClick: openInstall },
           { label: t("rows.about"), Icon: Info, href: "/profile/about" },
         ]}

@@ -85,18 +85,18 @@ test("статусы Stripe → наши", () => {
   assert.equal(mapStatus("incomplete", false), null);
 });
 
-test("провайдер оплаты: Россия, Беларусь и Telegram — ЮKassa, остальные — Stripe", () => {
-  assert.equal(resolveProvider({ country: "RU" }), "yookassa");
-  assert.equal(resolveProvider({ country: "ru" }), "yookassa");
-  assert.equal(resolveProvider({ country: "BY" }), "yookassa"); // Беларусь — вместе с Россией
-  assert.equal(resolveProvider({ country: "by" }), "yookassa");
-  assert.equal(resolveProvider({ country: "KZ" }), "stripe");
-  assert.equal(resolveProvider({ country: "UA" }), "stripe");
-  assert.equal(resolveProvider({ country: "US" }), "stripe");
-  assert.equal(resolveProvider({ country: "DE" }), "stripe");
-  assert.equal(resolveProvider({ country: "US", telegram: true }), "yookassa"); // бот всегда ЮKassa
-  assert.equal(resolveProvider({ country: null }), "yookassa"); // страна неизвестна — как раньше
-  assert.equal(resolveProvider({}), "yookassa");
+test("провайдер оплаты (RU_ENABLED включён): Россия, Беларусь и Telegram — ЮKassa, остальные — Stripe", () => {
+  assert.equal(resolveProvider({ country: "RU" }, true), "yookassa");
+  assert.equal(resolveProvider({ country: "ru" }, true), "yookassa");
+  assert.equal(resolveProvider({ country: "BY" }, true), "yookassa"); // Беларусь — вместе с Россией
+  assert.equal(resolveProvider({ country: "by" }, true), "yookassa");
+  assert.equal(resolveProvider({ country: "KZ" }, true), "stripe");
+  assert.equal(resolveProvider({ country: "UA" }, true), "stripe");
+  assert.equal(resolveProvider({ country: "US" }, true), "stripe");
+  assert.equal(resolveProvider({ country: "DE" }, true), "stripe");
+  assert.equal(resolveProvider({ country: "US", telegram: true }, true), "yookassa"); // бот всегда ЮKassa
+  assert.equal(resolveProvider({ country: null }, true), "yookassa"); // страна неизвестна — как раньше
+  assert.equal(resolveProvider({}, true), "yookassa");
   assert.equal(currencyOf("stripe"), "USD");
   assert.equal(currencyOf("yookassa"), "RUB");
 });
@@ -128,4 +128,12 @@ test("напоминание о продлении года: русский дл
   assert.match(en.subject, /7 days/);
   assert.match(en.text, /₽10,990\/year/);
   assert.doesNotMatch(en.text, /[А-Яа-я]/);
+});
+
+test("провайдер оплаты (RU_ENABLED выключен, по умолчанию): весь трафик — Stripe", () => {
+  for (const country of ["RU", "BY", "ru", "US", "DE", null, undefined]) {
+    assert.equal(resolveProvider({ country }, false), "stripe");
+    assert.equal(resolveProvider({ country, telegram: true }, false), "stripe");
+  }
+  assert.equal(resolveProvider({}, false), "stripe");
 });

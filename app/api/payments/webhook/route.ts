@@ -1,3 +1,4 @@
+import { RU_ENABLED } from "@/lib/features";
 import { NextResponse, type NextRequest } from "next/server";
 import { settlePayment, type PaymentRow } from "@/lib/payments.server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -20,6 +21,8 @@ const retryLater = (reason: string) => {
 };
 
 export async function POST(request: NextRequest) {
+  // ЮKassa выключена (RU_ENABLED): адрес не существует, ничего не выполняется.
+  if (!RU_ENABLED) return new NextResponse(null, { status: 404 });
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   const body = (await request.json().catch(() => null)) as
     | { type?: string; event?: string; object?: { id?: unknown } }

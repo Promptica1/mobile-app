@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import { isLocale } from "@/i18n/config";
+import { RU_ENABLED } from "@/lib/features";
 import { readLocaleCookie, saveLocale } from "@/lib/locale";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseEnv } from "@/lib/supabase/env";
@@ -18,7 +19,8 @@ export default function LocaleSync() {
   const current = useLocale();
 
   useEffect(() => {
-    if (!getSupabaseEnv()) return;
+    // Язык не выбирается (всегда английский): ни cookie, ни профиль не синхронизируем.
+    if (!RU_ENABLED || !getSupabaseEnv()) return;
     let alive = true;
     (async () => {
       const supabase = createClient();

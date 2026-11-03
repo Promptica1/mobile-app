@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Check } from "lucide-react";
 import Sheet from "@/components/ui/Sheet";
 import { LOCALES, LOCALE_NAMES, type Locale } from "@/i18n/config";
+import { RU_ENABLED } from "@/lib/features";
 import { saveLocale } from "@/lib/locale";
 
 // Список языков: нажатие сохраняет выбор и перерисовывает страницу на новом языке.
@@ -74,6 +75,8 @@ export function LanguageSheet({ onClose }: { onClose: () => void }) {
 export function LanguageLinks() {
   const router = useRouter();
   const current = useLocale();
+  // Интерфейс только английский — переключателя нет.
+  if (!RU_ENABLED) return null;
   return (
     <nav aria-label="Language" className="flex items-center justify-center gap-3 text-xs text-muted">
       {LOCALES.map((locale, i) => (

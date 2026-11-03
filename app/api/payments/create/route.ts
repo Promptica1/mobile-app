@@ -1,3 +1,4 @@
+import { RU_ENABLED } from "@/lib/features";
 import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { isPaidPlan, planDescription, planPrice, trialDescription } from "@/lib/billing.server";
@@ -19,6 +20,8 @@ const fail = (reason: string, status: number) => {
 };
 
 export async function POST(request: NextRequest) {
+  // ЮKassa выключена (RU_ENABLED): адрес не существует, ничего не выполняется.
+  if (!RU_ENABLED) return new NextResponse(null, { status: 404 });
   if (!getSupabaseEnv()) return fail("not_configured", 503);
   const supabase = await createClient();
   const {

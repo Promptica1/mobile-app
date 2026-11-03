@@ -1,3 +1,4 @@
+import { RU_ENABLED } from "@/lib/features";
 import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { planDescription, planPrice, userEmail } from "@/lib/billing.server";
@@ -50,6 +51,8 @@ const WAIT_PER_CHARGE_MS = 12_000;
 const RUN_BUDGET_MS = 45_000;
 
 export async function GET(request: NextRequest) {
+  // ЮKassa выключена (RU_ENABLED): адрес не существует, ничего не выполняется.
+  if (!RU_ENABLED) return new NextResponse(null, { status: 404 });
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     console.log("YK[cron]: CRON_SECRET is not set");

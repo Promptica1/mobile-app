@@ -21,8 +21,10 @@
   <p data-ru="Проверьте интернет — как только он появится, приложение снова заработает." data-en="Check your connection — MIRRO will work again as soon as you're back online.">Check your connection — MIRRO will work again as soon as you're back online.</p>
   <button type="button" data-ru="Повторить" data-en="Try again" onclick="location.reload()">Try again</button>
   <script>
-    // Язык устройства: русский или английский.
-    var lang = (navigator.language || "en").toLowerCase().indexOf("ru") === 0 ? "ru" : "en";
+    // Русская версия выключена (RU_ENABLED в lib/features.ts): только английский. Чтобы вернуть язык устройства,
+    // поставьте true (файл статический и флаг из кода не читает).
+    var RU_ENABLED = false;
+    var lang = RU_ENABLED && (navigator.language || "en").toLowerCase().indexOf("ru") === 0 ? "ru" : "en";
     document.documentElement.lang = lang;
     document.querySelectorAll("[data-" + lang + "]").forEach(function (el) { el.textContent = el.getAttribute("data-" + lang); });
   </script>

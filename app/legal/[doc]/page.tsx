@@ -38,7 +38,7 @@ export default async function LegalPage({ params }: { params: Promise<{ doc: str
   const { doc } = await params;
   if (!isDoc(doc)) notFound();
   const t = await getTranslations("legal");
-  const { blocks, translated } = legalBlocks(doc, await getLocale());
+  const { blocks, translated, available } = legalBlocks(doc, await getLocale());
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-background px-6 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)]">
       <header className="flex items-center gap-1 py-4">
@@ -49,6 +49,7 @@ export default async function LegalPage({ params }: { params: Promise<{ doc: str
       {!translated && (await getLocale()) !== "ru" && (
         <p className="mb-4 rounded-2xl bg-lavender/20 px-4 py-3 text-xs leading-relaxed">{t("onlyRussian")}</p>
       )}
+      {!available && <p className="text-[15px] leading-relaxed text-text/80">{t("finalizing")}</p>}
       <article className="flex flex-col gap-3 pb-4 text-sm leading-relaxed">
         {blocks.map((b, i) =>
           b.kind === "p" ? (

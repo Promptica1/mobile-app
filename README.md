@@ -170,3 +170,16 @@ Idempotence-Key и идемпотентное применение платеж�
 ## Деплой
 
 Vercel собирает ветку `main` автоматически после каждого push.
+
+## Режим «только английский и Stripe» (RU_ENABLED)
+
+Флаг `RU_ENABLED` в `lib/features.ts` (по умолчанию **выключен**; включается переменной `NEXT_PUBLIC_RU_ENABLED=true` при сборке).
+Пока он выключен:
+
+- интерфейс только английский: переключателя языка нет, cookie `NEXT_LOCALE`, `Accept-Language` и `profiles.locale` игнорируются;
+- весь трафик платит через Stripe; адреса ЮKassa (`/api/payments/{create,status,webhook,check}`, `/api/cron/renew`, `/api/subscription`) отвечают 404, Telegram-метка не ставится;
+- посетителям из России и Беларуси (заголовок `x-vercel-ip-country`) показывается нейтральная страница «MIRRO isn’t available in your region yet» (HTTP 403). Доступ остаётся у адресов из переменной `ALLOWLIST_EMAILS` (через запятую, регистр не важен); войти им нужно через `/login?staff=1` (служебная cookie открывает форму входа, а доступ даёт только адрес из списка). Вызовы Stripe webhook и cron регионом не блокируются;
+- `/legal/offer` и `/legal/privacy` показывают «This document is being finalized and will be available before launch», пока `content/legal/offer.en.md` и `privacy.en.md` пусты; русские документы не отдаются;
+- русские тексты (`messages/ru.json`, ЮKassa, СБП) из сообщений приложения убраны (`i18n/ru-only.ts`), но из репозитория ничего не удалено.
+
+Чтобы вернуть русскую версию и ЮKassa: собрать с `NEXT_PUBLIC_RU_ENABLED=true` (и поставить `var RU_ENABLED = true` в `public/offline.html`).
