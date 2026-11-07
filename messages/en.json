@@ -264,9 +264,9 @@
     "testTitle": "Test mode.",
     "testText": "Payments go through YooKassa test cards — no real money is charged.",
     "yourPlan": "Your plan is ",
-    "yourPlanCanceled": ", canceled — access until {date}.",
+    "yourPlanCanceled": ", canceled — access until {date}",
     "yourPlanPastDue": ", the payment couldn't be charged — we'll try again.",
-    "yourPlanActive": ", active until {date}.",
+    "yourPlanActive": " — renews on {date}",
     "agreePrefix": "By subscribing, I accept the",
     "offer": "Terms of Service",
     "and": "and the",
@@ -390,7 +390,11 @@
       "renew": "Renew for {price}/year"
     },
     "trialLabel": "Trial",
-    "forDays": "for {days, plural, one {# day} other {# days}}"
+    "forDays": "for {days, plural, one {# day} other {# days}}",
+    "resumeButton": "Resume subscription",
+    "resumed": "Subscription resumed",
+    "resumeError": "That didn't work. Check your connection and try again.",
+    "yourTrial": "Your trial ends on {date}. Then {plan} at {price}/month"
   },
   "common": {
     "back": "Back",

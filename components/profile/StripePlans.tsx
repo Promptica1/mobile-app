@@ -8,6 +8,7 @@ import InAppBrowserHint from "@/components/InAppBrowserHint";
 import { useToast } from "@/components/ui/useToast";
 import {
   formatUsd,
+  changeStripeRenewal,
   checkoutErrorText,
   CheckoutError,
   fetchPaymentMode,
@@ -20,6 +21,7 @@ import {
   type Subscription,
 } from "@/lib/billing";
 import { LEGAL_DOCS } from "@/lib/legal";
+import { planScreenView } from "@/lib/subscription-view";
 import { yearlyPricing } from "@/lib/plans";
 import { OFFER_INFO } from "@/lib/stripe/rules";
 import { FeatureList, PricePill, QuietNote, YearlyCard } from "./PlanParts";
@@ -163,11 +165,29 @@ export default function StripePlans({ trialAvailable, freeTrial }: Props) {
   const trial: StripeOffer = freeTrial ? "trial_free" : "trial";
   const offers: StripeOffer[] = trialAvailable ? [trial, "annual"] : ["monthly", "annual"];
   const disabled = busy !== null || sub === undefined;
+  const view = planScreenView(sub, Boolean(active));
+  const [resuming, setResuming] = useState(false);
+
+  // Возобновить продление: тот же серверный вызов, что и в «Manage subscription» (cancel_at_period_end = false,
+  // без нового платежа до конца оплаченного периода). Статус обновляем с сервера.
+  const resume = async () => {
+    if (resuming) return;
+    setResuming(true);
+    try {
+      await changeStripeRenewal("resume");
+      setSub((s) => (s ? { ...s, status: "active" } : s));
+      fetchSubscription().then((fresh) => fresh && setSub(fresh), () => null);
+      toast.show(tSub("resumed"));
+    } catch {
+      toast.show(tSub("resumeError"));
+    }
+    setResuming(false);
+  };
 
   return (
     <div className="flex flex-col gap-4">
       <InAppBrowserHint />
-      <p className="px-1 text-sm leading-relaxed text-muted">{t("intro")}</p>
+      {view.showIntro && <p className="px-1 text-sm leading-relaxed text-muted">{t("intro")}</p>}
 
       {mode?.test && mode.available && (
         <p className="flex gap-2.5 rounded-2xl bg-lime/40 px-4 py-3 text-xs leading-relaxed">
@@ -181,6 +201,15 @@ export default function StripePlans({ trialAvailable, freeTrial }: Props) {
       {active ? (
         <>
           <p className="px-1 text-sm">
+            {view.state === "trial" ? (
+              // Пробный период: «Your trial ends on <дата>. Then Premium at $12.99/month» (сумма — из lib/stripe/rules.ts).
+              tSub("yourTrial", {
+                date: formatDate(active.trial_end ?? active.current_period_end ?? "", locale),
+                plan: tPlans(`${active.plan}.name`),
+                price: formatUsd(OFFER_INFO[active.offer && active.offer !== "annual" ? active.offer : "trial"].recurringUsd, locale),
+              })
+            ) : (
+              <>
             {tSub("yourPlan")}
             <b className="font-semibold">{tPlans(`${active.plan}.name`)}</b>
             {active.current_period_end
@@ -190,10 +219,25 @@ export default function StripePlans({ trialAvailable, freeTrial }: Props) {
                   ? tSub("yourPlanPastDue")
                   : tSub("yourPlanActive", { date: formatDate(active.current_period_end, locale) })
               : ""}
+              </>
+            )}
           </p>
+          {view.showResume && (
+            <button
+              type="button"
+              onClick={resume}
+              disabled={resuming}
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-lime text-[15px] font-semibold text-text transition-transform active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100"
+            >
+              {resuming && <LoaderCircle size={18} strokeWidth={2} className="animate-spin" />}
+              {tSub("resumeButton")}
+            </button>
+          )}
           <Link
             href="/profile/subscription/manage"
-            className="flex h-12 w-full items-center justify-center rounded-full bg-text text-[15px] font-medium text-background"
+            className={`flex h-12 w-full items-center justify-center rounded-full text-[15px] font-medium ${
+              view.showResume ? "border border-border bg-surface text-text" : "bg-text text-background"
+            }`}
           >
             {tSub("manageButton")}
           </Link>

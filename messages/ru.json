@@ -264,9 +264,9 @@
     "testTitle": "Тестовый режим.",
     "testText": "Оплата проходит тестовыми картами ЮKassa — настоящие деньги не списываются.",
     "yourPlan": "Ваш тариф — ",
-    "yourPlanCanceled": ", отменён, доступ до {date}.",
+    "yourPlanCanceled": ", отменён — доступ до {date}",
     "yourPlanPastDue": ", не удалось списать оплату — попробуем ещё раз.",
-    "yourPlanActive": ", действует до {date}.",
+    "yourPlanActive": " — продлится {date}",
     "agreePrefix": "Оформляя подписку, я принимаю",
     "offer": "Оферту",
     "and": "и",
@@ -390,7 +390,11 @@
       "renew": "Продлить за {price} в год"
     },
     "trialLabel": "Пробный период",
-    "forDays": "за {days, plural, one {# день} few {# дня} many {# дней} other {# дня}}"
+    "forDays": "за {days, plural, one {# день} few {# дня} many {# дней} other {# дня}}",
+    "resumeButton": "Возобновить подписку",
+    "resumed": "Подписка возобновлена",
+    "resumeError": "Не получилось. Проверьте соединение и попробуйте ещё раз.",
+    "yourTrial": "Пробный период заканчивается {date}. Затем {plan} за {price}/мес"
   },
   "common": {
     "back": "Назад",
